@@ -1,0 +1,205 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Watch the senses</title>
+<style>
+  :root { --bg:#f6f7f8; --card:#fff; --ink:#1b1f24; --muted:#5b6570; --rule:#d5dbe0; --accent:#0f6b5c; --good:#13795b; --bad:#b3261e; --soon:#8a6d1c; --code:#eef1f3; --vis:#8a4fa8; --act:#b4602a }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --card:#1c2024; --ink:#e8ebee; --muted:#98a2ad; --rule:#2f363d; --accent:#4fc3ad; --good:#4fc79b; --bad:#ff8a80; --soon:#d9b455; --code:#242a30; --vis:#c79be0; --act:#e8a273 } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 -apple-system, system-ui, "Segoe UI", sans-serif }
+  main { max-width:1180px; margin:0 auto; padding:24px 16px 64px }
+  h1 { font-size:28px; line-height:1.15; margin:0 0 6px } h2 { font-size:15px; margin:0 0 8px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted) }
+  p { margin:0 0 10px } .muted { color:var(--muted) } .small { font-size:14px }
+  code { font:13px ui-monospace, Menlo, monospace; background:var(--code); padding:1px 6px; border-radius:5px }
+  .hero { display:flex; gap:18px; align-items:center; margin-bottom:14px } .hero img { width:84px; height:84px; border-radius:12px; border:1px solid var(--rule); flex:none }
+  .bar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:12px 14px; margin:12px 0 }
+  select, button { font:inherit; padding:7px 12px; border-radius:8px; border:1px solid var(--rule); background:var(--card); color:var(--ink) }
+  button { cursor:pointer } button.primary { background:var(--accent); color:#fff; border-color:var(--accent); font-weight:600 } @media (prefers-color-scheme: dark) { button.primary { color:#06231d } }
+  button:disabled { opacity:.5; cursor:default }
+  a { color:var(--accent) }
+  .grid { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(0,1fr); gap:14px; align-items:start }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:14px }
+  .stage { position:relative; width:100%; aspect-ratio:2560/1600; background:#fff; border:1px solid var(--rule); border-radius:8px; overflow:hidden }
+  .stage img { position:absolute; inset:0; width:100%; height:100%; display:block }
+  .empty { position:absolute; inset:0; display:grid; place-items:center; color:var(--muted); font-size:15px; text-align:center; padding:20px }
+  .ov { position:absolute; pointer-events:none }
+  .region { border:2px dashed var(--good); border-radius:6px; background:rgba(19,121,91,.10) } .region.fail { border-color:var(--bad); background:rgba(179,38,30,.10) }
+  .cursor { width:22px; height:22px; margin:-3px 0 0 -3px; transition:left .55s ease, top .55s ease; filter:drop-shadow(0 1px 2px rgba(0,0,0,.45)) }
+  .pulse { width:30px; height:30px; margin:-15px 0 0 -15px; border-radius:50%; border:3px solid var(--act); opacity:0 }
+  .pulse.go { animation:pulse .6s ease-out }
+  @keyframes pulse { from { opacity:.95; transform:scale(.4) } to { opacity:0; transform:scale(1.7) } }
+  .line { height:3px; background:var(--act); transform-origin:0 50%; border-radius:2px; opacity:.85 }
+  .tabs { display:flex; gap:6px; margin:10px 0 0 } .tabs button { padding:4px 10px; font-size:14px } .tabs button.on { border-color:var(--accent); color:var(--accent); font-weight:700 }
+  .cap { margin-top:8px; font-size:15px; min-height:46px }
+  .chip { display:inline-block; font-size:12px; font-weight:700; padding:1px 8px; border-radius:99px; border:1px solid currentColor; white-space:nowrap }
+  .v-verified { color:var(--good) } .v-changed { color:var(--accent) } .v-no_change, .v-changed_elsewhere, .v-unexpected_change, .v-error { color:var(--bad) } .v-skipped { color:var(--muted) } .model { color:var(--vis) } .code { color:var(--act) }
+  ol { list-style:none; margin:0; padding:0; max-height:470px; overflow:auto }
+  li.row { display:grid; grid-template-columns:24px 1fr auto; gap:8px; padding:8px 4px; border-top:1px solid var(--rule); font-size:14px; align-items:center } li.row:first-child { border-top:0 }
+  li.row.now { background:var(--code) } li.row .n { color:var(--muted); font-variant-numeric:tabular-nums }
+  li.row .sub { color:var(--muted); font-size:12px }
+  .two { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px } .two > div { border:1px solid var(--rule); border-radius:10px; padding:10px 12px; font-size:14px; background:var(--card) }
+  .two h3 { margin:0 0 6px; font-size:13px; text-transform:uppercase; letter-spacing:.05em }
+  .result { margin-top:12px; border:1px solid var(--rule); border-left:4px solid var(--accent); border-radius:10px; padding:10px 14px; background:var(--card); display:none }
+  .legend { display:flex; gap:14px; flex-wrap:wrap; font-size:13px; color:var(--muted); margin-top:6px }
+  @media (max-width:860px) { .grid, .two { grid-template-columns:1fr } ol { max-height:none } .hero img { width:60px; height:60px } }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <img src="/assets/RG.png" alt="Behique logo">
+    <div>
+      <h1>Watch the senses work</h1>
+      <p class="muted">A model looked once at a small app drawn entirely on a canvas and listed its controls. Now the hands click each one and the pixels decide what happened. Pick a version of the app, with or without a planted bug, and watch.</p>
+    </div>
+  </div>
+
+  <div class="bar">
+    <label for="variant"><b>App version</b></label>
+    <select id="variant"></select>
+    <button id="saved" class="primary">Play saved run</button>
+    <button id="live">Run live now</button>
+    <label for="speed" class="muted small">Speed</label>
+    <select id="speed"><option value="1.6">Slow</option><option value="1" selected>Normal</option><option value="0.45">Fast</option></select>
+    <a id="try" href="/canvas-app/" target="_blank" rel="noopener" class="small">Try this version by hand</a>
+  </div>
+  <p class="small muted" id="hint">A saved run replays a real earlier run: the same pictures and verdicts. A live run drives a fresh browser right now (about a minute). Neither calls a model; the controls are the ones the model proposed earlier.</p>
+
+  <div class="grid">
+    <div class="card">
+      <h2>The screen</h2>
+      <div class="stage" id="stage">
+        <div class="empty" id="empty">Press "Play saved run" or "Run live now".</div>
+        <img id="img" alt="" hidden>
+        <div class="ov region" id="region" hidden></div>
+        <div class="ov line" id="line" hidden></div>
+        <div class="ov pulse" id="pulse"></div>
+        <svg class="ov cursor" id="cursor" viewBox="0 0 24 24" hidden><path d="M3 2l7 18 2.6-7.2L20 10z" fill="#111" stroke="#fff" stroke-width="1.6" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="tabs" id="tabs"><button data-t="before">Before</button><button data-t="after" class="on">After</button><button data-t="diff">What changed (red)</button></div>
+      <div class="cap" id="cap"></div>
+      <div class="legend"><span><span class="chip v-verified">verified</span> the expected spot changed</span><span><span class="chip v-no_change">no change / changed elsewhere</span> candidate defect</span><span>dashed box: where a correct app should change</span></div>
+    </div>
+    <div class="card">
+      <h2>Steps</h2>
+      <ol id="steps"></ol>
+    </div>
+  </div>
+
+  <div class="two" id="who" hidden>
+    <div><h3 class="model">A model said (a guess)</h3><div id="said"></div></div>
+    <div><h3 class="code">Code measured (a fact)</h3><div id="measured"></div></div>
+  </div>
+  <div class="result" id="result"></div>
+  <p class="small muted" style="margin-top:16px">Phase 2 results across 3 runs on 2 models: 18 of 18 detectable planted bugs found and replayed 3 of 3, nothing flagged on the clean app. A bug that only changes a word on the screen is not found. This is an easy test app. See <a href="/senses">the senses page</a>.</p>
+</main>
+<script>
+const $ = id => document.getElementById(id)
+const VW = 1280, VH = 800
+let variants = [], token = 0, mode = null, cur = null, trace = null
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+const sleep = ms => new Promise(r => setTimeout(r, ms * Number($('speed').value)))
+const pct = (x, y) => [x / VW * 100 + '%', y / VH * 100 + '%']
+
+async function boot() {
+  variants = await (await fetch('/api/watch/variants')).json()
+  $('variant').innerHTML = variants.map(v => `<option value="${esc(v.id)}">${v.id === 'clean' ? 'Clean app (no bug)' : esc(v.id)}</option>`).join('')
+  const q = new URLSearchParams(location.search).get('variant'); if (q && variants.some(v => v.id === q)) $('variant').value = q
+  upd()
+}
+function upd() { const v = $('variant').value; $('try').href = '/canvas-app/' + (v === 'clean' ? '' : '?bug=' + v) }
+$('variant').onchange = upd
+for (const b of document.querySelectorAll('#tabs button')) b.onclick = () => { for (const x of document.querySelectorAll('#tabs button')) x.classList.toggle('on', x === b); if (cur) showImg(cur, b.dataset.t) }
+
+function reset() {
+  $('steps').innerHTML = ''; $('cap').textContent = ''; $('who').hidden = true; $('result').style.display = 'none'
+  $('img').hidden = true; $('empty').hidden = true; for (const id of ['region', 'line', 'cursor']) $(id).hidden = true
+  cur = null; trace = { steps: [], replays: [] }
+}
+const base = () => `/watch-files/${mode}/${$('variant').value}/`
+function showImg(s, which) { if (!s.files) return; const w = which ?? document.querySelector('#tabs button.on').dataset.t; $('img').src = base() + s.files[w]; $('img').hidden = false }
+
+function addRow(s) {
+  const li = document.createElement('li'); li.className = 'row'; li.id = 'row' + s.i
+  li.innerHTML = `<span class="n">${s.i + 1}</span><span><b>${esc(s.label)}</b> <span class="chip model">${esc(s.kind)}</span><div class="sub" id="sub${s.i}"></div></span><span id="v${s.i}"></span>`
+  $('steps').append(li); $('steps').scrollTop = $('steps').scrollHeight; return li // scroll the list only, never the page
+}
+function markNow(i) { for (const r of document.querySelectorAll('li.row')) r.classList.toggle('now', r.id === 'row' + i) }
+function verdictText(s) {
+  return ({ verified: 'verified', changed: 'something changed', no_change: 'nothing changed', changed_elsewhere: 'changed in the wrong place', unexpected_change: 'changed when it should not', skipped_blank: 'skipped: nothing there', skipped_not_canvas: 'skipped: not on the canvas', error: 'error' })[s.verdict] ?? s.verdict
+}
+async function play(s) {
+  const my = token, a = s.action
+  addRow(s); markNow(s.i)
+  const from = a.type === 'drag' ? a.from : a, to = a.type === 'drag' ? a.to : a
+  $('cap').innerHTML = `Step ${s.i + 1}: the model called this <b>${esc(s.label)}</b> (a ${esc(s.kind)}). The hands ${a.type === 'drag' ? 'drag it' : 'click it'}.`
+  if (s.skipped) { $('v' + s.i).innerHTML = `<span class="chip v-skipped">${esc(verdictText(s))}</span>`; await sleep(500); return }
+  showImg(s, 'before'); document.querySelector('#tabs button.on').classList.remove('on'); document.querySelector('#tabs button[data-t=before]').classList.add('on')
+  $('region').hidden = true; $('line').hidden = true
+  const cu = $('cursor'); cu.hidden = false; [cu.style.left, cu.style.top] = pct(from.x, from.y)
+  await sleep(750); if (my !== token) return
+  const pu = $('pulse'); [pu.style.left, pu.style.top] = pct(from.x, from.y); pu.classList.remove('go'); void pu.offsetWidth; pu.classList.add('go')
+  if (a.type === 'drag') {
+    const ln = $('line'), dx = (to.x - from.x) / VW * $('stage').clientWidth, dy = (to.y - from.y) / VH * $('stage').clientHeight
+    ;[ln.style.left, ln.style.top] = pct(from.x, from.y); ln.style.width = Math.hypot(dx, dy) + 'px'; ln.style.transform = `rotate(${Math.atan2(dy, dx)}rad)`; ln.hidden = false
+    await sleep(350); [cu.style.left, cu.style.top] = pct(to.x, to.y); await sleep(750); if (my !== token) return
+  } else await sleep(400)
+  showImg(s, 'after'); document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === 'after'))
+  if (s.expectRegion) { const r = s.expectRegion, el = $('region'); el.hidden = false; el.style.left = r.x / VW * 100 + '%'; el.style.top = r.y / VH * 100 + '%'; el.style.width = r.w / VW * 100 + '%'; el.style.height = r.h / VH * 100 + '%'; el.classList.toggle('fail', s.verdict !== 'verified') }
+  const bad = ['no_change', 'changed_elsewhere', 'unexpected_change', 'error'].includes(s.verdict)
+  $('v' + s.i).innerHTML = `<span class="chip v-${s.verdict}">${esc(verdictText(s))}</span>`
+  $('sub' + s.i).textContent = `${s.changed ?? 0} px changed` + (s.expectRegion ? `, ${s.inRegion ?? 0} at the expected spot` : '')
+  $('cap').innerHTML = `Step ${s.i + 1}: <b>${esc(s.label)}</b>. ${bad ? '<b style="color:var(--bad)">Candidate defect:</b> ' : ''}${esc(verdictText(s))}${s.expectRegion ? ` (${s.inRegion ?? 0} of ${s.changed ?? 0} changed pixels were at the expected spot)` : ` (${s.changed ?? 0} pixels changed)`}.`
+  cur = s; await sleep(bad ? 1500 : 650)
+}
+
+function finish(findings, replays) {
+  for (const r of replays) { const e = $('v' + r.i); if (e) e.insertAdjacentHTML('beforeend', ` <span class="chip ${r.agree === r.of ? 'v-verified' : 'v-no_change'}">replayed ${r.agree}/${r.of}</span>`) }
+  const v = variants.find(x => x.id === $('variant').value), box = $('result')
+  const flagged = findings.map(i => trace.steps[i]).filter(Boolean)
+  box.style.display = 'block'
+  if (flagged.length) {
+    const f = flagged[0], r = replays.find(x => x.i === f.i)
+    markNow(f.i); cur = f; showImg(f, 'after'); $('who').hidden = false
+    $('said').innerHTML = `The control at (${Math.round((f.action.from ?? f.action).x)}, ${Math.round((f.action.from ?? f.action).y)}) is "<b>${esc(f.label)}</b>", a <b>${esc(f.kind)}</b>. This is a model's guess: it could be wrong, and it is recorded as such.`
+    $('measured').innerHTML = `${f.action.type === 'drag' ? 'Dragging' : 'Clicking'} it changed <b>${f.changed ?? 0}</b> pixels${f.expectRegion ? `, <b>${f.inRegion ?? 0}</b> of them where a correct app would change` : ''}. Result: <b>${esc(verdictText(f))}</b>, and the same in <b>${r ? r.agree + ' of ' + r.of : '?'}</b> fresh browsers.`
+    box.innerHTML = `<b>${flagged.length} candidate ${flagged.length === 1 ? 'defect' : 'defects'}.</b> Flagged: ${flagged.map(x => esc(x.label)).join(', ')}.` + (v?.object ? `<br><span class="muted">The bug planted in this version, revealed now: ${esc(v.what)}</span>` : '<br><span class="muted">This is the unchanged app, so a flag here would be a false alarm.</span>')
+  } else {
+    box.innerHTML = v?.object ? `<b>Nothing flagged.</b> <span class="muted">Planted in this version: ${esc(v.what)}${v.detectable === false ? ' The screen does change, only the wording is wrong, so pixel checks cannot see it. This is a known blind spot.' : ' This was missed.'}</span>` : `<b>Nothing flagged on the clean app.</b> <span class="muted">Every control did something visible, and nothing was reported that was not there.</span>`
+  }
+}
+
+async function run(m) {
+  const my = ++token; mode = m; reset(); $('saved').disabled = $('live').disabled = true
+  const v = $('variant').value
+  try {
+    if (m === 'saved') {
+      const r = await fetch('/api/watch/saved?variant=' + encodeURIComponent(v)); if (!r.ok) throw new Error((await r.json()).error)
+      const t = await r.json(); trace = { steps: t.steps, replays: t.replays }
+      for (const s of t.steps) { if (my !== token) return; await play(s) }
+      finish(t.findings, t.replays)
+    } else {
+      $('empty').hidden = false; $('empty').textContent = 'Starting a fresh browser on the test app...'
+      const queue = [], t0 = { done: false, err: null }
+      const es = new EventSource('/api/watch/run?variant=' + encodeURIComponent(v))
+      es.addEventListener('step', e => queue.push(JSON.parse(e.data)))
+      es.addEventListener('replays', e => { t0.replays = JSON.parse(e.data).agree })
+      es.addEventListener('done', e => { t0.done = JSON.parse(e.data); es.close() })
+      es.addEventListener('failed', e => { t0.err = JSON.parse(e.data).error; es.close() })
+      es.onerror = () => { if (!t0.done && !t0.err) { t0.err = 'the live run could not start (is another one running?)'; es.close() } }
+      while (my === token && !t0.err && (!t0.done || queue.length)) {
+        if (queue.length) { const s = queue.shift(); $('empty').hidden = true; trace.steps[s.i] = s; await play(s) } else await new Promise(r => setTimeout(r, 150))
+      }
+      if (t0.err) throw new Error(t0.err)
+      if (my === token) finish(t0.done.findings, t0.done.replays)
+    }
+  } catch (e) { $('empty').hidden = false; $('empty').textContent = String(e.message) }
+  finally { if (my === token) $('saved').disabled = $('live').disabled = false }
+}
+$('saved').onclick = () => run('saved'); $('live').onclick = () => run('live')
+boot()
+</script>
+</body>
+</html>

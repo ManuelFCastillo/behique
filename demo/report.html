@@ -27,6 +27,7 @@
   .current { border-left:4px solid var(--accent); padding:8px 12px; margin:10px 0; background:var(--card); border-radius:0 8px 8px 0 }
   table { width:100%; border-collapse:collapse; font-size:13px } th, td { text-align:left; padding:6px 8px; border-top:1px solid var(--rule); vertical-align:top } th { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); border-top:0 }
   td code { font:12px ui-monospace, Menlo, monospace; word-break:break-all }
+  .pics { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px } .pics figure { margin:0; width:calc(33.3% - 6px); min-width:150px } .pics img { width:100%; display:block; border:1px solid var(--rule); border-radius:6px; background:#fff } .pics figcaption { font-size:12px; color:var(--muted); margin-top:2px }
   details { margin:8px 0 } summary { cursor:pointer; color:var(--accent); font-weight:600; font-size:15px }
   .code { background:var(--code); border:1px solid var(--rule); border-radius:8px; padding:10px 12px; font:12px/1.45 ui-monospace, Menlo, monospace; word-break:break-all }
   @media (max-width:600px) { .hero { flex-direction:column; align-items:flex-start } .fields { grid-template-columns:1fr } }
@@ -88,12 +89,16 @@ const NAME = { reproduced_failure: 'Reproduced failure', verified_fact: 'Verifie
 const BY = { code: 'code', human: 'a person', model: 'an AI model' }
 const when = ts => new Date(ts).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
 let id = null
+const isPic = (data, h) => data.summary.artifacts[h]?.mediaType === 'image/png'
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1)
 
 function claimCard(c, data) {
   const d = el('div', undefined, 'card claim'); const r = el('div', undefined, 'row1')
   r.append(el('span', NAME[c.label], 'tag t-' + c.label), el('span', `written by ${BY[c.by] ?? c.by}${c.model ? ' (' + c.model + ')' : ''}`, 'small muted'))
   d.append(r, el('div', c.text))
-  if (c.label === 'ai_hypothesis') {
+  if (c.label === 'ai_hypothesis' && c.source === 'canvas-vision') {
+    const x = el('div', 'A model\u2019s guess about what is on the screen. It is not checked as a fact, and it did not decide any verdict: the failure above comes from pixels measured by code.', 'small muted'); x.style.marginTop = '6px'; d.append(x)
+  } else if (c.label === 'ai_hypothesis') {
     const x = el('div', undefined, 'small'); x.style.marginTop = '6px'
     x.append(el('div', c.grounded ? '\u2713 The line it points to really is in the code change.' : '\u26a0 The line it points to was not found in the code change. Treat this guess with extra caution.', c.grounded ? 'muted' : 't-suspected_cause'))
     if (c.quote) { const q = el('div', c.quote, 'code'); q.style.margin = '4px 0'; x.append(q) }
@@ -104,8 +109,18 @@ function claimCard(c, data) {
   }
   if (c.evidence.length) {
     const ev = el('div', undefined, 'ev'); ev.append(el('span', 'Evidence:', 'muted'))
-    for (const h of c.evidence) { const a = el('a', data.summary.artifacts[h]?.name ?? (h.startsWith('event:') ? 'log entry ' + h.slice(6) : h.slice(0, 8))); a.href = `/api/artifact?id=${encodeURIComponent(data.id)}&hash=${h}`; a.target = '_blank'; ev.append(a) }
+    for (const h of c.evidence) { const a = el('a', data.summary.artifacts[h]?.name ?? (h.startsWith('event:') ? 'log entry ' + h.slice(6) : h.slice(0, 8))); a.href = `${isPic(data, h) ? '/api/artifact-image' : '/api/artifact'}?id=${encodeURIComponent(data.id)}&hash=${h}`; a.target = '_blank'; ev.append(a) }
     d.append(ev)
+    const pics = c.evidence.filter(h => isPic(data, h))
+    if (pics.length) {
+      const g = el('div', undefined, 'pics')
+      for (const h of pics) {
+        const f = el('figure'), a = el('a'), im = el('img'); im.alt = data.summary.artifacts[h].name; im.loading = 'lazy'
+        im.src = a.href = `/api/artifact-image?id=${encodeURIComponent(data.id)}&hash=${h}`; a.target = '_blank'; a.append(im)
+        f.append(a, el('figcaption', data.summary.artifacts[h].name.replace(/\.png$/, '').replace(/-/g, ' '))); g.append(f)
+      }
+      d.append(g)
+    }
   }
   return d
 }
@@ -117,7 +132,7 @@ function render(data) {
   $('logo').src = proven ? '/assets/Red.png' : '/assets/Green.png'
   $('verdict').textContent = proven ? `Behaviour change proven in ${o.candRef}` : `No behaviour change proven in ${o.candRef}`
   $('verdict').className = 'verdict ' + (proven ? 'bad' : 'ok')
-  $('sub').textContent = `${o.candRef} (new) compared with ${o.goodRef} (old). Checked ${when(data.events[0].ts)}.${proven ? ' The check proves the behaviour differs; whether that is a bug is for a person to decide.' : ''}`
+  $('sub').textContent = `${cap(o.candRef)} (new) compared with ${o.goodRef} (old). Checked ${when(data.events[0].ts)}.${proven ? ' The check proves the behaviour differs; whether that is a bug is for a person to decide.' : ''}`
   const sc = o.scenario; $('aboutCard').hidden = !sc
   if (sc) { $('aboutText').textContent = `${sc.label}. ${sc.about}`; const l = $('aboutLink'); l.replaceChildren(); if (sc.upstream?.url) { const a = el('a', `Upstream issue #${sc.upstream.issue}`); a.href = sc.upstream.url; a.target = '_blank'; l.append(a) } }
 
@@ -219,8 +234,8 @@ $('ship').onclick = () => decide('ship'); $('hold').onclick = () => decide('hold
   const cases = await fetch('/api/cases').then(r => r.json())
   if (!cases.length) { $('empty').hidden = false; $('pick').parentElement.hidden = true; return }
   const want = new URLSearchParams(location.search).get('case')
-  for (const c of cases) { const o = el('option', c.id.replace('T', ' ').replace(/Z_/, ' ') + (c.decision ? ` (${c.decision})` : '')); o.value = c.id; $('pick').append(o) }
-  $('pick').value = cases.some(c => c.id === want) ? want : cases[0].id
+  for (const c of cases) { const o = el('option', (c.kind === 'canvas' ? '[canvas] ' : '') + c.id.replace('T', ' ').replace(/Z_/, ' ') + (c.decision ? ` (${c.decision})` : '')); o.value = c.id; $('pick').append(o) }
+  $('pick').value = cases.some(c => c.id === want) ? want : (cases.find(c => c.kind !== 'canvas') ?? cases[0]).id
   $('pick').onchange = () => { history.replaceState(null, '', '?case=' + $('pick').value); load($('pick').value) }
   load($('pick').value)
 })()

@@ -28,7 +28,7 @@ export function verdictOf(events, s, now = Date.now()) {
   if (!closed) return now - Date.parse(events.at(-1).ts) > STALE_MS ? 'fail' : 'running'
   if (s.claims.some(c => c.label === 'reproduced_failure')) return 'hold'
   switch (closed.data.outcome) {
-    case 'no changed facts': return 'ship'
+    case 'no changed facts': case 'no candidate defects': return 'ship'
     case 'masking not trustworthy': case 'build failed': case 'cancelled': return 'fail'
     default: return 'inconclusive'
   }
@@ -115,7 +115,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
     const ai = d.label === 'ai_hypothesis'
     return {
       id: 'c' + e.seq, kind: d.label, ...k, text: d.text, ...link,
-      foot: ai ? `${d.grounded ? 'quote verified in the change' : 'quote NOT found in the change'} . confidence ${d.confidence}` : names.length ? `${names.length} evidence file${names.length === 1 ? '' : 's'}` : 'no evidence cited',
+      foot: ai ? (d.source === 'canvas-vision' ? 'a model\'s guess about what is on the screen . not proof' : `${d.grounded ? 'quote verified in the change' : 'quote NOT found in the change'} . confidence ${d.confidence}`) : names.length ? `${names.length} evidence file${names.length === 1 ? '' : 's'}` : 'no evidence cited',
       chips: ai ? ['hypothesis', 'unproven'] : d.label === 'verified_fact' ? ['verified'] : [],
       links: names, linkUrls: d.evidence.map(h => (/^[0-9a-f]{64}$/.test(h) ? urlOf(h) : null)),
       ...(ai ? { model: d.model, quote: d.quote, howToCheck: d.howToCheck, grounded: d.grounded, estUsd: d.estUsd } : {}),
@@ -129,7 +129,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   }
   const calls = events.filter(e => e.type === 'model.call')
   const changed = (art('facts-diff.json')?.candidate ?? []).filter(d => d.kind === 'changed')
-  const nProven = events.filter(e => e.type === 'test.exported').length
+  const nProven = o.kind === 'canvas' ? s.claims.filter(k => k.label === 'reproduced_failure').length : events.filter(e => e.type === 'test.exported').length // a canvas case proves a change with a reproduced failure, not an exported test
   const last = s.decision
   const progress = progressOf(events, s, steps.length ? stepEv : [])
   const sub = {
@@ -148,7 +148,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   }[outcome] ?? 'The run stopped without finishing.')
 
   return {
-    id: caseId, appId: appOfOpened(o), title: `${app} ${o.goodRef} (good) vs ${o.candRef} (candidate)`, app, goodRef: o.goodRef, candRef: o.candRef,
+    id: caseId, appId: appOfOpened(o), title: o.kind === 'canvas' ? `Canvas test app: ${o.candRef} (candidate) vs ${o.goodRef} (good)` : `${app} ${o.goodRef} (good) vs ${o.candRef} (candidate)`, app, goodRef: o.goodRef, candRef: o.candRef,
     scenario: o.scenario ?? null, verdict, sub, failReason, progress, claims, bisect,
     culpritClaimId: claims.find(k => k.isCulprit)?.id ?? null,
     facts: changed.slice(0, 4).map(d => ({ where: d.key.replace(/(@[^/]+|#text)$/, '').split('/').slice(-2).join('/'), what: d.key.match(/@([^/]+)$/)?.[1] ?? (d.key === 'window@scrollY' ? 'scrollY' : 'text'), was: d.was, now: d.now, step: d.step })),

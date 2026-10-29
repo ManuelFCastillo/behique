@@ -61,6 +61,17 @@ function startUiRun(params) {
 }
 const liveState = () => Object.fromEntries([GOOD, BAD].map(r => [r, live.has(r) ? { url: live.get(r).base + '/', sha: live.get(r).sha.slice(0, 12) } : null]))
 
+// ---- watch page: where saved traces and live runs are written, and the test app they run against ----
+const WATCH_SAVED = join(ROOT, 'out/senses-traces'), WATCH_LIVE = join(ROOT, 'out/senses-live'), WATCH_PROPOSALS = join(WATCH_SAVED, 'proposals.json')
+const watchBugs = () => JSON.parse(readFileSync(join(ROOT, 'bench/fixtures/canvas-app/bugs.json'), 'utf8')).map(b => ({ id: b.id, what: b.what, object: b.object, detectable: b.detectable !== false }))
+const watchVariantOk = v => typeof v === 'string' && (v === 'clean' || watchBugs().some(b => b.id === v))
+let watchBusy = false, watchBase = null
+const watchFixture = () => watchBase ?? (watchBase = new Promise(resolve => { // the test app on its own random local port, started the first time a live run needs it
+  const html = readFileSync(join(ROOT, 'bench/fixtures/canvas-app/index.html'))
+  const s = createServer((rq, rs) => { rs.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); rs.end(html) })
+  s.listen(0, '127.0.0.1', () => resolve(`http://127.0.0.1:${s.address().port}/`))
+}))
+
 createServer(async (req, res) => {
   if (!HOST_OK.test(req.headers.host ?? '')) { res.writeHead(403, { 'Content-Type': 'text/plain' }); return res.end('wrong host') }
   const u = new URL(req.url, 'http://x')
@@ -96,8 +107,36 @@ createServer(async (req, res) => {
 
     if (u.pathname === '/report') return send(res, 200, readFileSync(join(ROOT, 'demo/report.html'), 'utf8'), 'text/html; charset=utf-8')
     if (u.pathname === '/senses') return send(res, 200, readFileSync(join(ROOT, 'demo/senses.html'), 'utf8'), 'text/html; charset=utf-8')
+    // ---- watch the canvas senses work: a saved trace (no cost) or a live run on the canvas test app (no model calls either) ----
+    if (u.pathname === '/watch') return send(res, 200, readFileSync(join(ROOT, 'demo/watch.html'), 'utf8'), 'text/html; charset=utf-8')
+    if (u.pathname === '/canvas-app/') return send(res, 200, readFileSync(join(ROOT, 'bench/fixtures/canvas-app/index.html')), 'text/html; charset=utf-8') // the app under test, for people to try by hand: ?bug=<id>
+    if (u.pathname === '/api/watch/variants') return send(res, 200, [{ id: 'clean', what: 'The unchanged app.', object: null }, ...watchBugs()])
+    if (u.pathname === '/api/watch/saved') {
+      const v = u.searchParams.get('variant'), f = join(WATCH_SAVED, String(v), 'trace.json')
+      if (!watchVariantOk(v) || !existsSync(f)) return send(res, 404, { error: 'no saved trace for that variant: run node bench/canvas-trace.mjs' })
+      return send(res, 200, readFileSync(f, 'utf8'))
+    }
+    const wf = u.pathname.match(/^\/watch-files\/(saved|live)\/([\w-]+)\/(s\d+-(?:before|after|diff)\.png)$/) // exact names only
+    if (wf && watchVariantOk(wf[2])) { const f = join(wf[1] === 'saved' ? WATCH_SAVED : WATCH_LIVE, wf[2], wf[3]); return existsSync(f) ? send(res, 200, readFileSync(f), 'image/png') : send(res, 404, { error: 'no such picture' }) }
+    if (u.pathname === '/api/watch/run') { // run the senses on the test app now and stream each step as server-sent events
+      const v = u.searchParams.get('variant')
+      if (!watchVariantOk(v)) return send(res, 400, { error: 'unknown variant' })
+      if (watchBusy) return send(res, 409, { error: 'a live run is already going' })
+      if (!existsSync(WATCH_PROPOSALS)) return send(res, 409, { error: 'no proposals saved: run node bench/canvas-trace.mjs once' })
+      watchBusy = true
+      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache' })
+      const emit = (event, data) => { if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`) }
+      try {
+        const { traceVariant } = await import('../src/senses/trace.mjs')
+        const controls = JSON.parse(readFileSync(WATCH_PROPOSALS, 'utf8'))
+        const base = await watchFixture()
+        emit('start', { variant: v, proposals: controls.length })
+        await traceVariant({ url: base + (v === 'clean' ? '' : '?bug=' + v), controls, dir: join(WATCH_LIVE, v), variant: v, replays: 3, onEvent: e => emit(e.type, e) })
+      } catch (e) { emit('failed', { error: String(e.message).slice(0, 200) }) } finally { watchBusy = false; res.end() }
+      return
+    }
 
-    if (u.pathname === '/api/cases') return send(res, 200, listCases(EVIDENCE).map(id => { const s = summarize(openCase(join(EVIDENCE, id)).read()); return { id, decision: s.decision?.decision ?? null, proven: s.claims.some(c => c.label === 'reproduced_failure') } }))
+    if (u.pathname === '/api/cases') return send(res, 200, listCases(EVIDENCE).map(id => { const s = summarize(openCase(join(EVIDENCE, id)).read()); return { id, decision: s.decision?.decision ?? null, proven: s.claims.some(c => c.label === 'reproduced_failure'), kind: s.opened?.kind ?? null } }))
 
     if (u.pathname === '/api/case') { // one case: its events, its claims, and whether the record is intact
       const c = caseOf(u.searchParams.get('id'))
@@ -106,6 +145,15 @@ createServer(async (req, res) => {
       return send(res, 200, { id: u.searchParams.get('id'), events, summary: summarize(events), chain: c.verify(), labels: LABELS })
     }
 
+    if (u.pathname === '/api/artifact-image') { // a saved PNG, shown as a picture; only files recorded as image/png whose bytes really are a PNG
+      const c = caseOf(u.searchParams.get('id')), hash = u.searchParams.get('hash') ?? ''
+      const p = c?.artifactPath(hash)
+      const meta = p && c.read().find(e => e.type === 'artifact' && e.data.hash === hash)?.data
+      const buf = p && meta?.mediaType === 'image/png' ? readFileSync(p) : null
+      if (!buf || buf.length < 8 || buf.readUInt32BE(0) !== 0x89504e47) return send(res, 404, { error: 'no such picture' })
+      res.writeHead(200, { 'Content-Type': 'image/png', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' })
+      return res.end(buf)
+    }
     if (u.pathname === '/api/artifact') { // evidence files are served as plain text so they can never run as a page
       const c = caseOf(u.searchParams.get('id')), hash = u.searchParams.get('hash') ?? ''
       const p = c?.artifactPath(hash)
