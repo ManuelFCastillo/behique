@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Behique senses</title>
 <style>
-  :root { --bg:#f6f7f8; --card:#fff; --ink:#1b1f24; --muted:#5b6570; --rule:#d5dbe0; --accent:#0f6b5c; --good:#13795b; --bad:#b3261e; --soon:#8a6d1c; --code:#eef1f3; --sem:#2f6fb0; --vis:#8a4fa8; --act:#b4602a; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --card:#1c2024; --ink:#e8ebee; --muted:#98a2ad; --rule:#2f363d; --accent:#4fc3ad; --good:#4fc79b; --bad:#ff8a80; --soon:#d9b455; --code:#242a30; --sem:#7db2e8; --vis:#c79be0; --act:#e8a273; } }
+  :root { --bg:#f6f7f8; --card:#fff; --ink:#1b1f24; --muted:#5b6570; --rule:#d5dbe0; --accent:#0f6b5c; --good:#13795b; --bad:#b3261e; --soon:#8a6d1c; --code:#eef1f3; --sem:#2f6fb0; --vis:#8a4fa8; --act:#b4602a; --perf:#b0344f; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --card:#1c2024; --ink:#e8ebee; --muted:#98a2ad; --rule:#2f363d; --accent:#4fc3ad; --good:#4fc79b; --bad:#ff8a80; --soon:#d9b455; --code:#242a30; --sem:#7db2e8; --vis:#c79be0; --act:#e8a273; --perf:#ee8aa0; } }
   * { box-sizing:border-box }
   body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif }
   main { max-width:880px; margin:0 auto; padding:32px 16px 72px }
@@ -17,7 +17,8 @@
   .banner { border:1px solid var(--soon); border-radius:10px; padding:10px 14px; margin:20px 0 0; font-size:15px } .banner b { color:var(--soon) }
   .senses { display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin:16px 0 }
   .sense { background:var(--card); border:1px solid var(--rule); border-top:4px solid var(--c); border-radius:12px; padding:16px; display:flex; flex-direction:column; gap:10px }
-  .sense.sem { --c:var(--sem) } .sense.vis { --c:var(--vis) } .sense.act { --c:var(--act) }
+  .sense.sem { --c:var(--sem) } .sense.vis { --c:var(--vis) } .sense.act { --c:var(--act) } .sense.perf { --c:var(--perf); border-style:dashed; border-top-style:solid }
+  .senses.single { grid-template-columns:1fr }
   .kind { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--c); font-weight:700 }
   .role { font-size:15px; font-weight:600; margin-top:-4px }
   .k { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:2px }
@@ -48,7 +49,7 @@
     </div>
   </div>
 
-  <div class="banner"><b>Plan, not built.</b> The three files below do not exist yet. Each card says which part of today's code it grows from. Full plan: <code>docs/canvas-senses-plan.md</code>.</div>
+  <div class="banner"><b>Partly built.</b> <code>pixels.mjs</code> and <code>hands.mjs</code> exist and are tested; the other files below do not exist yet. Each card says which part of today's code it grows from. A fourth sense, Guabancex, is planned after the first three and is the first thing cut if time is short. Full plan: <code>docs/canvas-senses-plan.md</code>.</div>
 
   <h2>The problem</h2>
   <p>Behique reads a web page through its accessibility tree: the list of buttons, fields and labels the page declares. That works when the page is made of normal elements. A canvas app such as Music Blocks draws its whole workspace on one element, so the tree shows one blank rectangle and Behique cannot tell what is on it, or click any part of it.</p>
@@ -78,8 +79,8 @@
       <div class="kind">Visual perception</div>
       <h3>Boinayel</h3>
       <div class="role">Canvas Vision</div>
-      <div><div class="k">File (planned)</div><div class="file"><code>src/senses/vision.mjs</code></div></div>
-      <div><span class="tag plan">Planned</span> <span class="tag model">Model to locate</span> <span class="tag nomodel">Diff is code</span></div>
+      <div><div class="k">File</div><div class="file"><code>src/senses/vision.mjs</code></div></div>
+      <div><span class="tag have">Built, tested on the test app</span> <span class="tag model">Model to locate</span> <span class="tag nomodel">Diff is code</span></div>
       <div><div class="k">What it does</div>
         <ul>
           <li>Captures screenshots and finds objects and shapes in them.</li>
@@ -94,8 +95,8 @@
       <div class="kind">Action and verification</div>
       <h3>Márohu</h3>
       <div class="role">Canvas Interaction</div>
-      <div><div class="k">File (planned)</div><div class="file"><code>src/senses/hands.mjs</code></div></div>
-      <div><span class="tag plan">Planned</span> <span class="tag nomodel">No model</span></div>
+      <div><div class="k">File</div><div class="file"><code>src/senses/hands.mjs</code></div></div>
+      <div><span class="tag have">Built, tested on the test app</span> <span class="tag nomodel">No model</span></div>
       <div><div class="k">What it does</div>
         <ul>
           <li>Moves the mouse, clicks, drags and presses keys at coordinates.</li>
@@ -106,7 +107,28 @@
       <div><div class="k">What it may claim</div><p class="small">Verified facts and reproduced failures, written by code.</p></div>
     </section>
   </div>
-  <p class="small muted">Shared helper: <code>src/senses/pixels.mjs</code> (planned) decodes images, diffs them and measures the noise floor. It needs no model.</p>
+  <p class="small muted">Shared helper: <code>src/senses/pixels.mjs</code> (built) decodes images, diffs them and measures the noise floor. It needs no model.</p>
+
+  <h2>A fourth sense, later</h2>
+  <p class="muted small">Proposed by Manny. It comes after the vision sense works and is cut first if time is short.</p>
+  <div class="senses single">
+    <section class="sense perf">
+      <div class="kind">Performance</div>
+      <h3>Guabancex</h3>
+      <div class="role">Performance Tester</div>
+      <div><div class="k">File (planned)</div><div class="file"><code>src/senses/performance.mjs</code></div></div>
+      <div><span class="tag plan">Planned, after Phase 2</span> <span class="tag nomodel">No model</span></div>
+      <div><div class="k">What it does</div>
+        <ul>
+          <li>Measures page load time, long tasks, JavaScript memory growth, requests and bytes transferred, and frame rate during a scripted action.</li>
+          <li>Repeats each measurement on each version, finds how much the same version differs from itself, and reports a slowdown only when it is bigger than that.</li>
+          <li>Matters most for canvas and WebGL apps, where frame rate can drop between releases and neither the accessibility tree nor a screenshot shows it.</li>
+        </ul></div>
+      <div><div class="k">Grows from today's code</div><p class="small">The build runner and version-against-version pipeline in <code>src/release/</code>. Playwright and the Chrome DevTools performance metrics supply the numbers; nothing in it is new infrastructure.</p></div>
+      <div><div class="k">What it may claim</div><p class="small">Statistical findings, written by code, with the noise floor shown next to them.</p></div>
+      <div><div class="k">Cautions</div><p class="small">Numbers only mean something version against version on the same machine. Headless Chromium draws in software unless GPU flags are set. Music Blocks slows itself to 1 frame per second when idle, so frame rate has to be sampled while something is running.</p></div>
+    </section>
+  </div>
 
   <h2>How they work together</h2>
   <div class="flow">
@@ -131,24 +153,38 @@
   <h2>What we do and in what order</h2>
   <div class="scroll"><table>
     <tr><th>Phase</th><th>What</th><th>Spend</th><th>Status</th></tr>
-    <tr><td>0</td><td>Canvas test app with known object positions and planted canvas bugs. Measure whether Muse Spark can point, in which coordinate frame, how well, and what it costs.</td><td>cap $1.50</td><td><span class="tag plan">Not started</span></td></tr>
-    <tr><td>1</td><td>Pixel diff, noise floor and coordinate actions (Márohu). No model.</td><td>none</td><td><span class="tag plan">Not started</span></td></tr>
-    <tr><td>2</td><td>Vision (Boinayel): one planted bug found by vision, verified by a click, and replayed in a fresh browser.</td><td>small</td><td><span class="tag plan">Not started</span></td></tr>
-    <tr><td>3</td><td>Accessibility findings and the blind-area number (Macocael). Cut first if time is short.</td><td>none</td><td><span class="tag plan">Not started</span></td></tr>
-    <tr><td>4</td><td>Apply to Music Blocks: canvas difference between v3.7.1 and v3.8.0. Needs a yes before anything is cloned.</td><td>small</td><td><span class="tag plan">Waiting</span></td></tr>
+    <tr><td>0</td><td>Canvas test app with known object positions, and a measurement of whether Muse Spark can point: which coordinate format, how accurate, how stable, what it costs. 139 calls, about $1.34 estimated.</td><td>spent about $1.34</td><td><span class="tag have">Done 29 Oct</span></td></tr>
+    <tr><td>1</td><td>Pixel diff, noise floor and coordinate actions (Márohu). No model. Built and tested on the canvas test app: 21 tests, a click replays 3 of 3 times in fresh browsers, and the same page differs from itself by 0 pixels. Not yet wired into the explorer or tried on Music Blocks.</td><td>none</td><td><span class="tag have">Done 29 Oct</span></td></tr>
+    <tr><td>2</td><td>Vision (Boinayel): a model lists the controls it sees, the hands click them, and the pixels decide. Planted bugs on the test app: 18 of 18 found and replayed 3 of 3 in fresh browsers on both models, 0 findings on the clean app. About $0.09. One known blind spot (a wrong word on screen). Not yet tried on a real app or wired into the evidence store.</td><td>spent about $0.09</td><td><span class="tag have">Done 29 Oct</span></td></tr>
+    <tr><td>2b</td><td>Performance (Guabancex): load time, memory, frame rate, version against version above the noise floor. Cut first if time is short.</td><td>none</td><td><span class="tag plan">Not started</span></td></tr>
+    <tr><td>3</td><td>Accessibility findings and the blind-area number (Macocael). Cut second, after Guabancex.</td><td>none</td><td><span class="tag plan">Not started</span></td></tr>
+    <tr><td>4</td><td>Music Blocks, v3.8.0 against the current master. Done for the visual and click senses: the same-page noise is not zero (7k to 598k pixels when several browsers run at once, so the hands now wait for the screen to settle), 129 of 130 clicks change something so the dead-control rule cannot find bugs there, and the useful output is the difference between versions: 6 toolbar controls moved, 1 new control on master, the canvas blocks unchanged. Not done: the accessibility-tree difference (Macocael is not built).</td><td>spent about $0.07</td><td><span class="tag have">Done 29 Oct</span></td></tr>
   </table></div>
-  <p class="small muted">Canvas work runs to about Sunday 1 November. Monday and Tuesday are for recording and submitting. The hackathon is due Wednesday 4 November, 9 PM ET.</p>
+  <p class="small muted">Canvas work runs to about Sunday 1 November. Monday and Tuesday are for recording and submitting. The hackathon is due Wednesday 4 November in the evening, Eastern time (8 PM by one listing, 9 PM in our notes; not yet confirmed).</p>
 
   <h2>Which model sees</h2>
   <div class="card">
-    <p><b>Measure first, then choose.</b> Muse Spark 1.3 is already wired and fits a Meta hackathon, so it goes first. If it cannot point well enough, Fireworks is the fallback (a vision model with grounding, a few lines to add). Modal is only for a real detector with calibrated scores, which is probably not worth it before the deadline.</p>
-    <p class="small muted">Nothing is known yet about how Muse Spark handles images: Muse Code answered "unknown" for every spec. Data retention, rate limits and the image size limit are still open. Until they are answered, only the public test app is sent to any model. The Fireworks and Modal credits are not confirmed claimed.</p>
+    <p><b>Muse Spark 1.3 is enough.</b> Measured on 139 calls: with the right settings it points at objects to within about one pixel. No Fireworks or Modal is needed to find things on a canvas.</p>
+    <ul class="soon">
+      <li><b>Coordinates as 0 to 1 decimals.</b> 98.9% hits, median error 0.8 px. Plain pixels hit 91.7% and 0 to 1000 had a heavy tail of bad calls.</li>
+      <li><b>Screenshots at device scale 2, reasoning low.</b> Larger images were stable; small ones sometimes came back with one error shared by every object. Low reasoning halves the cost with no loss.</li>
+      <li><b>Never a tall full-page screenshot.</b> Beyond about 2,000 px tall it failed in every format, so the visual senses use viewport-sized shots.</li>
+      <li><b>It says "not found" when something is not there.</b> 0 invented objects in 59 queries.</li>
+      <li><b>Its own confidence is not trustworthy.</b> Answers more than 50 px off had higher confidence than correct ones. That is why Márohu verifies every target by clicking.</li>
+      <li><b>Real app too.</b> On Music Blocks (v3.8.0) it found all toolbar icons and 7 of 7 real canvas blocks, with positions from the app's own model as truth.</li>
+    </ul>
+    <p class="small muted">Still open: data retention and training use, rate limits and the stated image size limit. Until answered, only public apps are sent to the model. The Fireworks and Modal credits are not confirmed claimed, and are not needed.</p>
   </div>
 
   <h2>What is proven so far</h2>
   <div class="card">
     <p><span class="tag have">True today</span> The accessibility tree, screenshots, network and console are read on every step. A finding only counts if its replay fails on a fresh copy of the app.</p>
-    <p><span class="tag plan">Not proven</span> That any model can point at canvas objects, that a click can be replayed reliably across versions, and that pixel differences stay above the noise. Phase 0 and 1 answer these.</p>
+    <p><span class="tag have">Measured</span> A model can point at canvas objects accurately and says "not found" honestly (Phase 0). On Music Blocks, canvas blocks are invisible to the accessibility tree in v3.8.0 but listed by name, without positions, on the current master: the semantic sense says what is there and the visual sense says where.</p>
+    <p><span class="tag have">Measured</span> On the test app, a click at a known position changes the expected pixels, a click on empty canvas changes none, and the same click gives the same verdict in 3 of 3 fresh browsers (Phase 1).</p>
+    <p><span class="tag have">Measured</span> With the model proposing controls and the pixels deciding, 18 of 18 planted bugs on the test app were found and replayed 3 of 3 on both models, with nothing flagged on the clean app (Phase 2). A bug that only changes a word on screen was not found: pixels cannot tell a wrong word from a right one.</p>
+    <p><span class="tag have">Measured</span> On Music Blocks the same click twice in fresh pages gave the same screen for 26 of 31 and 31 of 33 controls, and the version difference was readable: 6 toolbar controls moved, 1 new control on master, the canvas blocks unchanged. The dead-control rule has no power there, because almost every click changes the screen.</p>
+    <p><span class="tag have">Built</span> Findings are written into the evidence store: the model's proposal as a guess it cannot make a verdict from, the result as a reproduced failure written by code, with before, after and diff pictures, shown on the <a href="/report">report page</a> (tagged canvas).</p>
+    <p><span class="tag plan">Not proven</span> That the senses can find a real bug in a real app (none was planted in Music Blocks), and that they can run inside the explorer on their own. The test app is easy and the click-radius rule was tuned on it.</p>
   </div>
 </main>
 </body>
