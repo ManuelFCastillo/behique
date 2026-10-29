@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Canvas fixture</title>
+<style>
+  body { margin:0; font:16px/1.4 system-ui, sans-serif; background:#f4f1ea; color:#222 }
+  header { display:flex; justify-content:space-between; align-items:center; padding:12px 16px }
+  h1 { font-size:20px; margin:0 }
+  main { padding:0 16px 16px }
+  canvas { display:block; margin:0 auto; background:#fff; border:1px solid #bbb; touch-action:none }
+  #marker { text-align:center; font-weight:700; font-size:28px; margin:16px 0 }
+</style>
+</head>
+<body>
+<header><h1>Studio</h1><button id="help">Help</button></header>
+<main><canvas id="stage"></canvas></main>
+<div id="pad"></div>
+<script>
+// A small app drawn entirely on one canvas: three buttons, a toggle, a slider, a checkbox, a settings icon,
+// six colour swatches and a draggable card on a grid. It exists so Behique's canvas senses have ground truth:
+// every object has a known box. window.__layout() and window.__state() are for the test HARNESS only (the
+// explorer never evaluates page code), the way a human tester would read the app's own model.
+// ?bug=<id> plants one behavioural bug (bugs.json lists them); with no bug the app is exactly as before. The page looks
+// identical at load in every variant: only what a control DOES differs.
+// ?pad=N adds N px of page below the canvas, with a text marker at the very bottom (tall-screenshot test).
+const W = 960, H = 620
+const canvas = document.getElementById('stage'), ctx = canvas.getContext('2d')
+const params = new URLSearchParams(location.search)
+const BUG = params.get('bug')
+const SWATCHES = [['red', '#d64545'], ['green', '#3f9b5b'], ['blue', '#3a6fd1'], ['amber', '#e0a526'], ['violet', '#8a5fc9'], ['teal', '#2a9d9d']]
+const BOARD = { x: 24, y: 330, cols: 6, rows: 3, cell: 80 }
+const state = { status: 'idle', sound: false, volume: 50, loop: false, settings: false, colour: null, card: { col: 0, row: 0 }, drag: null }
+let scale = 1, dpr = 1
+
+const knobX = () => 120 + state.volume * 2.6
+const objects = [
+  { id: 'btn-start', kind: 'button', label: 'Start', box: () => ({ x: 24, y: 70, w: 120, h: 44 }) },
+  { id: 'btn-stop', kind: 'button', label: 'Stop', box: () => ({ x: 160, y: 70, w: 120, h: 44 }) },
+  { id: 'btn-reset', kind: 'button', label: 'Reset', box: () => ({ x: 296, y: 70, w: 120, h: 44 }) },
+  { id: 'toggle-sound', kind: 'toggle', label: 'Sound', box: () => ({ x: 120, y: 132, w: 64, h: 32 }) },
+  { id: 'slider-track', kind: 'slider-track', label: 'Volume', box: () => ({ x: 120, y: 219, w: 260, h: 12 }) },
+  { id: 'slider-knob', kind: 'slider-knob', label: 'Volume knob', box: () => ({ x: knobX() - 11, y: 214, w: 22, h: 22 }) },
+  { id: 'checkbox-loop', kind: 'checkbox', label: 'Loop', box: () => ({ x: 24, y: 276, w: 14, h: 14 }) },
+  { id: 'icon-settings', kind: 'icon', label: 'Settings', box: () => ({ x: 920, y: 20, w: 16, h: 16 }) },
+  ...SWATCHES.map(([name], i) => ({ id: 'swatch-' + name, kind: 'swatch', label: name, box: () => ({ x: 520 + (i % 3) * 68, y: 150 + Math.floor(i / 3) * 68, w: 56, h: 56 }) })),
+  { id: 'card-note', kind: 'card', label: 'Note', box: () => cardBox() },
+]
+const byId = id => objects.find(o => o.id === id)
+function cardBox() {
+  if (state.drag?.what === 'card') return { x: state.drag.x - state.drag.dx, y: state.drag.y - state.drag.dy, w: 64, h: 64 }
+  return { x: BOARD.x + state.card.col * BOARD.cell + 8, y: BOARD.y + state.card.row * BOARD.cell + 8, w: 64, h: 64 }
+}
+
+const click = {
+  'btn-start': () => { state.status = 'playing' },
+  'btn-stop': () => { state.status = 'stopped' },
+  'btn-reset': () => { Object.assign(state, { status: 'idle', sound: false, volume: 50, loop: false, colour: null, card: { col: 0, row: 0 } }) },
+  'toggle-sound': () => { state.sound = !state.sound },
+  'checkbox-loop': () => { state.loop = !state.loop },
+  'icon-settings': () => { state.settings = !state.settings },
+}
+for (const [name] of SWATCHES) click['swatch-' + name] = () => { state.colour = BUG === 'swatch-wrong' && name === 'blue' ? 'green' : name }
+if (BUG === 'stop-dead') click['btn-stop'] = () => {}
+// added after the first scored run, as held-out bugs: the detection rules were not tuned on these
+if (BUG === 'toggle-dead') click['toggle-sound'] = () => {}
+if (BUG === 'reset-dead') click['btn-reset'] = () => {}
+if (BUG === 'start-typo') click['btn-start'] = () => { state.status = 'plying' }
+
+function rr(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r) }
+function text(s, x, y, { size = 16, weight = 400, colour = '#222', align = 'left' } = {}) {
+  ctx.font = `${weight} ${size}px sans-serif`; ctx.fillStyle = colour; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y)
+}
+
+function render() {
+  canvas.width = Math.round(W * scale * dpr); canvas.height = Math.round(H * scale * dpr)
+  ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0)
+  ctx.clearRect(0, 0, W, H)
+  text('Studio', 24, 44, { size: 28, weight: 700 })
+  // buttons
+  for (const [id, colour] of [['btn-start', '#2f6fb0'], ['btn-stop', '#b3261e'], ['btn-reset', '#6b7280']]) {
+    const b = byId(id).box(); rr(b.x, b.y, b.w, b.h, 8); ctx.fillStyle = colour; ctx.fill()
+    text(byId(id).label, b.x + b.w / 2, b.y + 28, { size: 17, weight: 700, colour: '#fff', align: 'center' })
+  }
+  // toggle
+  text('Sound', 24, 154, { size: 17 })
+  const t = byId('toggle-sound').box(); rr(t.x, t.y, t.w, t.h, 16); ctx.fillStyle = state.sound ? '#3f9b5b' : '#b8bec6'; ctx.fill()
+  ctx.beginPath(); ctx.arc(t.x + (state.sound ? t.w - 16 : 16), t.y + 16, 12, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill()
+  text(state.sound ? 'ON' : 'OFF', 200, 154, { size: 15, weight: 700, colour: state.sound ? '#3f9b5b' : '#6b7280' })
+  // slider
+  text('Volume', 24, 234, { size: 17 })
+  const tr = byId('slider-track').box(); rr(tr.x, tr.y + 3, tr.w, 6, 3); ctx.fillStyle = '#d5dbe0'; ctx.fill()
+  rr(tr.x, tr.y + 3, knobX() - tr.x, 6, 3); ctx.fillStyle = '#2f6fb0'; ctx.fill()
+  ctx.beginPath(); ctx.arc(knobX(), 225, 11, 0, Math.PI * 2); ctx.fillStyle = '#fff'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#2f6fb0'; ctx.stroke()
+  text(String(state.volume), 400, 231, { size: 15, weight: 700 })
+  // checkbox
+  const c = byId('checkbox-loop').box(); ctx.lineWidth = 1.5; ctx.strokeStyle = '#444'; ctx.strokeRect(c.x, c.y, c.w, c.h)
+  if (state.loop) { ctx.beginPath(); ctx.moveTo(c.x + 3, c.y + 7); ctx.lineTo(c.x + 6, c.y + 11); ctx.lineTo(c.x + 12, c.y + 3); ctx.lineWidth = 2; ctx.strokeStyle = '#3f9b5b'; ctx.stroke() }
+  text('Loop', 46, 288, { size: 16 })
+  // settings icon (16 px gear-like ring)
+  const g = byId('icon-settings').box(); ctx.beginPath(); ctx.arc(g.x + 8, g.y + 8, 6, 0, Math.PI * 2); ctx.lineWidth = 3; ctx.strokeStyle = state.settings ? '#2f6fb0' : '#555'; ctx.stroke()
+  ctx.beginPath(); ctx.arc(g.x + 8, g.y + 8, 2, 0, Math.PI * 2); ctx.fillStyle = state.settings ? '#2f6fb0' : '#555'; ctx.fill()
+  text(state.settings ? 'Settings: open' : 'Settings: closed', 904, 33, { size: 14, colour: '#6b7280', align: 'right' })
+  // swatches
+  text('Colour', 520, 138, { size: 17 })
+  for (const [name, colour] of SWATCHES) {
+    const s = byId('swatch-' + name).box(); rr(s.x, s.y, s.w, s.h, 6); ctx.fillStyle = colour; ctx.fill()
+    if (state.colour === name) { rr(s.x - 3, s.y - 3, s.w + 6, s.h + 6, 9); ctx.lineWidth = 3; ctx.strokeStyle = '#222'; ctx.stroke() }
+  }
+  text('Colour: ' + (state.colour ?? 'none'), 520, 306, { size: 15 })
+  // board and card
+  text('Board', 24, 320, { size: 17 })
+  ctx.lineWidth = 1; ctx.strokeStyle = '#c5ccd3'
+  for (let i = 0; i <= BOARD.cols; i++) { ctx.beginPath(); ctx.moveTo(BOARD.x + i * BOARD.cell, BOARD.y); ctx.lineTo(BOARD.x + i * BOARD.cell, BOARD.y + BOARD.rows * BOARD.cell); ctx.stroke() }
+  for (let j = 0; j <= BOARD.rows; j++) { ctx.beginPath(); ctx.moveTo(BOARD.x, BOARD.y + j * BOARD.cell); ctx.lineTo(BOARD.x + BOARD.cols * BOARD.cell, BOARD.y + j * BOARD.cell); ctx.stroke() }
+  const k = cardBox(); rr(k.x, k.y, k.w, k.h, 8); ctx.fillStyle = '#f2d14b'; ctx.fill()
+  text('Note', k.x + k.w / 2, k.y + 38, { size: 16, weight: 700, align: 'center' })
+  // status line
+  text('Status: ' + state.status, 24, 604, { size: 16, weight: 600 })
+}
+
+function layout() {
+  const r = canvas.getBoundingClientRect(), ox = r.left + canvas.clientLeft + window.scrollX, oy = r.top + canvas.clientTop + window.scrollY
+  return { scale, dpr, canvas: { x: ox, y: oy, w: W * scale, h: H * scale }, objects: objects.map(o => { const b = o.box(); return { id: o.id, kind: o.kind, label: o.label, box: { x: ox + b.x * scale, y: oy + b.y * scale, w: b.w * scale, h: b.h * scale } } }) }
+}
+window.__layout = layout
+window.__state = () => JSON.parse(JSON.stringify(state))
+
+function toLogical(e) { const r = canvas.getBoundingClientRect(); return { x: (e.clientX - r.left - canvas.clientLeft) / scale, y: (e.clientY - r.top - canvas.clientTop) / scale } }
+const inside = (p, b) => p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h
+const setVolume = x => { state.volume = Math.max(0, Math.min(BUG === 'slider-clamp' ? 60 : 100, Math.round((x - 120) / 2.6))) }
+
+canvas.addEventListener('pointerdown', e => {
+  const p = toLogical(e)
+  const hit = [...objects].reverse().find(o => inside(p, o.box()))
+  if (!hit) return
+  canvas.setPointerCapture(e.pointerId)
+  if (hit.id === 'card-note') { const b = cardBox(); state.drag = { what: 'card', x: p.x, y: p.y, dx: p.x - b.x, dy: p.y - b.y } }
+  else if (hit.id === 'slider-knob' || hit.id === 'slider-track') { setVolume(p.x); state.drag = { what: 'slider' } }
+  else click[hit.id]?.()
+  render()
+})
+canvas.addEventListener('pointermove', e => {
+  if (!state.drag) return
+  const p = toLogical(e)
+  if (state.drag.what === 'card') { state.drag.x = p.x; state.drag.y = p.y } else setVolume(p.x)
+  render()
+})
+canvas.addEventListener('pointerup', e => {
+  if (state.drag?.what === 'card') {
+    const p = toLogical(e)
+    state.card = { col: Math.max(0, Math.min(BOARD.cols - 1, Math.floor((p.x - BOARD.x) / BOARD.cell) + (BUG === 'card-offset' ? 1 : 0))), row: Math.max(0, Math.min(BOARD.rows - 1, Math.floor((p.y - BOARD.y) / BOARD.cell))) }
+  }
+  state.drag = null
+  render()
+})
+
+function fit() {
+  dpr = window.devicePixelRatio || 1
+  const cssW = Math.min(W, document.documentElement.clientWidth - 34)
+  scale = cssW / W
+  canvas.style.width = cssW + 'px'; canvas.style.height = (H * scale) + 'px'
+  render()
+}
+window.addEventListener('resize', fit)
+const pad = Number(params.get('pad') || 0)
+if (pad > 0) { document.getElementById('pad').style.height = pad + 'px'; const m = document.createElement('div'); m.id = 'marker'; m.textContent = 'BOTTOM MARKER'; document.getElementById('pad').append(m); m.style.marginTop = (pad - 80) + 'px' }
+fit()
+</script>
+</body>
+</html>

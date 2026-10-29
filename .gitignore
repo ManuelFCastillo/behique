@@ -3,6 +3,7 @@ out/
 __pycache__/
 node_modules/
 bench/runs/
+bench/canvas-runs/
 test-results/
 spike/
 corpus/

@@ -1,0 +1,41 @@
+[
+  {
+    "id": "stop-dead",
+    "object": "btn-stop",
+    "what": "The Stop button does nothing: the status stays as it was."
+  },
+  {
+    "id": "swatch-wrong",
+    "object": "swatch-blue",
+    "what": "Clicking the blue swatch selects green: the selection ring lands on the wrong swatch."
+  },
+  {
+    "id": "card-offset",
+    "object": "card-note",
+    "what": "Dropping the Note card puts it one column to the right of where it was dropped."
+  },
+  {
+    "id": "slider-clamp",
+    "object": "slider-knob",
+    "what": "The Volume slider stops at 60: dragging to the end of the track leaves the knob short of it."
+  },
+  {
+    "id": "toggle-dead",
+    "object": "toggle-sound",
+    "what": "The Sound switch does nothing when clicked.",
+    "heldOut": true
+  },
+  {
+    "id": "reset-dead",
+    "object": "btn-reset",
+    "what": "The Reset button does nothing.",
+    "heldOut": true
+  },
+  {
+    "id": "start-typo",
+    "object": "btn-start",
+    "what": "Start sets the status text to \"Status: plying\" (a wrong word, but the screen does change).",
+    "heldOut": true,
+    "detectable": false
+  }
+]
