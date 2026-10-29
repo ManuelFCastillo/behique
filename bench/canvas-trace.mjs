@@ -22,7 +22,8 @@ const server = createServer((req, res) => { res.writeHead(200, { 'Content-Type':
 await new Promise(r => server.listen(0, '127.0.0.1', r))
 const base = `http://127.0.0.1:${server.address().port}/`
 console.log(`${controls.length} proposed controls from ${PROPOSALS}`)
-for (const v of [{ id: 'clean', q: '' }, ...BUGS.map(b => ({ id: b.id, q: '?bug=' + b.id }))]) {
+// clean-again and clean-floor are two more runs of the UNCHANGED app: the first is the candidate of the clean case, the second gives the per-step noise floor
+for (const v of [{ id: 'clean', q: '' }, { id: 'clean-again', q: '' }, { id: 'clean-floor', q: '' }, ...BUGS.map(b => ({ id: b.id, q: '?bug=' + b.id }))]) {
   if (ONLY && v.id !== ONLY) continue
   const t = await traceVariant({ url: base + v.q, controls, dir: join(OUT, v.id), variant: v.id, replays: REPLAYS })
   console.log(v.id.padEnd(13), `${t.steps.length} steps, findings: ${t.findings.map(i => t.steps[i].label).join(', ') || 'none'}; replays ${t.replays.map(r => `${r.agree}/${r.of}`).join(' ') || '-'}`)

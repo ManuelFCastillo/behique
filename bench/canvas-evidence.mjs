@@ -19,8 +19,8 @@ const have = new Set(listCases(EVIDENCE).map(id => summarize(openCase(join(EVIDE
 for (const id of ['clean', ...BUGS.map(b => b.id)]) {
   if (arg('variant') && arg('variant') !== id) continue
   if (have.has(`canvas-${id}`) && !process.argv.includes('--again')) { console.log(`${id.padEnd(13)} already has a case, skipped`); continue }
-  const candDir = join(TRACES, id)
+  const candDir = join(TRACES, id === 'clean' ? 'clean-again' : id) // the clean case compares the unchanged app with a SEPARATE second run of it, never with itself
   if (!existsSync(join(candDir, 'trace.json'))) { console.log(`${id.padEnd(13)} no trace yet`); continue }
-  const r = recordCanvasCase({ evidenceRoot: EVIDENCE, goodDir: join(TRACES, 'clean'), candDir, variantId: id, bug: BUGS.find(b => b.id === id) ?? null, screenshot: join(TRACES, 'screenshot.png'), proposals: join(TRACES, 'proposals.json'), model, provenance })
+  const r = recordCanvasCase({ evidenceRoot: EVIDENCE, goodDir: join(TRACES, 'clean'), candDir, floorDir: join(TRACES, 'clean-floor'), variantId: id, bug: BUGS.find(b => b.id === id) ?? null, screenshot: join(TRACES, 'screenshot.png'), proposals: join(TRACES, 'proposals.json'), model, provenance })
   console.log(`${id.padEnd(13)} ${r.caseId}  ${JSON.stringify(r.counts)}  record intact: ${r.ok}`)
 }

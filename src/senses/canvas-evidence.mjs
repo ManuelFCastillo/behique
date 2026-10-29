@@ -8,6 +8,7 @@
 import { existsSync, mkdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { openCase } from '../release/evidence.mjs'
+import { aboveFloor, diff, diffImage } from './pixels.mjs'
 
 const FAIL = new Set(['no_change', 'changed_elsewhere', 'unexpected_change'])
 const PASS = new Set(['verified', 'changed'])
@@ -37,11 +38,12 @@ const where = a => { const p = a.from ?? a; return `(${Math.round(p.x)}, ${Math.
 
 /**
  * @param goodDir,candDir  trace directories (trace.json plus s<i>-{before,after,diff}.png) written by trace.mjs
+ * @param floorDir  optional: another run of the GOOD version. How much its pictures differ from goodDir's is the noise floor, step by step.
  * @param screenshot,proposals  paths to the one picture the model was shown and the controls it proposed
  * @param model  the model that proposed them, e.g. 'muse-spark-1.3'
  * @returns { caseId, counts }
  */
-export function recordCanvasCase({ evidenceRoot, goodDir, candDir, variantId, bug = null, screenshot, proposals, model, provenance }) {
+export function recordCanvasCase({ evidenceRoot, goodDir, candDir, floorDir = null, variantId, bug = null, screenshot, proposals, model, provenance }) {
   const good = readTrace(goodDir), cand = readTrace(candDir)
   if (good.steps.length !== cand.steps.length) throw new Error('the two traces do not cover the same steps')
   const stamp = new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')
@@ -65,7 +67,7 @@ export function recordCanvasCase({ evidenceRoot, goodDir, candDir, variantId, bu
   const candT = c.artifact('candidate-trace.json', readFileSync(join(candDir, 'trace.json'), 'utf8'), 'application/json')
   const stepArt = (dir, i, which, tag) => { const f = join(dir, `s${i}-${which}.png`); return existsSync(f) ? art(`step${i + 1}-${tag}-${which}.png`, f) : null }
 
-  const counts = { regression: 0, fails_both: 0, unstable: 0, pass: 0, skipped: 0 }
+  const counts = { regression: 0, fails_both: 0, unstable: 0, pass: 0, skipped: 0, differs: 0 }
   const rows = cand.steps.map((s, i) => ({ s, i, kind: classify(runsAt(good, i), runsAt(cand, i)), g: runsAt(good, i), k: runsAt(cand, i) }))
   for (const r of rows) counts[r.kind]++
   const nGoodRuns = 1 + (good.replayVerdicts?.length ?? 0), nCandRuns = 1 + (cand.replayVerdicts?.length ?? 0)
@@ -90,7 +92,29 @@ export function recordCanvasCase({ evidenceRoot, goodDir, candDir, variantId, bu
   for (const r of rows.filter(r => r.kind === 'fails_both')) c.claim('verified_fact', `Step ${r.i + 1}: the "${r.s.label}" control ${WORDS[r.k[0]] ?? r.k[0]} on both ${goodRef} and ${candRef} in every run, so it is not a difference between the versions.`, { evidence: [candT, goodT] })
   for (const r of rows.filter(r => r.kind === 'unstable')) c.claim('statistical', `Step ${r.i + 1}: the "${r.s.label}" control gave mixed results (${candRef}: ${r.k.join(', ')}; ${goodRef}: ${r.g.join(', ')}), so it is not called a change.`, { evidence: [candT, goodT] })
 
-  const outcome = counts.regression ? 'regression proven' : 'no candidate defects'
+  // Picture comparison: after the same action, does the screen differ between the versions, by more than the unchanged app
+  // differs from itself? Verdicts can pass on both versions while the picture is wrong (a misspelled word is still a change).
+  // Only the first run's pictures are kept, so this is a lead to look at, not a reproduced failure.
+  const pic = (dir, i) => { const f = join(dir, `s${i}-after.png`); return existsSync(f) ? readFileSync(f) : null }
+  const pics = rows.map(r => {
+    const g = pic(goodDir, r.i), k = pic(candDir, r.i)
+    if (!g || !k) return null
+    const d = diff(g, k).changed, fl = floorDir && pic(floorDir, r.i) ? diff(g, pic(floorDir, r.i)).changed : 0
+    return { i: r.i, g, k, d, fl, differs: aboveFloor({ changed: d }, { changed: fl }, { minPixels: 4 }) }
+  })
+  const first = pics.find(p => p?.differs)
+  if (first) {
+    counts.differs = pics.filter(p => p?.differs).length
+    const r = rows[first.i]
+    if (r.kind !== 'regression') {
+      const n = first.i + 1, verb = r.s.action.type === 'drag' ? 'dragging' : 'clicking'
+      const gH = c.artifact(`step${n}-unchanged-after.png`, first.g, 'image/png'), kH = c.artifact(`step${n}-candidate-after.png`, first.k, 'image/png'), dH = c.artifact(`step${n}-versions-diff.png`, diffImage(first.g, first.k), 'image/png')
+      const later = counts.differs - 1
+      c.claim('verified_fact', `Step ${n}: after ${verb} the "${r.s.label}" control, the screen on ${candRef} differs from ${goodRef} by ${first.d} pixels${floorDir ? ` (two runs of ${goodRef} differ by ${first.fl} there)` : ' (no noise floor was measured)'}. Both versions did what the rules expect, so no failure was proven, but the pictures are not the same: look at the difference. This is the first step where they differ${later ? `; ${later} later step${later === 1 ? ' also differs' : 's also differ'}, which may carry over from this one` : ''}. Compared on the first run only.`, { evidence: [gH, kH, dH, candT, goodT] })
+    }
+  }
+
+  const outcome = counts.regression ? 'regression proven' : first ? 'differences found' : 'no candidate defects'
   c.event('case.closed', { outcome, bisected: false, canvas: counts })
   return { caseId, counts, ok: c.verify().ok }
 }
