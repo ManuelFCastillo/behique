@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Behique CI release report</title>
+<style>
+  :root { --bg:#f6f7f8; --card:#fff; --ink:#1b1f24; --muted:#5b6570; --rule:#d5dbe0; --accent:#0f6b5c; --good:#13795b; --bad:#b3261e; --soon:#8a6d1c; --code:#eef1f3; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --card:#1c2024; --ink:#e8ebee; --muted:#98a2ad; --rule:#2f363d; --accent:#4fc3ad; --good:#4fc79b; --bad:#ff8a80; --soon:#d9b455; --code:#101316; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif }
+  main { max-width:760px; margin:0 auto; padding:24px 16px 72px }
+  h1 { font-size:28px; line-height:1.2; margin:0 0 6px } h2 { font-size:20px; margin:34px 0 4px } h3 { font-size:16px; margin:0 }
+  p { margin:0 0 10px } .muted { color:var(--muted) } .small { font-size:14px }
+  a { color:var(--accent) } .top { display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:center; font-size:14px; margin-bottom:14px }
+  select, input, textarea { font:inherit; font-size:15px; color:var(--ink); background:var(--card); border:1px solid var(--rule); border-radius:8px; padding:7px 10px }
+  .hero { display:flex; gap:20px; align-items:center } .hero img { width:120px; height:120px; border-radius:14px; border:1px solid var(--rule); flex:none }
+  .verdict { font-size:26px; font-weight:800; line-height:1.2 } .verdict.bad { color:var(--bad) } .verdict.ok { color:var(--good) }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:14px 16px; margin:10px 0 }
+  .claim .row1 { display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:4px }
+  .tag { font-size:12px; font-weight:700; padding:1px 9px; border-radius:99px; border:1px solid currentColor; white-space:nowrap }
+  .t-reproduced_failure { color:var(--bad) } .t-verified_fact, .t-statistical { color:var(--good) } .t-suspected_cause, .t-ai_hypothesis { color:var(--soon) }
+  .ev { display:flex; gap:6px; flex-wrap:wrap; margin-top:6px; font-size:13px } .ev a { padding:1px 8px; border:1px solid var(--rule); border-radius:6px; text-decoration:none }
+  .banner { border-radius:10px; padding:10px 14px; margin:10px 0; font-size:15px } .banner.bad { border:1px solid var(--bad); color:var(--bad) } .banner.ok { border:1px solid var(--rule); color:var(--muted) } .banner.ok b { color:var(--good) }
+  .decide { display:flex; gap:10px; flex-wrap:wrap; margin:12px 0 } .decide button { font:inherit; font-weight:700; padding:11px 26px; border-radius:10px; border:2px solid var(--accent); background:transparent; color:var(--accent); cursor:pointer; font-size:17px } .decide button:hover:not(:disabled) { background:var(--accent); color:var(--bg) } .decide button:disabled { opacity:.5 }
+  .fields { display:grid; grid-template-columns:1fr 2fr; gap:10px; margin:8px 0 } .fields label { font-size:13px; color:var(--muted); display:block } .fields input, .fields textarea { width:100%; margin-top:2px }
+  .current { border-left:4px solid var(--accent); padding:8px 12px; margin:10px 0; background:var(--card); border-radius:0 8px 8px 0 }
+  table { width:100%; border-collapse:collapse; font-size:13px } th, td { text-align:left; padding:6px 8px; border-top:1px solid var(--rule); vertical-align:top } th { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); border-top:0 }
+  td code { font:12px ui-monospace, Menlo, monospace; word-break:break-all }
+  details { margin:8px 0 } summary { cursor:pointer; color:var(--accent); font-weight:600; font-size:15px }
+  .code { background:var(--code); border:1px solid var(--rule); border-radius:8px; padding:10px 12px; font:12px/1.45 ui-monospace, Menlo, monospace; word-break:break-all }
+  @media (max-width:600px) { .hero { flex-direction:column; align-items:flex-start } .fields { grid-template-columns:1fr } }
+</style>
+</head>
+<body>
+<main>
+  <div class="top"><a href="/">&larr; Back to the demo</a><label class="muted">Report <select id="pick"></select></label></div>
+  <div id="empty" class="card" hidden><b>No reports yet.</b> Go back to the demo and press <i>Run the check</i>. Each run saves one report.</div>
+
+  <div id="page" hidden>
+    <div class="hero">
+      <img id="logo" alt="">
+      <div><div class="verdict" id="verdict"></div><p class="muted" id="sub"></p></div>
+    </div>
+    <div id="aboutCard" class="card" hidden><div class="small muted" style="text-transform:uppercase;letter-spacing:.06em;font-size:12px">About this case</div><div id="aboutText" style="margin-top:2px"></div><div class="small" id="aboutLink" style="margin-top:4px"></div></div>
+    <div id="chainBanner"></div>
+
+    <h2>What the check proved</h2>
+    <p class="small muted">Everything here was measured by deterministic code, not guessed. Each item links to the saved evidence it rests on.</p>
+    <div id="proven"></div>
+
+    <div id="culpritWrap" hidden>
+      <h2>The code change that caused it</h2>
+      <div class="card"><b id="cSubject"></b><div class="small muted" id="cMeta"></div><div class="small" id="cLink" style="margin-top:4px"></div></div>
+    </div>
+
+    <h2>What is only a lead</h2>
+    <p class="small muted">Possible causes and AI guesses. They can help you investigate, but they are never proof.</p>
+    <div id="leads"></div>
+    <div class="card" id="askCard" hidden>
+      <h3>Ask an AI why this happened</h3>
+      <p class="small muted" style="margin:4px 0 8px">This is the only step that uses a model, and it only happens when you press the button. The model is shown the observed difference and the one code change above, and nothing else. Whatever it says is recorded as a guess, never as proof.</p>
+      <div class="small" id="askCost"></div>
+      <details><summary>See exactly what will be sent</summary><pre class="code" id="askSent" style="white-space:pre-wrap;max-height:260px;overflow:auto"></pre></details>
+      <div class="decide" style="margin-bottom:4px"><button id="askBtn">Ask the AI</button></div>
+      <p class="small muted" id="askMsg"></p>
+    </div>
+
+    <h2>Your decision</h2>
+    <p class="small muted">Behique never ships or holds a release on its own. Your choice is written to the record with the time, and it can be changed later; earlier choices stay on the record.</p>
+    <div id="current"></div>
+    <div class="fields"><div><label for="who">Your name (optional)</label><input id="who" maxlength="80" autocomplete="name"></div><div><label for="note">Why (required: 3 characters, or 10 to ship against a proven change)</label><textarea id="note" rows="2" maxlength="500"></textarea></div></div>
+    <div class="decide"><button id="ship">Ship</button><button id="hold">Hold</button></div>
+    <p class="small muted" id="decideMsg"></p>
+    <details id="history" hidden><summary>Earlier decisions</summary><div id="historyList"></div></details>
+
+    <h2>The record</h2>
+    <details><summary>Evidence files</summary><div class="card" style="padding:4px 8px"><table id="artTable"></table></div></details>
+    <details><summary>Full event log</summary><div class="card" style="padding:4px 8px"><table id="evTable"></table></div></details>
+    <details><summary>What the labels mean</summary><div class="card" style="padding:4px 8px"><table id="legend"></table></div></details>
+  </div>
+</main>
+
+<script>
+const $ = id => document.getElementById(id)
+const el = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e }
+const NAME = { reproduced_failure: 'Reproduced failure', verified_fact: 'Verified fact', statistical: 'Measured', suspected_cause: 'Suspected cause', ai_hypothesis: 'AI guess' }
+const BY = { code: 'code', human: 'a person', model: 'an AI model' }
+const when = ts => new Date(ts).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' })
+let id = null
+
+function claimCard(c, data) {
+  const d = el('div', undefined, 'card claim'); const r = el('div', undefined, 'row1')
+  r.append(el('span', NAME[c.label], 'tag t-' + c.label), el('span', `written by ${BY[c.by] ?? c.by}${c.model ? ' (' + c.model + ')' : ''}`, 'small muted'))
+  d.append(r, el('div', c.text))
+  if (c.label === 'ai_hypothesis') {
+    const x = el('div', undefined, 'small'); x.style.marginTop = '6px'
+    x.append(el('div', c.grounded ? '\u2713 The line it points to really is in the code change.' : '\u26a0 The line it points to was not found in the code change. Treat this guess with extra caution.', c.grounded ? 'muted' : 't-suspected_cause'))
+    if (c.quote) { const q = el('div', c.quote, 'code'); q.style.margin = '4px 0'; x.append(q) }
+    x.append(el('div', `Its own confidence: ${c.confidence}.${c.explainsSymptom === false ? ' It says this change may not explain the difference.' : ''}${c.diffTruncated ? ' The code change was cut for length.' : ''}`, 'muted'))
+    if (c.howToCheck) x.append(el('div', 'How to check it: ' + c.howToCheck, 'muted'))
+    if (c.estUsd !== undefined) x.append(el('div', `Cost: about $${c.estUsd.toFixed(4)} (${c.promptTokens} tokens in, ${c.completionTokens} out; estimated price).`, 'muted'))
+    d.append(x)
+  }
+  if (c.evidence.length) {
+    const ev = el('div', undefined, 'ev'); ev.append(el('span', 'Evidence:', 'muted'))
+    for (const h of c.evidence) { const a = el('a', data.summary.artifacts[h]?.name ?? (h.startsWith('event:') ? 'log entry ' + h.slice(6) : h.slice(0, 8))); a.href = `/api/artifact?id=${encodeURIComponent(data.id)}&hash=${h}`; a.target = '_blank'; ev.append(a) }
+    d.append(ev)
+  }
+  return d
+}
+
+function render(data) {
+  const s = data.summary, o = s.opened ?? {}
+  const proven = s.claims.some(c => c.label === 'reproduced_failure')
+  $('page').hidden = false; $('empty').hidden = true
+  $('logo').src = proven ? '/assets/Red.png' : '/assets/Green.png'
+  $('verdict').textContent = proven ? `Behaviour change proven in ${o.candRef}` : `No behaviour change proven in ${o.candRef}`
+  $('verdict').className = 'verdict ' + (proven ? 'bad' : 'ok')
+  $('sub').textContent = `${o.candRef} (new) compared with ${o.goodRef} (old). Checked ${when(data.events[0].ts)}.${proven ? ' The check proves the behaviour differs; whether that is a bug is for a person to decide.' : ''}`
+  const sc = o.scenario; $('aboutCard').hidden = !sc
+  if (sc) { $('aboutText').textContent = `${sc.label}. ${sc.about}`; const l = $('aboutLink'); l.replaceChildren(); if (sc.upstream?.url) { const a = el('a', `Upstream issue #${sc.upstream.issue}`); a.href = sc.upstream.url; a.target = '_blank'; l.append(a) } }
+
+  const cb = $('chainBanner'); cb.replaceChildren()
+  const ok = data.chain.ok
+  const b = el('div', undefined, 'banner ' + (ok ? 'ok' : 'bad'))
+  if (ok) { b.append(el('b', '✓ Record intact. '), `${data.chain.events} events, each linked to the one before, and every evidence file still matches its fingerprint.`) }
+  else b.textContent = 'This record has been altered since it was written: ' + data.chain.problems.join(' ')
+  cb.append(b)
+
+  const P = $('proven'); P.replaceChildren(); const L = $('leads'); L.replaceChildren()
+  const order = ['reproduced_failure', 'verified_fact', 'statistical']
+  const proofs = s.claims.filter(c => data.labels[c.label].proof).sort((a, b) => order.indexOf(a.label) - order.indexOf(b.label))
+  proofs.forEach(c => P.append(claimCard(c, data)))
+  const leads = s.claims.filter(c => !data.labels[c.label].proof)
+  leads.forEach(c => L.append(claimCard(c, data)))
+  if (!leads.length) L.append(el('div', 'Nothing yet. No suspected cause and no AI guess has been recorded for this report.', 'card small muted'))
+
+  // the code change, from the saved search result
+  $('culpritWrap').hidden = true
+  const bis = Object.values(s.artifacts).find(a => a.name === 'bisect.json')
+  if (bis) fetch(`/api/artifact?id=${encodeURIComponent(data.id)}&hash=${bis.hash}`).then(r => r.json()).then(j => {
+    const f = j.result; if (!f?.commit) return
+    $('culpritWrap').hidden = false; $('cSubject').textContent = f.subject
+    $('cMeta').textContent = `${f.author}, ${f.date}. Touched ${f.files.length} file${f.files.length === 1 ? '' : 's'}: ${f.files.slice(0, 5).join(', ')}`
+    const l = $('cLink'); l.replaceChildren(); if (f.url) { const a = el('a', 'See this change on GitHub'); a.href = f.url; a.target = '_blank'; l.append(a) }
+  }).catch(() => {})
+
+  // decision
+  const cur = $('current'); cur.replaceChildren()
+  if (s.decision) {
+    const c = el('div', undefined, 'current')
+    c.append(el('b', s.decision.decision === 'ship' ? 'Decision on record: Ship' : 'Decision on record: Hold'), el('div', `${s.decision.who || 'Unnamed'}, ${when(s.decision.ts)}${s.decision.note ? '. “' + s.decision.note + '”' : ''}`, 'small muted'))
+    cur.append(c)
+  } else cur.append(el('div', proven ? 'No decision yet. A behaviour change was proven; whether it blocks this release is your call.' : 'No decision yet.', 'small muted'))
+  const hist = s.decisions.slice(0, -1).reverse()
+  $('history').hidden = !hist.length; $('historyList').replaceChildren(...hist.map(h => el('div', `${h.decision === 'ship' ? 'Ship' : 'Hold'}: ${h.who || 'Unnamed'}, ${when(h.ts)}${h.note ? '. “' + h.note + '”' : ''}`, 'small muted')))
+
+  // the record
+  const art = $('artTable'); art.replaceChildren(); const ah = el('tr'); ['Name', 'Size', 'Fingerprint (sha256)'].forEach(t => ah.append(el('th', t))); art.append(ah)
+  for (const a of Object.values(s.artifacts)) { const tr = el('tr'); const td = el('td'); const l = el('a', a.name); l.href = `/api/artifact?id=${encodeURIComponent(data.id)}&hash=${a.hash}`; l.target = '_blank'; td.append(l); tr.append(td, el('td', a.bytes + ' bytes'), (() => { const t = el('td'); t.append(el('code', a.hash.slice(0, 16) + '...')); return t })()); art.append(tr) }
+  const evt = $('evTable'); evt.replaceChildren(); const eh = el('tr'); ['#', 'Time', 'What', 'By', 'Detail'].forEach(t => eh.append(el('th', t))); evt.append(eh)
+  for (const e of data.events) {
+    const detail = e.type === 'claim' ? `${NAME[e.data.label]}: ${e.data.text.slice(0, 70)}` : e.type === 'artifact' ? e.data.name : e.type === 'test.run' ? `${e.data.ref} run ${e.data.n}: ${e.data.outcome}` : e.type === 'decision' ? e.data.decision : JSON.stringify(e.data).slice(0, 70)
+    const tr = el('tr'); tr.append(el('td', e.seq), el('td', new Date(e.ts).toLocaleTimeString()), el('td', e.type), el('td', e.by), el('td', detail)); evt.append(tr)
+  }
+  const lg = $('legend'); lg.replaceChildren(); const lh = el('tr'); ['Label', 'Who may write it', 'Meaning'].forEach(t => lh.append(el('th', t))); lg.append(lh)
+  for (const [k, v] of Object.entries(data.labels)) { const tr = el('tr'); const t0 = el('td'); t0.append(el('span', NAME[k], 'tag t-' + k)); tr.append(t0, el('td', v.by.map(x => BY[x]).join(' or ')), el('td', v.meaning)); lg.append(tr) }
+}
+
+async function loadAsk() {
+  const card = $('askCard'); card.hidden = true
+  const j = await fetch('/api/hypothesis?id=' + encodeURIComponent(id)).then(r => r.json()).catch(() => null)
+  if (!j?.ok) return // no first bad change to look at: nothing to ask about
+  card.hidden = false
+  const e = j.est, usd = n => '$' + n.toFixed(4)
+  $('askCost').textContent = `Projected cost: about ${usd(e.expectedUsd)}, never more than ${usd(e.worstUsd)} (${e.model}; roughly ${e.promptTokens} tokens in, up to ${e.maxOutTokens} out; the price is an unverified estimate of $${e.pricePerMillion.in} in and $${e.pricePerMillion.out} out per million tokens).`
+  $('askSent').textContent = j.sent.map(m => `[${m.role}]\n${m.content}`).join('\n\n')
+  const left = j.limit - j.existing
+  $('askBtn').disabled = !j.keyPresent || left <= 0
+  $('askBtn').textContent = `Ask the AI (about ${usd(e.expectedUsd)})`
+  $('askMsg').textContent = !j.keyPresent ? 'No API key is set for the model, so this is switched off.' : left <= 0 ? `This report already has ${j.existing} AI guesses, which is the limit.` : `${left} of ${j.limit} guesses left for this report.`
+}
+$('askBtn').onclick = async () => {
+  $('askBtn').disabled = true; $('askMsg').textContent = 'Asking the model, this takes a few seconds...'
+  try {
+    const r = await fetch('/api/hypothesis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id }) })
+    const j = await r.json(); if (!r.ok) throw new Error(j.error)
+    await load(id); $('askMsg').textContent = `Done. This call cost about $${j.usd.toFixed(4)}.`
+  } catch (e) { $('askMsg').textContent = 'No guess was recorded: ' + e.message; await loadAsk() }
+}
+
+async function load(which) {
+  id = which
+  const r = await fetch('/api/case?id=' + encodeURIComponent(id)); if (!r.ok) return
+  render(await r.json()); await loadAsk()
+}
+
+async function decide(decision, confirmOverride = false) {
+  $('ship').disabled = $('hold').disabled = true; $('decideMsg').textContent = 'saving...'
+  try {
+    const r = await fetch('/api/decision', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, decision, who: $('who').value, note: $('note').value, confirmOverride }) })
+    const j = await r.json().catch(() => ({}))
+    if (!r.ok) {
+      // shipping against a proven change needs an explicit yes; the record itself refuses without it
+      if (j.needsOverride && !confirmOverride && confirm(j.error)) { $('ship').disabled = $('hold').disabled = false; return decide(decision, true) }
+      throw new Error(j.error || 'the record refused it')
+    }
+    $('decideMsg').textContent = `Saved: ${decision === 'ship' ? 'Ship' : 'Hold'}.`; $('note').value = ''
+    try { localStorage.setItem('behique-who', $('who').value) } catch {}
+    await load(id)
+  } catch (e) { $('decideMsg').textContent = 'Could not save: ' + e.message }
+  $('ship').disabled = $('hold').disabled = false
+}
+$('ship').onclick = () => decide('ship'); $('hold').onclick = () => decide('hold')
+
+;(async () => {
+  try { $('who').value = localStorage.getItem('behique-who') ?? '' } catch {}
+  const cases = await fetch('/api/cases').then(r => r.json())
+  if (!cases.length) { $('empty').hidden = false; $('pick').parentElement.hidden = true; return }
+  const want = new URLSearchParams(location.search).get('case')
+  for (const c of cases) { const o = el('option', c.id.replace('T', ' ').replace(/Z_/, ' ') + (c.decision ? ` (${c.decision})` : '')); o.value = c.id; $('pick').append(o) }
+  $('pick').value = cases.some(c => c.id === want) ? want : cases[0].id
+  $('pick').onchange = () => { history.replaceState(null, '', '?case=' + $('pick').value); load($('pick').value) }
+  load($('pick').value)
+})()
+</script>
+</body>
+</html>

@@ -1,0 +1,198 @@
+[
+  {
+    "id": "S1-insert-untrimmed",
+    "file": "server.js",
+    "find": ".run(text.trim())",
+    "replace": ".run(text)",
+    "what": "POST stores the text without trimming it"
+  },
+  {
+    "id": "S2-blank-accepted",
+    "file": "server.js",
+    "find": "typeof text !== 'string' || !text.trim()",
+    "replace": "typeof text !== 'string'",
+    "what": "POST accepts whitespace-only text"
+  },
+  {
+    "id": "S3-patch-missing-200",
+    "file": "server.js",
+    "find": "send(res, info.changes ? 200 : 404, info.changes ? { ok: true } : { error: 'not found' })",
+    "replace": "send(res, 200, { ok: true })",
+    "what": "PATCH on an unknown id returns 200 instead of 404"
+  },
+  {
+    "id": "S4-delete-missing-204",
+    "file": "server.js",
+    "find": "send(res, info.changes ? 204 : 404, info.changes ? undefined : { error: 'not found' })",
+    "replace": "send(res, 204)",
+    "what": "DELETE on an unknown id returns 204 instead of 404"
+  },
+  {
+    "id": "S5-patch-always-done",
+    "file": "server.js",
+    "find": ".run(done ? 1 : 0,",
+    "replace": ".run(1,",
+    "what": "PATCH can never mark a todo not done"
+  },
+  {
+    "id": "S6-order-desc",
+    "file": "server.js",
+    "find": "ORDER BY id').all()",
+    "replace": "ORDER BY id DESC').all()",
+    "what": "GET lists todos newest first"
+  },
+  {
+    "id": "S7-post-200",
+    "file": "server.js",
+    "find": "send(res, 201, toClient(row))",
+    "replace": "send(res, 200, toClient(row))",
+    "what": "POST returns 200 instead of 201"
+  },
+  {
+    "id": "S8-done-number",
+    "file": "server.js",
+    "find": "done: row.done === 1",
+    "replace": "done: row.done",
+    "what": "done comes back as 0/1 instead of true/false"
+  },
+  {
+    "id": "S9-delete-too-many",
+    "file": "server.js",
+    "find": "DELETE FROM todos WHERE id = ?').run(Number(idMatch[1]))",
+    "replace": "DELETE FROM todos WHERE id <= ?').run(Number(idMatch[1]))",
+    "what": "DELETE also removes every older todo"
+  },
+  {
+    "id": "S10-error-message",
+    "file": "server.js",
+    "find": "{ error: 'text is required' }",
+    "replace": "{ error: 'bad request' }",
+    "what": "400 body no longer says text is required"
+  },
+  {
+    "id": "C1-login-any-password",
+    "file": "index.html",
+    "find": "u === 'admin' && p === 'secret123'",
+    "replace": "u === 'admin'",
+    "what": "admin logs in with any password"
+  },
+  {
+    "id": "C2-login-needs-both",
+    "file": "index.html",
+    "find": "if (!u || !p) {",
+    "replace": "if (!u && !p) {",
+    "what": "login only complains when both fields are empty"
+  },
+  {
+    "id": "C3-count-includes-done",
+    "file": "index.html",
+    "find": "li:not(.done)",
+    "replace": "li",
+    "what": "remaining count includes completed todos"
+  },
+  {
+    "id": "C4-delete-not-persisted",
+    "file": "index.html",
+    "find": "api('DELETE', '/api/todos/' + todo.id);",
+    "replace": "",
+    "what": "deleting a todo only removes the row, not the data"
+  },
+  {
+    "id": "C5-toggle-not-persisted",
+    "file": "index.html",
+    "find": "api('PATCH', '/api/todos/' + todo.id, { done: ev.target.checked });",
+    "replace": "",
+    "what": "ticking a todo is lost on reload"
+  },
+  {
+    "id": "C6-input-not-cleared",
+    "file": "index.html",
+    "find": "input.value = '';",
+    "replace": "",
+    "what": "the New task box keeps its text after Add"
+  },
+  {
+    "id": "C7-panel-cannot-close",
+    "file": "index.html",
+    "find": "classList.toggle('hidden')",
+    "replace": "classList.remove('hidden')",
+    "what": "the panel opens but a second click does not close it"
+  },
+  {
+    "id": "C8-color-shouting",
+    "file": "index.html",
+    "find": "'You chose ' + e.target.value",
+    "replace": "'You chose ' + e.target.value.toUpperCase()",
+    "what": "colour message is upper-cased"
+  },
+  {
+    "id": "C9-alert-text",
+    "file": "index.html",
+    "find": "alert('Hello from the page!')",
+    "replace": "alert('Hello!')",
+    "what": "alert text changed"
+  },
+  {
+    "id": "H1-username-untrimmed",
+    "file": "index.html",
+    "find": "document.getElementById('username').value.trim()",
+    "replace": "document.getElementById('username').value",
+    "what": "login no longer trims spaces around the username"
+  },
+  {
+    "id": "H2-non-string-accepted",
+    "file": "server.js",
+    "find": "typeof text !== 'string' || !text.trim()",
+    "replace": "!String(text).trim()",
+    "what": "POST accepts a number or object as text"
+  },
+  {
+    "id": "H3-ids-not-reset",
+    "file": "server.js",
+    "find": " DELETE FROM sqlite_sequence WHERE name = 'todos'",
+    "replace": "",
+    "what": "reset keeps the id counter, so ids no longer restart at 1"
+  },
+  {
+    "id": "H4-two-digit-ids",
+    "file": "server.js",
+    "find": "/^\\/api\\/todos\\/(\\d+)$/",
+    "replace": "/^\\/api\\/todos\\/(\\d)$/",
+    "what": "PATCH and DELETE 404 for any id of 10 or more"
+  },
+  {
+    "id": "H5-content-type",
+    "file": "server.js",
+    "find": "{ 'Content-Type': 'application/json' }",
+    "replace": "{ 'Content-Type': 'text/plain' }",
+    "what": "JSON responses are labelled text/plain"
+  },
+  {
+    "id": "H6-no-loading-state",
+    "file": "index.html",
+    "find": "out.textContent = 'Loading...';",
+    "replace": "",
+    "what": "the delayed load skips its Loading... state"
+  },
+  {
+    "id": "H7-empty-colour-message",
+    "file": "index.html",
+    "find": "e.target.value ? 'You chose ' + e.target.value : ''",
+    "replace": "'You chose ' + e.target.value",
+    "what": "choosing the blank option shows 'You chose '"
+  },
+  {
+    "id": "H8-empty-add-posts",
+    "file": "index.html",
+    "find": "if (!text) return;",
+    "replace": "",
+    "what": "adding an empty task posts it and renders a broken row"
+  },
+  {
+    "id": "H9-html-injection",
+    "file": "index.html",
+    "find": "li.querySelector('span').textContent = todo.text;",
+    "replace": "li.querySelector('span').innerHTML = todo.text;",
+    "what": "todo text is rendered as HTML"
+  }
+]

@@ -1,0 +1,8 @@
+[
+  {"id": "overlap-price", "desc": "Price $24.00 overlaps the first product title", "keywords": ["overlap", "24.00", "price", "title"], "need": ["overlap"]},
+  {"id": "misaligned-email", "desc": "Email input is shifted right, misaligned with other fields", "keywords": ["email", "align", "offset", "indent", "shift"], "need": ["email"]},
+  {"id": "clipped-button", "desc": "Place order button text is clipped", "keywords": ["button", "clip", "cut", "truncat", "place order"], "need": ["button"]},
+  {"id": "low-contrast-terms", "desc": "Terms text is nearly invisible (low contrast)", "keywords": ["contrast", "terms", "faint", "invisible", "legib"], "need": ["contrast", "terms"]},
+  {"id": "broken-image", "desc": "Mug image failed to load, alt text shown", "keywords": ["image", "broken", "failed", "alt", "mug", "photo"], "need": ["image"]},
+  {"id": "wrong-total", "desc": "Total $59.50 does not equal subtotal $64.50 + shipping $5.00 ($69.50)", "keywords": ["total", "59.50", "69.50", "math", "sum", "incorrect", "doesn"], "need": ["total"]}
+]

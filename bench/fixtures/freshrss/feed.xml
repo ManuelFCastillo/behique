@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"><channel><title>Spike Feed</title><link>http://127.0.0.1:8400/</link><description>fixed feed</description>
+<item><title>First post</title><link>https://example.com/posts/first?utm=1&amp;ref=a b</link><guid>spike-1</guid><pubDate>Mon, 01 Jun 2026 10:00:00 GMT</pubDate><description>&lt;p&gt;First article body.&lt;/p&gt;</description></item>
+<item><title>Second post</title><link>https://example.com/posts/second</link><guid>spike-2</guid><pubDate>Mon, 01 Jun 2026 11:00:00 GMT</pubDate><description>&lt;p&gt;Second article body.&lt;/p&gt;</description></item>
+<item><title>Third post</title><link>https://example.com/posts/third</link><guid>spike-3</guid><pubDate>Mon, 01 Jun 2026 12:00:00 GMT</pubDate><description>&lt;p&gt;Third article body.&lt;/p&gt;</description></item>
+</channel></rss>

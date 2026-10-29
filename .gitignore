@@ -1,0 +1,9 @@
+.env
+out/
+__pycache__/
+node_modules/
+bench/runs/
+test-results/
+spike/
+corpus/
+

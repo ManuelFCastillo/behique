@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Behique CI demo</title>
+<style>
+  :root { --bg:#f6f7f8; --card:#fff; --ink:#1b1f24; --muted:#5b6570; --rule:#d5dbe0; --accent:#0f6b5c; --good:#13795b; --bad:#b3261e; --soon:#8a6d1c; --code:#eef1f3; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#14171a; --card:#1c2024; --ink:#e8ebee; --muted:#98a2ad; --rule:#2f363d; --accent:#4fc3ad; --good:#4fc79b; --bad:#ff8a80; --soon:#d9b455; --code:#101316; } }
+  * { box-sizing:border-box }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.55 -apple-system, system-ui, "Segoe UI", sans-serif }
+  main { max-width:760px; margin:0 auto; padding:32px 16px 72px }
+  h1 { font-size:32px; line-height:1.15; margin:0 0 8px } h2 { font-size:22px; margin:44px 0 6px } h3 { font-size:16px; margin:0 0 2px }
+  p { margin:0 0 10px } .muted { color:var(--muted) } .small { font-size:14px }
+  .hero { display:flex; gap:22px; align-items:center } .hero img { width:150px; height:150px; border-radius:14px; border:1px solid var(--rule); flex:none }
+  .lead { font-size:18px }
+  .card { background:var(--card); border:1px solid var(--rule); border-radius:12px; padding:18px; margin:12px 0 }
+  .idea { display:grid; grid-template-columns:1fr auto 1fr auto 1fr; gap:8px; align-items:stretch; margin:14px 0 }
+  .idea .box { background:var(--card); border:1px solid var(--rule); border-radius:10px; padding:12px; font-size:14px } .idea .box b { display:block; font-size:15px; margin-bottom:2px }
+  .idea .arrow { align-self:center; color:var(--muted); font-size:20px }
+  .idea .box.proof { border-color:var(--accent) }
+  button { font:inherit; font-weight:600; padding:12px 22px; border-radius:10px; border:1px solid var(--accent); background:var(--accent); color:#fff; cursor:pointer; font-size:17px }
+  button.small { padding:7px 12px; font-size:14px } button.ghost { background:transparent; color:var(--accent) } button:disabled { opacity:.5; cursor:default }
+  @media (prefers-color-scheme: dark) { button { color:#06231d } button.ghost { color:var(--accent) } }
+  .timeline { list-style:none; padding:0; margin:18px 0 0 } .timeline li { display:flex; gap:12px; padding:10px 0; border-top:1px solid var(--rule) } .timeline li:first-child { border-top:0 }
+  .dot { flex:none; width:22px; height:22px; border-radius:50%; border:2px solid var(--rule); margin-top:2px; display:grid; place-items:center; font-size:13px; line-height:1; font-weight:700 }
+  li.active .dot { border-color:var(--accent); border-top-color:transparent; animation:spin 1s linear infinite }
+  li.done .dot { background:var(--good); border-color:var(--good); color:#fff } li.done .dot::after { content:"\2713" }
+  li.pending { opacity:.5 } @keyframes spin { to { transform:rotate(360deg) } }
+  .tt { font-weight:600 } .dd { color:var(--muted); font-size:14px }
+  .runs { display:flex; gap:6px; align-items:center; margin:4px 0 0; font-size:14px } .runs .lbl { width:120px; color:var(--muted) }
+  .pill { padding:1px 9px; border-radius:99px; font-size:12px; font-weight:700; border:1px solid var(--rule); color:var(--muted) } .pill.pass { color:var(--good); border-color:var(--good) } .pill.fail { color:var(--bad); border-color:var(--bad) }
+  .bar { display:flex; height:14px; border-radius:7px; overflow:hidden; margin:8px 0 2px; border:1px solid var(--rule) } .bar div { transition:width .5s } .bar .g { background:var(--good) } .bar .u { background:var(--rule) } .bar .b { background:var(--bad) }
+  .legend { font-size:12px; color:var(--muted) } .legend i { display:inline-block; width:9px; height:9px; border-radius:50%; margin:0 3px 0 8px } .legend i:first-child { margin-left:0 }
+  .culprit { border:1px solid var(--bad); border-radius:10px; padding:12px 14px; margin:14px 0 } .culprit .k { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted) } .culprit .s { font-weight:700; font-size:17px; margin:2px 0 4px }
+  .result { display:none; margin-top:18px; padding-top:18px; border-top:1px solid var(--rule) } .result.show { display:block }
+  .verdict-row { display:flex; gap:16px; align-items:center } .verdict-row img { width:96px; height:96px; border-radius:12px; flex:none }
+  .verdict { font-size:19px; font-weight:700; line-height:1.3 } .verdict.bad { color:var(--bad) } .verdict.ok { color:var(--good) }
+  .compare { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:14px 0 } .compare > div { border:1px solid var(--rule); border-radius:10px; padding:10px 12px; font-size:13px } .compare b { display:block; font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:4px }
+  .compare code { word-break:break-all; font:13px ui-monospace, Menlo, monospace } .compare .o code { color:var(--good) } .compare .n code { color:var(--bad) }
+  pre { background:var(--code); border:1px solid var(--rule); border-radius:8px; padding:10px 12px; overflow:auto; font:12px/1.45 ui-monospace, Menlo, monospace; margin:8px 0; white-space:pre-wrap; word-break:break-word; max-height:300px }
+  details { margin:8px 0 } summary { cursor:pointer; color:var(--accent); font-weight:600; font-size:15px }
+  table { width:100%; border-collapse:collapse; font-size:14px } th, td { text-align:left; padding:9px 8px; border-top:1px solid var(--rule); vertical-align:top } th { font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); border-top:0 }
+  .tag { font-size:12px; font-weight:700; padding:1px 8px; border-radius:99px; border:1px solid currentColor; white-space:nowrap } .tag.ai { color:var(--accent) } .tag.noai { color:var(--muted) } .tag.soon { color:var(--soon) }
+  a { color:var(--accent) } .row { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin:10px 0 }
+  ul.soon { padding-left:20px; margin:8px 0 } ul.soon li { margin:4px 0 }
+  @media (max-width:600px) { .hero { flex-direction:column; align-items:flex-start } .idea { grid-template-columns:1fr } .idea .arrow { transform:rotate(90deg); justify-self:center } .compare { grid-template-columns:1fr } }
+</style>
+</head>
+<body>
+<main>
+  <div class="hero">
+    <img src="/assets/RG.png" alt="Behique CI logo: a carved figure with one red and one green gem for eyes">
+    <div>
+      <h1>Behique CI</h1>
+      <p class="lead">Finds out what broke between two versions of a program, and proves it with a test anyone can run again.</p>
+    </div>
+  </div>
+
+  <h2>The idea</h2>
+  <div class="idea">
+    <div class="box"><b>1. Old version</b>The one you know works.</div>
+    <div class="arrow">+</div>
+    <div class="box"><b>2. New version</b>The one you are about to ship.</div>
+    <div class="arrow">=</div>
+    <div class="box proof"><b>3. Proof</b>A test that passes on the old version and fails on the new one, every time.</div>
+  </div>
+  <p class="small muted">No test, no report. The test proves the behaviour differs between the two versions. Whether that is a bug, and whether to ship, is a person's call.</p>
+
+  <h2>See it work</h2>
+  <div class="card">
+    <p>We will check <b>FreshRSS</b>, an open-source news reader, comparing old version <b>1.29.1</b> with new version <b>1.30.0</b>. Pick a known case. Behique has to find what changed, prove it, and trace it to the one code change that caused it.</p>
+    <div id="scenarioBox" style="margin:8px 0 12px"></div>
+    <p class="small muted">It takes about two minutes and needs nothing from you. Behique is told which buttons to click. In tests, its AI explorer found the Share menu path on its own only after a one-line hint (“some controls only appear after you open an item”), and missed it in two runs without one.</p>
+    <div class="row"><button id="run">Run the check</button><span id="elapsed" class="small muted"></span></div>
+
+    <ul class="timeline" id="timeline" hidden>
+      <li data-s="record" class="pending"><span class="dot"></span><div><div class="tt">Load both versions and record what each page says</div><div class="dd" data-d>Starts each version from a clean install with the same three articles.</div></div></li>
+      <li data-s="compare" class="pending"><span class="dot"></span><div><div class="tt">Compare old and new</div><div class="dd" data-d>Anything that changes by itself on every load, like timestamps and security tokens, is learned by loading the old version twice and then ignored.</div></div></li>
+      <li data-s="write" class="pending"><span class="dot"></span><div><div class="tt">Write a test for the biggest change</div><div class="dd" data-d>The test states what the old version did.</div></div></li>
+      <li data-s="run" class="pending"><span class="dot"></span><div><div class="tt">Run that test 3 times on each version</div><div class="dd" data-d>Each run starts from a fresh install, so luck cannot help.</div>
+        <div class="runs"><span class="lbl">Old version</span><span id="runsOld"></span></div><div class="runs"><span class="lbl">New version</span><span id="runsNew"></span></div></div></li>
+      <li data-s="bisect" class="pending"><span class="dot"></span><div style="flex:1"><div class="tt">Find the exact change that caused it</div><div class="dd" data-d>Takes the list of code changes between the two versions and tests the one in the middle. Each result rules out half of what is left.</div>
+        <div id="bisectBox" hidden><div class="bar"><div class="g" id="barG"></div><div class="u" id="barU" style="width:100%"></div><div class="b" id="barB"></div></div>
+        <div class="legend"><i style="background:var(--good)"></i>works like the old version<i style="background:var(--rule)"></i>not tested yet<i style="background:var(--bad)"></i>broken like the new version</div>
+        <div class="dd" id="bisectNote" style="margin-top:4px"></div></div></div></li>
+    </ul>
+
+    <div class="result" id="result">
+      <div class="verdict-row"><img id="vImg" alt=""><div><div class="verdict" id="vText"></div><div class="small muted" id="vSub"></div></div></div>
+      <div class="compare" id="vCompare" hidden>
+        <div class="o"><b>The old version</b><code id="vOld"></code></div>
+        <div class="n"><b>The new version</b><code id="vNew"></code></div>
+      </div>
+      <p id="reportP" hidden style="margin:12px 0"><a id="reportLink" style="font-weight:700;font-size:17px">Open the full report and record Ship or Hold &rarr;</a></p>
+      <div class="culprit" id="culprit" hidden>
+        <div class="k">The code change that caused it</div><div class="s" id="cSubject"></div>
+        <div class="small muted" id="cMeta"></div><div class="small" id="cVerify"></div><div class="small" id="cLink"></div>
+      </div>
+      <p class="small muted" id="vNote"></p>
+      <details><summary>See the test Behique wrote</summary><pre id="vSpec"></pre></details>
+      <details><summary>See the full log</summary><pre id="vLog"></pre></details>
+    </div>
+  </div>
+
+  <h2>Where the AI fits</h2>
+  <p class="small muted">The check above has no AI in it, on purpose: a proof has to come out the same every time, so a model is never allowed to declare a bug. The AI does the exploring and the explaining.</p>
+  <div class="card" style="padding:6px 12px">
+    <table>
+      <tr><th>Part</th><th>What it does</th><th>Status</th></tr>
+      <tr><td><b>Release checker</b><br><span class="tag noai">no AI</span></td><td>The check you just ran: compares two versions and proves what changed.</td><td>Built, running above</td></tr>
+      <tr><td><b>AI explorer</b><br><span class="tag ai">uses AI</span></td><td>Meta's models look at an app they have never seen and report bugs. Each report must come with a check that can be replayed.</td><td>Built and scored on a practice app. <a href="/bench" target="_blank">See its results</a>. No live button yet.</td></tr>
+      <tr><td><b>Cause explainer</b><br><span class="tag ai">uses AI</span></td><td>Reads the small code change that broke things and suggests why. Clearly labelled as a guess.</td><td><span class="tag soon">coming</span></td></tr>
+    </table>
+  </div>
+
+  <h2>Coming soon</h2>
+  <ul class="soon small">
+    <li><b>A report page with Ship or Hold.</b> Everything above on one page, with a person recording the decision.</li>
+    <li><b>Explorer without a hint.</b> The explorer found the Share path only when hinted; without a hint it missed it twice. Making it open items by itself is not done.</li>
+    <li><b>A second regression,</b> to show this is not built around one bug.</li>
+  </ul>
+
+  <h2>Optional: try it yourself</h2>
+  <details><summary>Start both versions and click around (the Share menu case)</summary>
+    <p class="small muted" style="margin-top:8px">Starts the old and new FreshRSS side by side. Open an article, open its Share menu, choose Clipboard, then paste into any text box. The old version copies a normal link. The new one copies <code>https%3A%2F%2F...</code>. Stop them before running the check again.</p>
+    <div class="row"><button class="small" id="liveStart">Start both versions</button><button class="small ghost" id="liveStop">Stop</button><span id="liveMsg" class="small muted"></span></div>
+    <div id="liveLinks" class="row"></div>
+  </details>
+</main>
+
+<script>
+const $ = id => document.getElementById(id)
+const el = (tag, text, cls) => { const e = document.createElement(tag); if (text !== undefined) e.textContent = text; if (cls) e.className = cls; return e }
+const stage = (s, state, detail) => { const li = document.querySelector(`#timeline li[data-s=${s}]`); li.className = state; if (detail) li.querySelector('[data-d]').textContent = detail }
+const pill = ok => el('span', ok ? 'passed' : 'failed', 'pill ' + (ok ? 'pass' : 'fail'))
+const plural = (n, w) => `${n} ${w}${+n === 1 ? '' : 's'}`
+
+$('run').onclick = () => {
+  $('run').disabled = true; $('liveStart').disabled = true
+  const lines = []; const t0 = Date.now()
+  $('timeline').hidden = false; $('result').classList.remove('show'); $('runsOld').replaceChildren(); $('runsNew').replaceChildren()
+  ;['record', 'compare', 'write', 'run', 'bisect'].forEach(s => stage(s, 'pending'))
+  $('bisectBox').hidden = true; $('culprit').hidden = true; $('barG').style.width = '0%'; $('barB').style.width = '0%'; $('barU').style.width = '100%'
+  stage('record', 'active')
+  const tick = setInterval(() => $('elapsed').textContent = `${Math.round((Date.now() - t0) / 1000)} s`, 500)
+  const finish = msg => { clearInterval(tick); $('run').disabled = false; $('liveStart').disabled = false; if (msg) $('elapsed').textContent = msg }
+
+  const chosenScenario = chosen()
+  const es = new EventSource('/api/run?job=confirm&scenario=' + encodeURIComponent(chosenScenario))
+  let good = '', cand = '', oldRef = '', found = {}, caseId = ''
+  es.addEventListener('line', e => {
+    const l = JSON.parse(e.data); lines.push(l); let m
+    if (m = l.match(/^evidence: (\S+)$/)) caseId = m[1]
+    if (m = l.match(/^facts: (\d+) stable, (\d+) volatile/)) {
+      stage('record', 'done', `Recorded ${(+m[1] + +m[2]).toLocaleString()} facts about the page. ${m[2]} of them change on their own, so they are ignored.`)
+      stage('compare', 'active')
+    }
+    if (m = l.match(/^candidate .*: (\d+) differences \(changed (\d+), added (\d+), removed (\d+), moved (\d+)\)/)) {
+      stage('compare', 'done', `${plural(m[2], 'value')} changed, ${m[3]} new, ${m[5]} only moved around the page. A control run on the old version showed zero differences, so the noise filter can be trusted.`)
+      stage('write', 'active')
+    }
+    if (m = l.match(/^\s+good: (.*)$/)) good = m[1]
+    if (m = l.match(/^\s+cand: (.*)$/)) cand = m[1]
+    if (l.startsWith('test written')) { stage('write', 'done', 'Wrote a test that checks the new version still behaves the way the old one did.'); stage('run', 'active') }
+    if (m = l.match(/^\s+run (\S+) (\d+)\/(\d+): (passed|failed|error)/)) {
+      if (!oldRef) oldRef = m[1]
+      ;($(m[1] === oldRef ? 'runsOld' : 'runsNew')).append(pill(m[4] === 'passed'))
+    }
+    // the proof is complete once the test has run on both versions; the search for the cause follows
+    if (l.startsWith('CONFIRMED')) { stage('run', 'done', 'Passed every time on the old version and failed every time on the new one.'); stage('bisect', 'active') }
+    if (l.startsWith('NOT CONFIRMED')) { stage('run', 'done', 'The results were not clean enough to call it a bug.'); stage('bisect', 'pending', 'Skipped, because nothing was proven.') }
+    // search for the change that caused it
+    if (m = l.match(/^bisect: (\d+) changes between/)) { $('bisectBox').hidden = false; $('bisectNote').textContent = `Searching ${m[1]} code changes.` }
+    if (m = l.match(/^\s+bisect step (\d+): \w+ \(#(\d+) of (\d+)\) (good|bad|skip)/)) {
+      const what = { good: 'works like the old version', bad: 'is already broken', skip: 'could not be tested, trying a neighbour' }[m[4]]
+      $('bisectNote').textContent = `Step ${m[1]}: change #${m[2]} ${what}.`
+    }
+    if (m = l.match(/^\s+bisect range: good through #(\d+), bad from #(\d+), of (\d+)/)) {
+      const lo = +m[1], hi = +m[2], n = +m[3]
+      $('barG').style.width = (100 * lo / n) + '%'; $('barB').style.width = (100 * (n - hi + 1) / n) + '%'; $('barU').style.width = (100 * Math.max(hi - 1 - lo, 0) / n) + '%'
+      $('bisectNote').textContent += ` ${Math.max(hi - 1 - lo, 0) + 1} still possible.`
+    }
+    if (m = l.match(/^\s+(commit|subject|author|date|files|url): (.*)$/)) found[m[1]] = m[2]
+    if (m = l.match(/^\s+verify parent \w+: passed (\d+)\/(\d+)/)) found.parent = m[1] + '/' + m[2]
+    if (m = l.match(/^\s+verify \w+: failed (\d+)\/(\d+)/)) found.child = m[1] + '/' + m[2]
+    if (m = l.match(/^bisect: first bad change is #(\d+) of (\d+), found in (\d+) steps/)) found.summary = `Narrowed ${m[2]} changes down to #${m[1]} in ${m[3]} steps.`
+    if (l.startsWith('BISECT CONFIRMED')) { found.ok = true; stage('bisect', 'done', found.summary + ' The change just before it passes the test, and this one fails it, each 3 times out of 3.') }
+    if (l.startsWith('BISECT NOT CONFIRMED')) stage('bisect', 'done', (found.summary ?? '') + ' The verification runs were not clean, so treat this as a lead, not a result.')
+    if (l.startsWith('BISECT INCONCLUSIVE')) stage('bisect', 'done', l.replace('BISECT INCONCLUSIVE: ', 'Could not narrow it to one change: ') )
+  })
+  es.addEventListener('done', async e => {
+    es.close(); const d = JSON.parse(e.data)
+    const confirmed = lines.some(l => l.startsWith('CONFIRMED'))
+    $('vImg').src = confirmed ? '/assets/Red.png' : '/assets/Green.png'
+    $('vText').textContent = confirmed ? (found.ok ? 'Behaviour change found, proven, and traced to one change.' : 'Behaviour change found and proven.') : 'No proven behaviour change.'
+    $('vText').className = 'verdict ' + (confirmed ? 'bad' : 'ok')
+    $('vSub').textContent = confirmed ? 'The new version behaves differently from the old one, and a test shows it every time. Whether that is a bug is your call.' : 'Either the test was flaky or it did not separate the two versions. Nothing is reported.'
+    const q = s => { try { return JSON.parse(s) } catch { return s } }
+    $('vCompare').hidden = !(confirmed && good && cand)
+    $('vOld').textContent = q(good); $('vNew').textContent = q(cand)
+    $('vNote').textContent = confirmed ? `${scenarios[chosenScenario]?.about ?? ''} Nothing in this check was decided by an AI model.` : ''
+    $('reportP').hidden = !caseId; if (caseId) $('reportLink').href = '/report?case=' + encodeURIComponent(caseId)
+    $('culprit').hidden = !found.commit
+    if (found.commit) {
+      $('cSubject').textContent = found.subject
+      $('cMeta').textContent = `${found.author}, ${found.date}. Touched ${found.files}`
+      $('cVerify').textContent = found.parent ? `Checked: the change before it passes the test ${found.parent.replace('/', ' out of ')} times, this one fails it ${found.child.replace('/', ' out of ')} times.` : ''
+      const link = $('cLink'); link.replaceChildren()
+      if (found.url) { const a = el('a', 'See this change on GitHub'); a.href = found.url; a.target = '_blank'; link.append(a) }
+      if (!found.ok) $('cVerify').textContent += ' Not fully verified, treat as a lead.'
+    }
+    $('vSpec').textContent = await fetch('/api/spec').then(r => r.text())
+    $('vLog').textContent = lines.join('\n')
+    $('result').classList.add('show'); $('result').scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+    finish(`done in ${d.seconds} s`)
+  })
+  es.onerror = async () => {
+    es.close()
+    const b = await fetch('/api/busy').then(r => r.json()).catch(() => ({}))
+    ;['record', 'compare', 'write', 'run', 'bisect'].forEach(s => { const li = document.querySelector(`#timeline li[data-s=${s}]`); if (li.className === 'active') li.className = 'pending' })
+    finish(b.reason ?? 'connection lost, try again')
+  }
+}
+
+let scenarios = {}
+const chosen = () => document.querySelector('input[name=sc]:checked')?.value ?? 'share'
+fetch('/api/scenarios').then(r => r.json()).then(list => {
+  const box = $('scenarioBox'); box.replaceChildren()
+  list.forEach((s, i) => {
+    scenarios[s.name] = s
+    const lab = el('label', undefined, 'card'); lab.style.cssText = 'display:flex;gap:10px;align-items:flex-start;margin:6px 0;padding:10px 12px;cursor:pointer'
+    const r = el('input'); r.type = 'radio'; r.name = 'sc'; r.value = s.name; r.checked = i === 0; r.style.marginTop = '5px'
+    const t = el('div'); t.append(el('b', s.label), el('div', s.about, 'small muted'))
+    lab.append(r, t); box.append(lab)
+  })
+}).catch(() => {})
+
+async function live(action) {
+  $('liveMsg').textContent = action === 'start' ? 'building both versions...' : action === 'stop' ? 'stopping...' : ''
+  const r = await fetch('/api/live?action=' + action); const j = await r.json()
+  if (!r.ok) { $('liveMsg').textContent = j.error; return }
+  $('liveMsg').textContent = ''; const links = $('liveLinks'); links.replaceChildren()
+  for (const [ref, v] of Object.entries(j)) if (v) { const a = el('a', `Open ${ref === '1.29.1' ? 'old' : 'new'} version (${ref})`); a.href = v.url; a.target = '_blank'; links.append(a) }
+}
+$('liveStart').onclick = () => live('start').catch(e => $('liveMsg').textContent = String(e))
+$('liveStop').onclick = () => live('stop')
+live('status').catch(() => {})
+</script>
+</body>
+</html>

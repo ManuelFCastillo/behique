@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Shop</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, Helvetica, Arial, sans-serif; margin: 0; background: #f4f5f7; color: #1d2330; }
+  header { background: #1d2330; color: #fff; padding: 14px 32px; font-weight: 600; display: flex; justify-content: space-between; }
+  #badge { background: #2f6fed; padding: 2px 10px; border-radius: 12px; font-size: 14px; }
+  main { max-width: 900px; margin: 20px auto; display: grid; grid-template-columns: 1.3fr 1fr; gap: 20px; padding: 0 16px; }
+  .card { background: #fff; border-radius: 10px; padding: 18px; box-shadow: 0 1px 3px rgba(0,0,0,.12); margin-bottom: 16px; }
+  h2 { margin: 0 0 12px; font-size: 17px; }
+  .line { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #e6e8ee; font-size: 14px; }
+  .line .name { flex: 1; } .qty { display: inline-flex; gap: 6px; align-items: center; }
+  .qty b { min-width: 14px; text-align: center; }
+  button { background: #2f6fed; color: #fff; border: 0; border-radius: 6px; padding: 7px 12px; font-size: 13px; }
+  button.sm { padding: 2px 8px; background: #e6e8ee; color: #1d2330; }
+  input { padding: 8px 10px; border: 1px solid #c4c9d6; border-radius: 6px; font-size: 14px; width: 100%; }
+  label { display: block; font-size: 13px; margin: 10px 0 4px; }
+  .t div { display: flex; justify-content: space-between; padding: 5px 0; font-size: 14px; }
+  .t .grand { font-weight: 700; border-top: 2px solid #1d2330; margin-top: 4px; padding-top: 8px; }
+  .err { color: #b3261e; font-size: 12px; margin-top: 4px; }
+  .row { display: flex; gap: 8px; }
+</style>
+</head>
+<body>
+<header><span>Northwind Goods</span><span id="badge">Cart (0)</span></header>
+<main>
+  <div>
+    <div class="card"><h2>Featured</h2>
+      <div class="line"><span class="name">Soy candle, cedar · $22.00</span><button id="add">Add to cart</button></div>
+    </div>
+    <div class="card"><h2>Your cart</h2><div id="lines"></div></div>
+  </div>
+  <div>
+    <div class="card"><h2>Order summary</h2>
+      <div class="t">
+        <div><span>Subtotal</span><span id="sub"></span></div>
+        <div id="discrow" style="display:none"><span>Discount (SAVE10)</span><span id="disc"></span></div>
+        <div class="grand"><span>Total</span><span id="tot"></span></div>
+      </div>
+      <label>Coupon code</label>
+      <div class="row"><input id="coupon" placeholder="Enter code"><button id="apply" style="width:90px">Apply</button></div>
+    </div>
+    <div class="card"><h2>Contact</h2>
+      <label>Name</label><input id="name">
+      <label>Email</label><input id="email"><div class="err" id="err"></div>
+      <div style="margin-top:12px"><button id="submit" style="width:100%">Submit</button></div>
+    </div>
+  </div>
+</main>
+<script>
+const q = new URLSearchParams(location.search), S = q.get('s'), after = q.get('phase') === 'after';
+let cart = [{n:'Ceramic mug', p:24, q:1}, {n:'Canvas tote', p:18, q:1}];
+let badge = 2, discount = 0, totalOverride = null, form = {name:'', email:''}, err = '', coupon = '';
+if (S === 'b') { cart = [{n:'Ceramic mug', p:24, q:1}, {n:'Canvas tote', p:18, q:2}]; badge = 3; }
+if (S === 'c') { form.name = 'Alex Rivera'; }
+const money = x => '$' + x.toFixed(2);
+const sub = () => cart.reduce((a, c) => a + c.p * c.q, 0);
+const total = () => totalOverride !== null ? totalOverride : sub() - discount;
+function render() {
+  document.getElementById('badge').textContent = 'Cart (' + badge + ')';
+  document.getElementById('lines').innerHTML = cart.map((c, i) =>
+    `<div class="line"><span class="name">${c.n}</span><span class="qty"><button class="sm">-</button><b>${c.q}</b><button class="sm">+</button></span><span>${money(c.p * c.q)}</span></div>`).join('');
+  document.getElementById('sub').textContent = money(sub());
+  document.getElementById('discrow').style.display = discount ? 'flex' : 'none';
+  document.getElementById('disc').textContent = '-' + money(discount);
+  document.getElementById('tot').textContent = money(total());
+  document.getElementById('coupon').value = coupon;
+  document.getElementById('name').value = form.name;
+  document.getElementById('email').value = form.email;
+  document.getElementById('err').textContent = err;
+}
+// Handlers. Scenarios a, b, c each carry one real behavioural bug; d is correct.
+function addCandle() { cart.push({n:'Soy candle', p:22, q:1}); /* bug a: badge never updated */ }
+function applyCoupon() { coupon = 'SAVE10'; discount = sub() * 0.1; totalOverride = sub() + discount; /* bug b: adds discount */ }
+function submitForm() { err = 'Email is required'; form.name = ''; /* bug c: wipes the name field */ }
+function incTote() { cart[1].q++; badge = cart.reduce((a, c) => a + c.q, 0); }
+render();
+if (after) { ({a: addCandle, b: applyCoupon, c: submitForm, d: incTote})[S](); render(); }
+</script>
+</body>
+</html>

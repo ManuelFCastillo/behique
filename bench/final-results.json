@@ -1,0 +1,477 @@
+{
+  "generated": "2026-10-27T04:05:37.890Z",
+  "models": {
+    "meta": {
+      "dir": "/Users/mcastillo/dev/behique/bench/runs/meta-2026-10-27T02-18-53",
+      "perMutation": {
+        "C1-login-any-password": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 74681
+        },
+        "C2-login-needs-both": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 81151
+        },
+        "C3-count-includes-done": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 86856
+        },
+        "C4-delete-not-persisted": {
+          "detected": true,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 80457
+        },
+        "C5-toggle-not-persisted": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 74281
+        },
+        "C6-input-not-cleared": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 78565
+        },
+        "C7-panel-cannot-close": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 74241
+        },
+        "C8-color-shouting": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 75275
+        },
+        "C9-alert-text": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 76758
+        },
+        "H1-username-untrimmed": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 77003
+        },
+        "H2-non-string-accepted": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 76904
+        },
+        "H4-two-digit-ids": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 73098
+        },
+        "H5-content-type": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 77792
+        },
+        "H6-no-loading-state": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 73950
+        },
+        "H7-empty-colour-message": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 80010
+        },
+        "H8-empty-add-posts": {
+          "detected": true,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 78452
+        },
+        "H9-html-injection": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 69907
+        },
+        "S1-insert-untrimmed": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 79395
+        },
+        "S10-error-message": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 83123
+        },
+        "S2-blank-accepted": {
+          "detected": true,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 77305
+        },
+        "S3-patch-missing-200": {
+          "detected": true,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 72903
+        },
+        "S4-delete-missing-204": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 74778
+        },
+        "S5-patch-always-done": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 72511
+        },
+        "S6-order-desc": {
+          "detected": false,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 83694
+        },
+        "S7-post-200": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 80671
+        },
+        "S8-done-number": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 75607
+        },
+        "S9-delete-too-many": {
+          "detected": false,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 79296
+        }
+      },
+      "clean": [
+        {
+          "job": "clean-1",
+          "reported": 2,
+          "cats": [
+            "false_alarm",
+            "not_reproduced"
+          ]
+        },
+        {
+          "job": "clean-2",
+          "reported": 1,
+          "cats": [
+            "false_alarm"
+          ]
+        }
+      ],
+      "cats": {
+        "validated": 14,
+        "false_alarm": 8,
+        "real_unplanted": 9,
+        "not_reproduced": 2
+      },
+      "alarmWhy": {
+        "guessed a GET-one route": 4,
+        "bad expectation": 4
+      },
+      "tokens": 2247459,
+      "cost": 4.283200000000001,
+      "secs": 3417,
+      "capped": 4,
+      "runs": 29,
+      "realUnplantedRuns": 9,
+      "detected": 13,
+      "scored": 27,
+      "heldOut": 11,
+      "heldOutOf": 25,
+      "server": {
+        "detected": 6,
+        "of": 13
+      },
+      "page": {
+        "detected": 7,
+        "of": 14
+      },
+      "findings": 33,
+      "trueReports": 23,
+      "cleanRunsWithFalseAlarm": 2,
+      "cleanRunsWithRealUnplanted": 0
+    },
+    "baseten": {
+      "dir": "/Users/mcastillo/dev/behique/bench/runs/baseten-2026-10-27T02-18-53",
+      "perMutation": {
+        "C1-login-any-password": {
+          "detected": false,
+          "reported": 3,
+          "steps": 20,
+          "tokens": 103820
+        },
+        "C2-login-needs-both": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 87550
+        },
+        "C3-count-includes-done": {
+          "detected": false,
+          "reported": 3,
+          "steps": 20,
+          "tokens": 85737
+        },
+        "C4-delete-not-persisted": {
+          "detected": false,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 89209
+        },
+        "C5-toggle-not-persisted": {
+          "detected": false,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 101927
+        },
+        "C6-input-not-cleared": {
+          "detected": true,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 87510
+        },
+        "C7-panel-cannot-close": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 88368
+        },
+        "C8-color-shouting": {
+          "detected": false,
+          "reported": 5,
+          "steps": 20,
+          "tokens": 85669
+        },
+        "C9-alert-text": {
+          "detected": false,
+          "reported": 3,
+          "steps": 20,
+          "tokens": 81170
+        },
+        "H1-username-untrimmed": {
+          "detected": false,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 94238
+        },
+        "H2-non-string-accepted": {
+          "detected": true,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 116381
+        },
+        "H4-two-digit-ids": {
+          "detected": false,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 90732
+        },
+        "H5-content-type": {
+          "detected": true,
+          "reported": 3,
+          "steps": 20,
+          "tokens": 90755
+        },
+        "H6-no-loading-state": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 88599
+        },
+        "H7-empty-colour-message": {
+          "detected": false,
+          "reported": 4,
+          "steps": 20,
+          "tokens": 87625
+        },
+        "H8-empty-add-posts": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 85568
+        },
+        "H9-html-injection": {
+          "detected": true,
+          "reported": 3,
+          "steps": 20,
+          "tokens": 85615
+        },
+        "S1-insert-untrimmed": {
+          "detected": false,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 88606
+        },
+        "S10-error-message": {
+          "detected": false,
+          "reported": 5,
+          "steps": 20,
+          "tokens": 88624
+        },
+        "S2-blank-accepted": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 115967
+        },
+        "S3-patch-missing-200": {
+          "detected": true,
+          "reported": 5,
+          "steps": 20,
+          "tokens": 110396
+        },
+        "S4-delete-missing-204": {
+          "detected": true,
+          "reported": 5,
+          "steps": 20,
+          "tokens": 93433
+        },
+        "S5-patch-always-done": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 84690
+        },
+        "S6-order-desc": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 115717
+        },
+        "S7-post-200": {
+          "detected": true,
+          "reported": 1,
+          "steps": 20,
+          "tokens": 89492
+        },
+        "S8-done-number": {
+          "detected": false,
+          "reported": 0,
+          "steps": 20,
+          "tokens": 88592
+        },
+        "S9-delete-too-many": {
+          "detected": false,
+          "reported": 2,
+          "steps": 20,
+          "tokens": 92602
+        }
+      },
+      "clean": [
+        {
+          "job": "clean-1",
+          "reported": 0,
+          "cats": []
+        },
+        {
+          "job": "clean-2",
+          "reported": 3,
+          "cats": [
+            "real_unplanted",
+            "not_reproduced",
+            "not_reproduced"
+          ]
+        }
+      ],
+      "cats": {
+        "false_alarm": 22,
+        "real_unplanted": 9,
+        "error": 2,
+        "not_reproduced": 18,
+        "validated": 10
+      },
+      "alarmWhy": {
+        "guessed a GET-one route": 6,
+        "bad expectation": 10,
+        "guessed a login route": 4,
+        "assumed PATCH edits text": 1,
+        "guessed the field name \"title\"": 1
+      },
+      "tokens": 2697088,
+      "cost": 5.5173000000000005,
+      "secs": 7501,
+      "capped": 21,
+      "runs": 29,
+      "realUnplantedRuns": 9,
+      "detected": 10,
+      "scored": 27,
+      "heldOut": 9,
+      "heldOutOf": 25,
+      "server": {
+        "detected": 6,
+        "of": 13
+      },
+      "page": {
+        "detected": 4,
+        "of": 14
+      },
+      "findings": 61,
+      "trueReports": 19,
+      "cleanRunsWithFalseAlarm": 0,
+      "cleanRunsWithRealUnplanted": 1
+    }
+  },
+  "overlap": {
+    "both": [
+      "S2-blank-accepted",
+      "S3-patch-missing-200",
+      "S4-delete-missing-204",
+      "C7-panel-cannot-close",
+      "H5-content-type",
+      "H8-empty-add-posts",
+      "H9-html-injection"
+    ],
+    "metaOnly": [
+      "S5-patch-always-done",
+      "S8-done-number",
+      "C1-login-any-password",
+      "C3-count-includes-done",
+      "C4-delete-not-persisted",
+      "C5-toggle-not-persisted"
+    ],
+    "basetenOnly": [
+      "S7-post-200",
+      "C6-input-not-cleared",
+      "H2-non-string-accepted"
+    ],
+    "neither": [
+      "S1-insert-untrimmed",
+      "S6-order-desc",
+      "S9-delete-too-many",
+      "S10-error-message",
+      "C2-login-needs-both",
+      "C8-color-shouting",
+      "C9-alert-text",
+      "H1-username-untrimmed",
+      "H4-two-digit-ids",
+      "H6-no-loading-state",
+      "H7-empty-colour-message"
+    ]
+  }
+}

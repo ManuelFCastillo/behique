@@ -1,0 +1,103 @@
+# Behique status
+
+Last updated 2026-10-28. Hackathon deadline: 2026-11-04 9PM ET (Meta Global AI Developer Hackathon, Cerebral Valley). Track (Indie or Startup) and official judging criteria are NOT verified yet.
+
+One line: an autonomous visual QA agent where a bug only counts if a replayable assertion proves it. The demo spine is a two-release regression check: known good release, release candidate, evidence-backed report, a human makes the ship or hold decision.
+
+## Built and verified
+
+### Explorer (src/, earlier phases)
+- Explores an unseen web app (screenshot + accessibility tree + network log), reports defects as assertions (data, not model-written code), replays each on a fresh app.
+- Self-check rejects ungrounded reports; stability check; Playwright export; BM25 retrieval; token and cost accounting.
+- Benchmark: todo-app with 28 planted bugs (27 scored), `node bench.mjs --model baseten|meta`.
+- Caveats: results are n=1 and noisy. Tuning test (Meta, 6 bugs): default 4/6, low 3/6, high 1/6, temp 0 0/6, one action 2/6; nothing beat the defaults. `reasoning low` is about 30% cheaper and 40% faster per step but hits the step cap more.
+
+### Release pipeline (src/release/, built 2026-10-28, no model calls)
+| File | Job |
+|---|---|
+| build.mjs, adapters/freshrss.mjs | Check out a git ref (identified by sha), wipe data, install, seed one local feed, serve on a fixed port. About 2 s per build. |
+| facts.mjs | Page facts (path to attribute or visible text) after every step. Run-twice masking (`buildBaseline`), `diffFacts`, `rankDiffs` (changed, added, removed, moved). |
+| compare.mjs | Base twice + candidate + base a third time as control. |
+| diff-builds.mjs | CLI for the above. `node src/release/diff-builds.mjs 1.29.1 1.30.0` |
+| confirm.mjs | Top changed fact to a Playwright test (`out/regression/<good>-vs-<cand>/R1.spec.js`), run 3 times per build on freshly seeded builds. `node src/release/confirm.mjs 1.29.1 1.30.0 [--bisect]` |
+| scenarios.mjs, adapters/freshrss-scroll.mjs | Named cases the checker can run (`--scenario share\|scroll`): an adapter (feed fixture plus user settings), the clicks to replay, and an honest description stored with each report. The FreshRSS adapter is now a factory, so a scenario is a fixture plus a few settings. |
+| evidence.mjs | Evidence store. Append-only event log (`out/evidence/<case>/events.ndjson`, each event carries the hash of the previous one) plus evidence files named by their own sha256. Labelled claims with enforced authorship: only code may write `verified_fact`, `reproduced_failure`, `statistical`; code or a person may write `suspected_cause`; only a model may write `ai_hypothesis` (and must name itself); only a person records `ship` or `hold`. A claim must cite evidence that exists. `verify()` detects edited, removed or reordered events and changed evidence files. Reading a case never creates folders. Tests: `node --test src/release/evidence.test.mjs` (7 pass). |
+| hypothesis.mjs | The only paid step. Sends a model (Meta muse-spark-1.3, reasoning low) the observed difference and the one bisected commit's message and diff, capped at 12,000 characters, and nothing else. The diff is wrapped as untrusted data. The answer is recorded as an `ai_hypothesis` claim that cites the exact prompt and reply as evidence. Code then checks the one thing it can: that the line the model says its guess rests on really is in the change (`grounded`). Hard caps: 4,000 output tokens per call, 3 guesses per case, no automatic retry, one call at a time. Projected cost is shown first (`--dry-run`, and on the report page before the button). Tests: `node --test src/release/hypothesis.test.mjs` (offline). |
+| bisect.mjs | Binary search over the commits between two refs, using the exported test. Each commit is classified good (test passed), bad (failed on the value assertion itself) or skip (build failed, element missing, timeout: set aside, never guessed). Verified: parent passes 3/3, first bad commit fails 3/3. Removes the checkouts it created. `node src/release/bisect.mjs 1.29.1 1.30.0` |
+
+Also added: `attr` assertion kind in src/assert.mjs and src/export.mjs (not offered to the explorer prompt); exporter takes an optional `start` path.
+
+Results, FreshRSS 1.29.1 (good) vs 1.30.0 (bad), share-menu flow:
+- 1,090 stable facts, 174 volatile (13.8% masked). Control run: 0 differences.
+- Candidate: 2 changed, 18 added, 0 removed, 21 moved.
+- The 2 changed facts are the real regression: share button `data-url` and `data-title` are now URL-encoded.
+- Exported test: passes 3/3 on 1.29.1, fails 3/3 on 1.30.0, failing on the value mismatch itself.
+- Throwaway spike found the first bad commit 1b7178a1 in 8 steps (45 s) over 227 commits (spike/bisect.sh).
+
+Report page (2026-10-29): `demo/report.html`, served at `/report?case=<id>`. Reads a case from the store: verdict with logo, what the check proved (claims with links to their evidence), the code change from the bisect, a separate "only a lead" section holding suspected causes and AI guesses, with an "Ask an AI why this happened" card (projected cost, exactly what will be sent, then a button; nothing is spent until it is pressed), Ship / Hold with name and note (written to the log as a human event; later decisions do not erase earlier ones), record integrity banner, evidence files, full event log, label legend. Endpoints on the demo server: `/api/cases`, `/api/case`, `/api/artifact` (served as text/plain, nosniff), `POST /api/decision` (JSON only, same-origin only, ship/hold only, ids validated; all refusals tested, none wrote to the record).
+
+Demo page: `demo/server.mjs` + `demo/index.html` (preview server `demo`, port 8790). Redesigned 2026-10-28 as one story: an idea strip, one "Run the check" button with a live timeline (record, compare, write test, run 3x per version, then bisect with a live narrowing bar and a card for the commit it finds; about 90 s in all) and a verdict with the Behique CI logo (red eyes = bug proven), a "Where the AI fits" table, coming-soon list, and an optional hand-test section (both versions on ports 8301/8302). One job at a time; not while the hand-test versions are up.
+
+Second scenario (2026-10-29): FreshRSS #9285, scroll position. NOT a confirmed bug: the maintainers could not reproduce it as reported, the reporter closed it himself, no fix exists in 1.30.1 to 1.30.4, and the behaviour was changed on purpose in #8870. It is a real, reproducible behaviour difference, so it is framed as a behaviour change a person must judge. Setup: 8 long articles, "Stick the article to the top when opened" off, steps = open article 1, bring article 2's header into view, click article 2. Result: 1.29.1 does not scroll (0 px), 1.30.0 scrolls to the top (4,033 px higher). Pipeline: control 0 differences, exactly 1 changed fact (`window@scrollY`, was 4033, now 0), test passes 3/3 on 1.29.1 and fails 3/3 on 1.30.0, first bad commit `aaae9ee3` "Always jump article to top when header is offscreen, also when 'Stick the article to the top when opened' is disabled (#8870)" (Frans de Jonge, 2026-06-05, p/scripts/main.js), 8 steps, verified 3/3 + 3/3, about 100 s. The first scenario was re-run afterwards and is unchanged. New pieces: scroll position as a page fact, a `scroll` step, and a RELATIVE scroll test (scroll change across the last action, no absolute pixels, so unrelated layout changes during the bisect cannot be mistaken for the regression). Wording everywhere changed from "bug" to "behaviour change": the check proves behaviour differs; a person decides if it is a bug.
+
+Demo recording kit (2026-10-29): `docs/DEMO-SCRIPT.md` (PDF copy: `docs/DEMO-SCRIPT.pdf`, also in ~/Downloads as Behique-demo-script.pdf). Run of show in three cuts (about 5:09, 3:00, 1:48; the official video limit was never verified), every spoken claim mapped to its source, a do-not-say list, and fallbacks. `demo/prepare.mjs [--keep ids] [--generate]` puts the demo in a clean state: moves reports to `out/evidence-archive/<stamp>/` (never deletes), optionally generates one fresh report per scenario (about 3.5 min), and prints each report's decisions, AI guesses, integrity, key and server status. Reports kept now: share 060213, scroll 060341, and the older 051556 (holds the one AI guess; backup only). Archived: 051746, 055632, 055925.
+
+Design notes: full plan and build log in docs/regression-demo-plan.md.
+
+## Missing (as of 2026-10-29)
+
+### A. To hook the application into the dashboard (~/dev/behique-ui)
+Done (2026-10-29, second piece): **starting and watching runs from the UI.** The hero button is "New run" (and "Cancel run" while one is in progress): a dialog takes app, known case, old and new version (the repository's real tags are offered) and whether to search for the exact change. `POST /api/ui/runs` validates every field (`src/release/runparams.mjs`: strict ref pattern, version must exist, the old version must precede the new one for a search, same version twice becomes a clean run, a case must belong to its app), starts the pipeline in the background (independent of any open page), and enforces one run at a time. `GET /api/ui/runs/current`, `POST /api/ui/runs/cancel`, `GET /api/ui/apps`. The pipeline now records progress as it goes (`bisect.started`, `bisect.step` per step with the range, `bisect.verifying`; run options in `case.opened`), so the RUNNING state is drawn from the record: phase text, a progress bar, elapsed time, claims appearing one by one, search nodes appearing one per step. Cancel stops the builds (builds register themselves; `stopAll`), closes the record as `cancelled`, and leaves no servers behind. Reopening or reloading the page mid-run lands on the running report and carries on. The reports picker shows each run's status. Verified end to end in the browser (clean run, the full Share run with the search, cancel mid-test and mid-search, reload mid-run) and by API (7 refusals create nothing; a second start is refused while one runs).
+Earlier: `src/release/viewmodel.mjs` turns a saved report into the exact shape the dashboard renders; `GET /api/ui/cases`, `/api/ui/case`, `/api/ui/rules`; `~/dev/behique-ui/behique-live.html` (derived from v13, which is untouched) renders real reports read-only: real verdict, real timeline, real claims with real hashes, real measured values in the build panes, in-browser chain verification, simulated tampering (this page only), the real authorship rule, runs picker. Served by the demo server at `/ui/behique-live.html`. Verified in the browser on HOLD, SHIP and FAIL reports.
+Done (2026-10-29, third piece): **Ship / Hold from the UI, with Behique's recommendation and the person's decision kept apart.** The hero is Behique's recommendation only ("Behique recommends" HOLD / SHIP / REVIEW, "Behique is checking" while running, "No recommendation" on FAIL) and never moves with a decision. A person's decision lives in the bottom bar: "YOU DECIDED: HOLD|SHIP", what Behique recommended at that moment, whether it agrees or goes against it, the reason with name and time, **Change decision** (adds a new decision; "Keep current" backs out; the earlier one stays on the record), and "n decisions on record" which scrolls to the decision cards in the chain. Undo is gone, because the record is append-only. The rules are enforced on the server in one place, `src/release/decision.mjs` (the only caller of `decide()`): reason required, whitespace collapsed to one line, 3 to 500 characters (too long is refused, never cut); name at most 80; shipping while Behique recommends HOLD is an **override** that needs an explicit `confirmOverride: true` (else 409 `needsOverride`, which the UI turns into the "A reproduced failure exists. Ship anyway?" dialog) and a reason of at least 10 characters. Two rules beyond the request, both mirroring the UI's own design: nothing can be decided while a run is in progress, and Ship is refused while the evidence is incomplete (FAIL); Hold stays possible. Each decision event records `recommendation`, `override` and `supersedes`. `POST /api/ui/decision` returns the fresh view-model; the older `POST /api/decision` (report page) goes through the same rules, and the report page now requires a reason and asks for the override confirmation. Verified: 16 API refusals (wrong origin, not JSON, broken JSON, unknown report, bad choice, short or missing or over-long reason, ship against HOLD without confirmation / with a 9 character reason / with a non-true confirmation, decide while running, ship on FAIL, over-long name) each returned the right status and left the record byte for byte unchanged; in the browser on throwaway copies: Hold, Keep current, Ship against HOLD through the dialog (the server still had one decision until the dialog was confirmed), Change decision, reload, chain verified in the browser with the decisions included, simulated tampering still caught, Ship on a SHIP recommendation (no dialog), Hold on FAIL, buttons disabled while RUNNING and Ship disabled on FAIL. 45 offline tests pass.
+Still to do, in order:
+1. Ship / Hold from the UI: DONE (see above). Remaining caveat: the name field is self-declared, there is no login, so a decision proves nothing about who made it.
+2. Ask the model from the UI (endpoints exist; the UI assumes exactly one AI card, the record holds 0 to 3).
+3a. Run starts only know the apps and cases registered in `scenarios.mjs` (FreshRSS, two cases); a new app still needs an adapter. Runs started from a terminal are not tracked by the server (it cannot cancel them, and would not stop a dashboard run starting alongside one).
+3. Structured search steps: DONE for new runs (they are recorded as events); reports made before 2026-10-29 are still read from log text.
+5. Visual evidence: the UI promises screenshots and traces; the pipeline captures neither. For attribute-only changes (the Share link) a screenshot looks identical in both versions, so the panes show measured values instead; screenshots would help for visible changes such as the scroll jump.
+6. The nav views Evidence, Bisect, Reports and Settings do not exist; only the Runs screen was designed.
+7. Remove mock content from any non-live copy (the fabricated "Confidence: 99.6% (8/8)", the Replay demo animation, the mock FreshRSS screenshots).
+Fixed while checking: a build that fails to start used to crash and leave an unfinished record; it is now recorded (claim plus `build failed`, shown as FAIL). A clean run now records an explicit "no recorded value differs" claim. A run where nothing changed value but facts disappeared is no longer recommended SHIP (outcome `facts missing`, shown as REVIEW).
+
+### A2. Repo selector in the left sidebar (2026-10-29): piece 1 DONE
+FreshRSS built in, plus the user's GitHub repos listed through the existing `gh` login, read-only. `src/release/github.mjs` runs exactly two fixed read-only `gh` calls (`api user`, `repo list --json`); no argument ever comes from the UI; Behique never sees, stores or logs the token; GitHub data is treated as untrusted (names validated, links only if plain `https://github.com/<owner>/<name>`, descriptions cut, errors scrubbed). A test checks every command against a read-only allow-list. `src/release/appregistry.mjs` lists built-in apps first, then repos as `github:<owner>/<name>` with `runnable: false` and `needs-setup`; `appOfOpened()` assigns reports to apps (`appId` in the view-model, `app` in `/api/ui/cases`). Server: `GET /api/ui/repos[?refresh=1]` (60 s cache of successes only; at most one real refresh per 10 s) and a `Host` header check on every request (the server now serves private repo names, so DNS-rebinding pages must not be able to read it). UI (`behique-live.html`): an Apps section above the report picker with a GitHub status line, refresh, search, a scrolling list, and a "ready" or "needs setup" chip per row. FreshRSS selected = everything as before, with only its reports in the picker. A repo selected = the report widgets are replaced by a panel (description, private or public, language, default branch, last push, a safe link to GitHub, why it cannot run yet, a disabled New run); the choice is kept in the URL and local storage. The reports and FreshRSS appear immediately; the repos fill in when GitHub answers (about 3 to 6 s). Without gh, or logged out, the list is FreshRSS only and says why. Real login: connected as ManuelFCastillo, 47 repos (27 private, 11 forks). Layout checked by geometry at 1500, 1000 and narrow widths. Not done, each needing its own go-ahead: cloning (asks per repo), a repo's tags and branches, a setup config that makes a repo runnable, container isolation, GitHub organisations, an OAuth login instead of gh.
+
+### B. The product itself
+8. The explorer does not find flows unaided on FreshRSS (0 of 2 without a hint) and is not connected to the release pipeline.
+9. One real app only (FreshRSS, two scenarios, the same version pair) plus the planted-bug todo app. Every new app needs a hand-written adapter (install, seed, serve).
+10. Click steps are hand-written; nothing generates them for a new app.
+11. One finding per run: only the first changed fact becomes a test. A release with several regressions shows one; and a vanished element is flagged but never turned into a test.
+12. Facts cover attributes, text and scroll position only: no network responses, console errors, accessibility or visual differences.
+13. No CI integration (the name only), no command-line packaging or config file.
+14. Record integrity: each event protects the ones before it, so the newest event is not protected until another follows, and nothing anchors the head hash outside the folder. "Tamper-evident" holds for earlier entries only.
+15. Only offline unit tests (23); no end-to-end test of the server and pipeline together. The server has no authentication (local use only).
+16. No spend ledger across runs; cost is tracked per report only.
+17. Hackathon rules, track and video limit are unverified. The demo recording kit exists (docs/DEMO-SCRIPT.md); the recording itself is Manny's to make.
+
+## Known limits
+- Test finds the element by positional XPath, so it is only valid for builds with the same markup path.
+- A changed value inside a moved element still shows as removed + added with different values.
+- Steps are hand-written (bench/fixtures/freshrss/steps.json), not explorer-generated.
+- The explorer is proven only on the planted-bug todo app. On FreshRSS it missed the Share flow in 2 of 2 unhinted runs and found it in 1 of 1 hinted run (see Not built, item 1).
+- Tamper evidence stops at the newest event (see Missing, item 14).
+- A decision's name is whatever was typed: the server has no login, so it is attribution by honour, not identity. A decision can only be superseded, never removed.
+- Both scenarios use the same version pair (1.29.1 vs 1.30.0), both with hand-written steps. The scroll check needs the same steps replayed, and its test is relative to the page's own scroll, so it only suits behaviour that can be measured as a scroll change.
+- #9285 is not a confirmed bug; do not present it as one.
+- The AI guess is one sample from one model on one regression. The grounding check only proves its quoted line exists in the change, not that the guess is right. A person still judges it.
+- Real clipboard copy verified 2026-10-28 in headless Chromium: 1.29.1 copies the normal link, 1.30.0 copies the double-encoded one.
+- Git was initialised on 2026-10-29 (branch `main`), but there is no commit yet, so edits are still not reversible until the first one is made.
+
+## Open questions
+- Verify official hackathon rules, judging criteria, and Indie vs Startup.
+- Optional runs not done: repeat no-retrieval noise run (about $5.3), `reasoning low` + 30 steps on all 27 (about $4). Skip until the pipeline is done.
+- Baseline artifact V6skE3HaNcVDwV5sV57ZdU is out of date.
+
+## Credits (estimates)
+About $38 spent of about $250. Meta Model API $150 (about $146 left per last check). Baseten $100 (about $70 left; key only works with `meta-models/muse-spark-open-1026`). Modal and Fireworks unconfirmed. `.env` is never read or printed.
+
+## Where things are
+- Repo: ~/dev/behique
+- FreshRSS worktrees and feed: ~/dev/freshrss-spike (PHP via Homebrew)
+- Leviathan (read-only reference): ~/dev/leviathan
+- Memory note: behique-project.md

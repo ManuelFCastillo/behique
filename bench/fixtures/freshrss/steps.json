@@ -1,0 +1,4 @@
+[
+  { "type": "click", "selector": ".flux .title:has-text(\"First post\")" },
+  { "type": "click", "selector": ".flux.current a[href^=\"#dropdown-share\"]" }
+]

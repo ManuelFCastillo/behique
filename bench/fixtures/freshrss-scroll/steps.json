@@ -1,0 +1,5 @@
+[
+  { "type": "click", "selector": ".flux .title:has-text(\"Scroll article 1\")" },
+  { "type": "scroll", "selector": ".flux:has(.title:has-text(\"Scroll article 2\")) .flux_header" },
+  { "type": "click", "selector": ".flux .title:has-text(\"Scroll article 2\")" }
+]

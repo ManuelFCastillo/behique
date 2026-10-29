@@ -1,0 +1,12 @@
+{
+  "name": "behique",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "bench": "node bench.mjs"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.64.1",
+    "playwright": "1.64.1"
+  }
+}

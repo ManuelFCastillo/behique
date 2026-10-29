@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Playwright Practice Page</title>
+  <style>
+    :root {
+      --bg: #f4f5f9;
+      --card: #ffffff;
+      --text: #1f2430;
+      --muted: #667085;
+      --border: #dde1ea;
+      --accent: #4f46e5;
+      --accent-hover: #4338ca;
+      --danger: #b00020;
+      --ok: #0a7d2c;
+      --shadow: 0 1px 2px rgba(16, 24, 40, .06), 0 4px 12px rgba(16, 24, 40, .06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #12141a;
+        --card: #1b1e27;
+        --text: #e8eaf0;
+        --muted: #9aa3b5;
+        --border: #2d3240;
+        --accent: #818cf8;
+        --accent-hover: #a5b4fc;
+        --danger: #ff6b81;
+        --ok: #4ade80;
+        --shadow: 0 1px 2px rgba(0, 0, 0, .4);
+      }
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      line-height: 1.5;
+      background: var(--bg);
+      color: var(--text);
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 2rem 1rem 3rem;
+    }
+    h1 { font-size: 1.75rem; margin: 0 0 1rem; }
+    h2 { font-size: 1.1rem; margin: 0 0 1rem; }
+
+    nav {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+      padding: .35rem;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+    }
+    nav a {
+      flex: 1;
+      text-align: center;
+      padding: .45rem .75rem;
+      border-radius: 7px;
+      color: var(--text);
+      text-decoration: none;
+      font-weight: 500;
+    }
+    nav a:hover { background: var(--bg); color: var(--accent); }
+
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      box-shadow: var(--shadow);
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+    }
+
+    label { font-size: .875rem; font-weight: 500; }
+    form label { display: block; margin: .75rem 0 .25rem; }
+    form label:first-child { margin-top: 0; }
+
+    input[type="text"], input[type="password"], select {
+      width: 100%;
+      padding: .55rem .7rem;
+      font: inherit;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    select { width: auto; min-width: 10rem; margin: 0 .5rem; }
+    input:focus-visible, select:focus-visible, button:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+    input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+
+    button {
+      font: inherit;
+      font-weight: 500;
+      padding: .5rem 1rem;
+      color: #fff;
+      background: var(--accent);
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .15s;
+    }
+    button:hover { background: var(--accent-hover); }
+    form button { margin-top: .9rem; }
+
+    code { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: .05rem .3rem; }
+    .hint { color: var(--muted); font-size: .875rem; }
+
+    .error { color: var(--danger); }
+    .success { color: var(--ok); }
+    .hidden { display: none; }
+    #login-message { min-height: 1.5rem; margin: .75rem 0 0; font-weight: 500; }
+
+    #todo-form { display: flex; flex-wrap: wrap; align-items: center; gap: .5rem; }
+    #todo-form label { flex-basis: 100%; margin: 0; }
+    #todo-form input[type="text"] { flex: 1; width: auto; }
+    #todo-form button { margin: 0; }
+    #todo-list { list-style: none; padding: 0; margin: 1rem 0 .5rem; }
+    #todo-list li {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      padding: .5rem .75rem;
+      margin-bottom: .4rem;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+    #todo-list li span { flex: 1; }
+    #todo-list li button { padding: .25rem .65rem; font-size: .8rem; background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    #todo-list li button:hover { background: var(--danger); color: #fff; }
+    li.done span { text-decoration: line-through; color: var(--muted); }
+
+    #panel {
+      padding: .9rem 1rem;
+      background: var(--bg);
+      border: 1px dashed var(--accent);
+      border-radius: 8px;
+    }
+    #panel.hidden { display: none; }
+    #color-output, #load-output { color: var(--muted); }
+  </style>
+</head>
+<body>
+  <h1>Playwright Practice Page</h1>
+
+  <nav aria-label="Main">
+    <a href="#login" data-testid="nav-login">Login</a>
+    <a href="#todo" data-testid="nav-todo">Todo</a>
+    <a href="#widgets" data-testid="nav-widgets">Widgets</a>
+  </nav>
+
+  <section id="login">
+    <h2>Login Form</h2>
+    <form id="login-form" novalidate>
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" placeholder="Enter username">
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" placeholder="Enter password">
+      <button type="submit">Log in</button>
+    </form>
+    <p id="login-message" role="alert"></p>
+    <p class="hint">Valid credentials: <code>admin</code> / <code>secret123</code></p>
+  </section>
+
+  <section id="todo">
+    <h2>Todo List</h2>
+    <form id="todo-form">
+      <label for="todo-input">New task</label>
+      <input id="todo-input" type="text" placeholder="What needs doing?">
+      <button type="submit">Add</button>
+    </form>
+    <ul id="todo-list" data-testid="todo-list"></ul>
+    <p><span id="todo-count" data-testid="todo-count">0</span> tasks remaining</p>
+  </section>
+
+  <section id="widgets">
+    <h2>Widgets</h2>
+
+    <p>
+      <label for="color">Favorite color</label>
+      <select id="color">
+        <option value="">-- choose --</option>
+        <option value="red">Red</option>
+        <option value="green">Green</option>
+        <option value="blue">Blue</option>
+      </select>
+      <span id="color-output"></span>
+    </p>
+
+    <p>
+      <input type="checkbox" id="terms"> <label for="terms">I accept the terms</label>
+    </p>
+
+    <p>
+      <label><input type="radio" name="size" value="small"> Small</label>
+      <label><input type="radio" name="size" value="large"> Large</label>
+    </p>
+
+    <p>
+      <button id="toggle-btn">Toggle panel</button>
+    </p>
+    <div id="panel" class="hidden">Secret panel content</div>
+
+    <p>
+      <button id="load-btn">Load data (delayed)</button>
+      <span id="load-output"></span>
+    </p>
+
+    <p>
+      <button id="alert-btn">Show alert</button>
+    </p>
+  </section>
+
+  <script>
+    // Login
+    document.getElementById('login-form').addEventListener('submit', e => {
+      e.preventDefault();
+      const u = document.getElementById('username').value.trim();
+      const p = document.getElementById('password').value;
+      const msg = document.getElementById('login-message');
+      if (!u || !p) {
+        msg.textContent = 'Username and password are required';
+        msg.className = 'error';
+      } else if (u === 'admin' && p === 'secret123') {
+        msg.textContent = 'Welcome, admin!';
+        msg.className = 'success';
+      } else {
+        msg.textContent = 'Invalid credentials';
+        msg.className = 'error';
+      }
+    });
+
+    // Todo (persisted through the SQLite-backed API in server.js)
+    const list = document.getElementById('todo-list');
+    function updateCount() {
+      document.getElementById('todo-count').textContent =
+        list.querySelectorAll('li:not(.done)').length;
+    }
+    async function api(method, url, body) {
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      });
+      return res.status === 204 ? null : res.json();
+    }
+    function renderTodo(todo) {
+      const li = document.createElement('li');
+      li.dataset.id = todo.id;
+      li.classList.toggle('done', todo.done);
+      li.innerHTML = '<input type="checkbox" aria-label="Complete task"> <span></span> <button type="button">Delete</button>';
+      li.querySelector('span').textContent = todo.text;
+      const box = li.querySelector('input');
+      box.checked = todo.done;
+      box.addEventListener('change', ev => {
+        li.classList.toggle('done', ev.target.checked);
+        updateCount();
+        api('PATCH', '/api/todos/' + todo.id, { done: ev.target.checked });
+      });
+      li.querySelector('button').addEventListener('click', () => {
+        li.remove();
+        updateCount();
+        api('DELETE', '/api/todos/' + todo.id);
+      });
+      list.appendChild(li);
+    }
+    document.getElementById('todo-form').addEventListener('submit', async e => {
+      e.preventDefault();
+      const input = document.getElementById('todo-input');
+      const text = input.value.trim();
+      if (!text) return;
+      input.value = '';
+      renderTodo(await api('POST', '/api/todos', { text }));
+      updateCount();
+    });
+    api('GET', '/api/todos').then(todos => { todos.forEach(renderTodo); updateCount(); });
+
+    // Widgets
+    document.getElementById('color').addEventListener('change', e => {
+      document.getElementById('color-output').textContent = e.target.value ? 'You chose ' + e.target.value : '';
+    });
+    document.getElementById('toggle-btn').addEventListener('click', () => {
+      document.getElementById('panel').classList.toggle('hidden');
+    });
+    document.getElementById('load-btn').addEventListener('click', () => {
+      const out = document.getElementById('load-output');
+      out.textContent = 'Loading...';
+      setTimeout(() => { out.textContent = 'Data loaded!'; }, 1500);
+    });
+    document.getElementById('alert-btn').addEventListener('click', () => alert('Hello from the page!'));
+  </script>
+</body>
+</html>

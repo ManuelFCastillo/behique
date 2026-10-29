@@ -1,0 +1,131 @@
+// Turn accepted findings (recorded actions + assertion data) into Playwright test files, and run them.
+import { spawnSync } from 'node:child_process'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
+const q = v => JSON.stringify(v)
+const loc = sel => `page.locator(${q(sel)}).first()`
+
+function stepCode(a) {
+  const L = loc(a.selector)
+  switch (a.type) {
+    case 'click': return `await ${L}.click()`
+    case 'fill': return `await ${L}.fill(${q(String(a.text ?? ''))})`
+    case 'press': return a.selector ? `await ${L}.press(${q(String(a.key))})` : `await page.keyboard.press(${q(String(a.key))})`
+    case 'select': return `await ${L}.selectOption(${q(String(a.value))})`
+    case 'check': return `await ${L}.check()`
+    case 'uncheck': return `await ${L}.uncheck()`
+    case 'hover': return `await ${L}.hover()`
+    case 'scroll': return `await ${L}.evaluate(e => e.scrollIntoView({ block: 'center' }))`
+    case 'reload': return 'await page.reload()'
+    case 'wait': return `await page.waitForTimeout(${Math.min(Number(a.ms) || 500, 2000)})`
+    case 'goto': return `await page.goto(${q(a.path)})`
+    case 'api': return `await request.fetch(${q(a.path)}, { method: ${q(String(a.method || 'GET').toUpperCase())}${a.body !== undefined ? `, data: ${q(a.body)}` : ''} })`
+    default: throw new Error('cannot export action ' + a.type)
+  }
+}
+
+function cmp(expr, op = 'equals', value) {
+  const s = `String(${expr})`
+  const v = q(String(value ?? ''))
+  switch (op) {
+    case 'equals': return `expect(${s}).toBe(${v})`
+    case 'not_equals': return `expect(${s}).not.toBe(${v})`
+    case 'contains': return `expect(${s}).toContain(${v})`
+    case 'not_contains': return `expect(${s}).not.toContain(${v})`
+    case 'matches': return `expect(${s}).toMatch(new RegExp(${v}))`
+    case 'eq': return `expect(Number(${expr})).toBe(${Number(value)})`
+    case 'ne': return `expect(Number(${expr})).not.toBe(${Number(value)})`
+    case 'gte': return `expect(Number(${expr})).toBeGreaterThanOrEqual(${Number(value)})`
+    case 'lte': return `expect(Number(${expr})).toBeLessThanOrEqual(${Number(value)})`
+    default: throw new Error('cannot export op ' + op)
+  }
+}
+
+function assertionCode(spec) {
+  const el = `const el = ${loc(spec.selector)}`
+  const attached = 'await expect(el).toBeAttached()'
+  switch (spec.kind) {
+    case 'text': return [el, attached, "const text = ((await el.textContent()) ?? '').trim()", cmp('text', spec.op, spec.value)]
+    case 'value': return [el, attached, 'const value = await el.inputValue()', cmp('value', spec.op, spec.value)]
+    case 'visible': return [el, spec.expect === false ? 'await expect(el).toBeHidden()' : 'await expect(el).toBeVisible()']
+    case 'checked': return [el, attached, spec.expect === false ? 'await expect(el).not.toBeChecked()' : 'await expect(el).toBeChecked()']
+    case 'count': return [`const count = await page.locator(${q(spec.selector)}).count()`, cmp('count', spec.op ?? 'eq', spec.value)]
+    case 'style': return [el, attached, `const style = await el.evaluate((e, p) => getComputedStyle(e)[p], ${q(String(spec.property))})`, cmp('style', spec.op, spec.value)]
+    case 'attr': return [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).not.toBeNull()', cmp('attr', spec.op, spec.value)]
+    case 'dialog': return ["const dialog = dialogs.at(-1) ?? ''", cmp('dialog', spec.op, spec.value)]
+    case 'api': {
+      const lines = ['let res']
+      for (const st of spec.steps) lines.push(`res = await request.fetch(${q(st.path)}, { method: ${q(String(st.method || 'GET').toUpperCase())}${st.body !== undefined ? `, data: ${q(st.body)}` : ''} })`)
+      lines.push('const body = await res.text()')
+      if (spec.status !== undefined) lines.push(`expect(res.status()).toBe(${Number(spec.status)})`)
+      if (spec.header) lines.push(cmp(`res.headers()[${q(String(spec.header.name).toLowerCase())}] ?? ''`, spec.header.op, spec.header.value))
+      if (spec.json) {
+        lines.push('let parsed', 'try { parsed = JSON.parse(body) } catch {}',
+          `const got = ${q(String(spec.json.path))}.split('.').filter(Boolean).reduce((o, k) => (o == null ? undefined : o[k]), parsed)`,
+          'expect(got).not.toBeUndefined()',
+          cmp("typeof got === 'object' ? JSON.stringify(got) : got", spec.json.op, spec.json.value))
+      }
+      return lines
+    }
+    default: throw new Error('cannot export assertion ' + spec.kind)
+  }
+}
+
+export function specSource(f) {
+  const indent = lines => lines.map(l => '  ' + l).join('\n')
+  const pause = a => (a.type === 'wait' ? [] : ['await page.waitForTimeout(200)'])
+  // scroll_delta compares the page's scroll position before and after the LAST action, so it needs no absolute pixel values
+  const delta = f.assert.kind === 'scroll_delta'
+  const steps = (delta ? f.history.slice(0, -1) : f.history).flatMap(a => [stepCode(a), ...pause(a)])
+  const settle = f.assert.kind === 'api' ? [] : ['await page.waitForTimeout(250)']
+  const check = delta
+    ? ['const readScroll = () => page.evaluate(() => Math.round(window.scrollY))', 'const before = await readScroll()', stepCode(f.history.at(-1)), ...pause(f.history.at(-1)), ...settle,
+       'const after = await readScroll()', `expect(after - before).toBe(${Number(f.assert.value)})`]
+    : [...settle, ...assertionCode(f.assert)]
+  return `// Generated by Behique. ${f.id}: ${f.title.replace(/\n/g, ' ')}
+// Expected: ${String(f.expected).replace(/\n/g, ' ')}
+// Actual:   ${String(f.actual).replace(/\n/g, ' ')}
+import { test, expect } from '@playwright/test'
+
+test(${q(f.title)}, async ({ page, request }) => {
+${indent([
+    'const dialogs = []',
+    "page.on('dialog', d => { dialogs.push(d.message()); d.accept() })",
+    '// Start from a clean app. This hook is project specific: replace it with your own reset.',
+    "await request.post('/api/reset').catch(() => {})",
+    `await page.goto(${q(f.start ?? '/')})`,
+    ...steps,
+    ...check,
+  ])}
+})
+`
+}
+
+export function writeExport(dir, findings) {
+  mkdirSync(dir, { recursive: true })
+  writeFileSync(join(dir, 'playwright.config.js'),
+    `import { defineConfig } from '@playwright/test'\nexport default defineConfig({ testDir: '.', workers: 1, timeout: 60000, expect: { timeout: 5000 }, reporter: [['json']], use: { baseURL: process.env.BASE_URL, viewport: { width: 1280, height: 900 } } })\n`)
+  for (const f of findings) writeFileSync(join(dir, `${f.id}.spec.js`), specSource(f))
+}
+
+/** Run an exported folder with Playwright's own runner against a running app. Returns { results: { F1: true, ... } } (true = test passed). */
+export function runExported(dir, baseUrl) {
+  const r = spawnSync(join(ROOT, 'node_modules/.bin/playwright'), ['test'], { cwd: dir, env: { ...process.env, BASE_URL: baseUrl, CI: '1' }, encoding: 'utf8', timeout: 300_000 })
+  let j
+  try { j = JSON.parse(r.stdout) } catch { return { error: (r.stderr || r.stdout || 'no output').slice(0, 300), results: {} } }
+  const results = {}, errors = {} // errors: first failure message per test (ANSI colours removed)
+  const walk = s => {
+    (s.specs ?? []).forEach(sp => {
+      const id = String(sp.file).replace(/\.spec\.js$/, '')
+      results[id] = sp.ok
+      const msg = (sp.tests ?? []).flatMap(t => t.results ?? []).map(x => x.error?.message ?? x.errors?.[0]?.message).find(Boolean)
+      if (msg) errors[id] = msg.replace(/\u001b\[[0-9;]*m/g, '')
+    })
+    ;(s.suites ?? []).forEach(walk)
+  }
+  ;(j.suites ?? []).forEach(walk)
+  return { results, errors }
+}

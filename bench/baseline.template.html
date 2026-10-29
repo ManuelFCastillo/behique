@@ -1,0 +1,227 @@
+<title>Behique Planted Defects</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400&family=Josefin+Sans:wght@300;400;600&display=swap">
+<style>
+/* Layout: one centred column; a crosshair-and-ring rule (from the logo's construction lines) separates sections.
+   The page commits to the logo's black ground, so it is single-theme dark. */
+:root {
+  color-scheme: dark;
+  --bg: #06090a;
+  --surface: #0c1214;
+  --line: #1e2a2d;
+  --line-strong: #34484d;
+  --fg: #e9efec;
+  --muted: #98a8a2;
+  --bone: #d9d3c2;
+  --gem-green: #36e39c;
+  --gem-red: #ff5a6e;
+  --font-display: "Josefin Sans", "Avenir Next", "Century Gothic", sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+body { background: var(--bg); color: var(--fg); font-family: var(--font-body); font-size: 16px; line-height: 1.6;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 28px 64px; }
+.wrap { max-width: 980px; margin: 0 auto; }
+h1, h2 { font-family: var(--font-display); font-weight: 300; letter-spacing: .04em; margin: 0; text-wrap: balance; }
+h1 { font-size: clamp(2.2rem, 6vw, 3.6rem); line-height: 1.05; }
+h2 { font-size: 1.55rem; margin-bottom: 14px; }
+h3 { font-size: 1.02rem; font-weight: 600; margin: 0 0 4px; text-wrap: balance; }
+p { margin: 0 0 10px; }
+.eyebrow { font-family: var(--font-mono); font-size: .75rem; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); margin: 0 0 10px; }
+.lede { color: var(--muted); max-width: 60ch; font-size: 1.05rem; }
+
+header { display: flex; gap: 28px; align-items: center; flex-wrap: wrap; }
+header img { width: 190px; max-width: 46%; height: auto; mix-blend-mode: lighten; flex: none; }
+header .txt { flex: 1 1 320px; min-width: 0; }
+
+.rule { position: relative; height: 1px; background: var(--line-strong); margin: 44px 0 30px; }
+.rule::before { content: ""; position: absolute; left: 50%; top: 50%; width: 11px; height: 11px; margin: -6px 0 0 -6px; border: 1px solid var(--bone); border-radius: 50%; background: var(--bg); }
+
+.three { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
+.three h3 { font-family: var(--font-display); font-weight: 400; font-size: 1.15rem; letter-spacing: .05em; color: var(--bone); }
+.three p { color: var(--muted); font-size: .94rem; }
+code, .mono { font-family: var(--font-mono); font-size: .86em; color: var(--bone); }
+
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; counter-reset: s; }
+.steps li { position: relative; padding-top: 34px; color: var(--muted); font-size: .94rem; }
+.steps li::before { counter-increment: s; content: counter(s); position: absolute; top: 0; left: 0; width: 24px; height: 24px; border: 1px solid var(--bone); border-radius: 50%; display: grid; place-items: center; font-family: var(--font-mono); font-size: .75rem; color: var(--bone); background: var(--bg); z-index: 1; }
+.steps li::after { content: ""; position: absolute; top: 12px; left: 24px; right: -28px; height: 1px; background: var(--line-strong); }
+.steps li:last-child::after { display: none; }
+.steps b { color: var(--fg); font-weight: 600; }
+
+.facts { display: flex; flex-wrap: wrap; gap: 0; border-block: 1px solid var(--line-strong); }
+.fact { flex: 1 1 150px; padding: 16px 18px; border-left: 1px solid var(--line); }
+.fact:first-child { border-left: 0; padding-left: 0; }
+.fact strong { display: block; font-family: var(--font-display); font-weight: 300; font-size: 2.3rem; line-height: 1; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.fact span { color: var(--muted); font-size: .85rem; }
+.score { display: flex; flex-wrap: wrap; gap: 8px 28px; margin: 18px 0 0; color: var(--muted); font-size: .95rem; }
+.score b { color: var(--fg); font-variant-numeric: tabular-nums; }
+
+.filters { display: flex; flex-wrap: wrap; gap: 10px 26px; margin: 4px 0 18px; align-items: center; }
+.group { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.group > span { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+button.chipbtn { font: inherit; font-size: .85rem; color: var(--muted); background: transparent; border: 1px solid var(--line-strong); border-radius: 999px; padding: 4px 13px; cursor: pointer; }
+button.chipbtn:hover { color: var(--fg); border-color: var(--bone); }
+button.chipbtn[aria-pressed="true"] { color: var(--bg); background: var(--bone); border-color: var(--bone); }
+button:focus-visible, summary:focus-visible { outline: 2px solid var(--gem-green); outline-offset: 2px; }
+#count { color: var(--muted); font-size: .88rem; margin: 0 0 6px; }
+
+ol.list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line-strong); }
+.row { display: grid; grid-template-columns: 88px minmax(0, 1fr) 156px; gap: 8px 22px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.row[hidden] { display: none; }
+.rid { display: flex; flex-direction: column; gap: 4px; align-items: flex-start; }
+.code { font-family: var(--font-display); font-weight: 300; font-size: 1.7rem; letter-spacing: .03em; line-height: 1; color: var(--bone); }
+.layer { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.rbody { min-width: 0; }
+.rbody p { color: var(--muted); font-size: .94rem; max-width: 70ch; }
+ul.tags { list-style: none; padding: 0; margin: 6px 0 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+ul.tags li { font-family: var(--font-mono); font-size: .7rem; letter-spacing: .04em; color: var(--muted); border: 1px solid var(--line-strong); border-radius: 4px; padding: 1px 7px; }
+ul.tags li.smoke { color: var(--gem-green); border-color: #1d6b4b; }
+details summary { cursor: pointer; font-size: .86rem; color: var(--bone); width: fit-content; }
+details[open] summary { margin-bottom: 8px; }
+pre { margin: 0 0 8px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 6px; overflow-x: auto; font-family: var(--font-mono); font-size: .8rem; line-height: 1.55; }
+pre .file { color: var(--muted); }
+pre .del { color: #ff8b99; }
+pre .add { color: #62e8b0; }
+pre .gone { color: var(--muted); font-style: italic; }
+.small { font-size: .8rem; color: var(--muted); font-family: var(--font-mono); }
+
+.rres { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.res { display: inline-flex; align-items: center; gap: 8px; font-size: .86rem; color: var(--muted); white-space: nowrap; }
+.res i { font-style: normal; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: .78rem; font-weight: 600; border: 1px solid var(--line-strong); }
+.res b { font-weight: 600; color: var(--fg); }
+.res.found i { background: var(--gem-green); border-color: var(--gem-green); color: #03130c; box-shadow: 0 0 10px #36e39c55; }
+.res.found { color: var(--gem-green); }
+.res.missed i { background: var(--gem-red); border-color: var(--gem-red); color: #1c0309; box-shadow: 0 0 10px #ff5a6e55; }
+.res.missed { color: var(--gem-red); }
+.res.na { color: var(--muted); }
+
+.tablewrap { overflow-x: auto; border-top: 1px solid var(--line-strong); }
+table.results { width: 100%; border-collapse: collapse; font-size: .92rem; }
+table.results th, table.results td { text-align: left; padding: 9px 12px 9px 0; border-bottom: 1px solid var(--line); font-weight: 400; }
+table.results thead th { font-family: var(--font-mono); font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+table.results tbody th { color: var(--muted); }
+table.results td { font-variant-numeric: tabular-nums; width: 24%; }
+table.results tr.strong th, table.results tr.strong td { color: var(--fg); font-weight: 600; }
+ul.overlap { list-style: none; margin: 18px 0 0; padding: 0; display: grid; gap: 8px; color: var(--muted); font-size: .92rem; }
+ul.overlap b { color: var(--fg); font-weight: 600; }
+ul.overlap a { color: var(--bone); font-family: var(--font-mono); font-size: .86em; text-decoration: none; border-bottom: 1px solid var(--line-strong); margin-right: 6px; }
+ul.overlap a:hover { border-color: var(--bone); }
+.row { scroll-margin-top: 16px; }
+ul.notes { margin: 0; padding: 0; list-style: none; display: grid; gap: 14px; }
+ul.notes li { padding-left: 20px; position: relative; color: var(--muted); max-width: 78ch; }
+ul.notes li::before { content: ""; position: absolute; left: 0; top: .62em; width: 8px; height: 8px; border: 1px solid var(--bone); border-radius: 50%; }
+ul.notes b { color: var(--fg); font-weight: 600; }
+footer { margin-top: 40px; color: var(--muted); font-size: .82rem; }
+
+@media (max-width: 760px) {
+  .three, .steps { grid-template-columns: 1fr; gap: 22px; }
+  .steps li::after { display: none; }
+  .row { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .rid { flex-direction: row; align-items: baseline; gap: 12px; }
+  .rres { flex-direction: row; flex-wrap: wrap; gap: 8px 18px; }
+  .fact { flex-basis: 45%; border-left: 0; padding-left: 0; }
+  header img { width: 130px; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <img src="%%LOGO%%" alt="Behique logo: a Taino-inspired figure with one green and one red gem for eyes">
+    <div class="txt">
+      <p class="eyebrow">Behique benchmark &middot; baseline</p>
+      <h1>Planted defects</h1>
+      <p class="lede">What Behique is scored against: %%TOTAL%% bugs, planted one at a time in a small todo app. Each entry says what is wrong, how a tester would notice it, the exact code change, and whether each model found it.</p>
+    </div>
+  </header>
+
+  <div class="rule" aria-hidden="true"></div>
+  <h2>The app under test</h2>
+  <div class="three">
+    <div><h3>Login</h3><p>A username and password form. The only valid pair is <code>admin</code> / <code>secret123</code>, and it is printed on the page. Messages: "Welcome, admin!", "Invalid credentials", "Username and password are required".</p></div>
+    <div><h3>Todo list</h3><p>Add, tick and delete tasks, with a "N tasks remaining" count. Saved through a JSON API at <code>/api/todos</code> (GET, POST, PATCH, DELETE) into a SQLite database, so a reload shows what was really stored.</p></div>
+    <div><h3>Widgets</h3><p>A colour list, a terms checkbox, size radio buttons, a button that toggles a panel, a "Load data (delayed)" button that takes 1.5 seconds, and a "Show alert" button.</p></div>
+  </div>
+
+  <div class="rule" aria-hidden="true"></div>
+  <h2>How a bug is counted</h2>
+  <ol class="steps">
+    <li><b>One bug is planted.</b> The app is copied and exactly one line of its code is changed. Behique then explores it with no documentation.</li>
+    <li><b>Behique reports defects.</b> Each report comes with an assertion: what a correct app would show or return, written as a check the computer can run.</li>
+    <li><b>The assertion is replayed twice.</b> It must fail on the buggy app and pass on the clean app. Only then does the bug count as found.</li>
+  </ol>
+
+  <div class="rule" aria-hidden="true"></div>
+  <h2>The baseline</h2>
+  <div class="facts">
+    <div class="fact"><strong>%%TOTAL%%</strong><span>bugs planted</span></div>
+    <div class="fact"><strong>%%REACHABLE%%</strong><span>scored (one cannot be reached)</span></div>
+    <div class="fact"><strong>%%SERVER%%</strong><span>in the server code</span></div>
+    <div class="fact"><strong>%%PAGE%%</strong><span>in the page code</span></div>
+  </div>
+
+  <div class="rule" aria-hidden="true"></div>
+  <h2>How the two models did</h2>
+  <p class="lede">Each model explored every bugged app once, with at most 20 steps and a spend cap per run, plus two runs on the clean app. A reproduced bug has to fail on the buggy app and pass on the clean one.</p>
+  %%RESULTS%%
+  <p class="small" style="margin-top:12px">Updated %%STAMP%% Central. Costs use an unverified third-party price.</p>
+
+  <div class="rule" aria-hidden="true"></div>
+  <h2>Every defect</h2>
+  <div class="filters" role="group" aria-label="Filters">
+    <div class="group" data-key="layer"><span>Where</span>
+      <button class="chipbtn" type="button" data-v="all" aria-pressed="true">All</button>
+      <button class="chipbtn" type="button" data-v="server" aria-pressed="false">Server</button>
+      <button class="chipbtn" type="button" data-v="page" aria-pressed="false">Page</button>
+    </div>
+    <div class="group" data-key="outcome"><span>Result</span>
+      <button class="chipbtn" type="button" data-v="all" aria-pressed="true">Any</button>
+      <button class="chipbtn" type="button" data-v="meta:found" aria-pressed="false">Found by Meta</button>
+      <button class="chipbtn" type="button" data-v="meta:missed" aria-pressed="false">Missed by Meta</button>
+      <button class="chipbtn" type="button" data-v="baseten:found" aria-pressed="false">Found by Baseten</button>
+      <button class="chipbtn" type="button" data-v="baseten:missed" aria-pressed="false">Missed by Baseten</button>
+    </div>
+  </div>
+  <p id="count" aria-live="polite"></p>
+  <ol class="list">
+%%ROWS%%
+  </ol>
+
+  <div class="rule" aria-hidden="true"></div>
+  <h2>What this baseline does not tell you</h2>
+  <ul class="notes">
+    <li><b>One bug is out of reach.</b> H3 needs a test-only reset endpoint that a black-box tester cannot see, so it is listed but not scored.</li>
+    <li><b>The original app has a real bug nobody planted.</b> A single task reads "1 tasks remaining". Both models found it in 9 of 29 runs. It is a true defect, so it is counted as its own category and not as a false alarm, and it never counts toward the planted score.</li>
+    <li><b>Some reports are guesses.</b> Models sometimes assume an endpoint such as <code>GET /api/todos/1</code> or <code>/api/login</code> that the app never had, or a field name it does not use. Those are false alarms. Baseten's Spark Open made far more of them.</li>
+    <li><b>Some bugs cannot be known without a spec.</b> The correct alert text, colour message and error wording are not written anywhere a tester can see. My reading is that this is part of why S10, C8, C9 and H7 were missed by both models, though I have not tested that.</li>
+    <li><b>One run per bug, per model.</b> A miss may be bad luck and a find may be good luck. Two bugs, C1 and S2, were also used while tuning the explorer, so they are marked "seen in smoke test" and also shown separately above.</li>
+    <li><b>One Baseten run was repeated.</b> Its first H4 attempt crashed on a screenshot timeout in my harness, not in the model. I raised the timeout and ran that one job again; the second result is the one counted.</li>
+    <li><b>The clean-app sample is small.</b> Two runs per model is too few to say how often either one raises a false alarm on a correct app.</li>
+    <li><b>The explorer's instructions are generic QA habits</b> (try valid input, then invalid input; check after a reload; probe the API). None of them mention these specific bugs.</li>
+  </ul>
+  <footer>Source: bench/mutations.json and the run logs in the behique repo. Cost figures elsewhere use an unverified third-party price.</footer>
+</div>
+
+<script>
+(function () {
+  var rows = Array.prototype.slice.call(document.querySelectorAll('.row'));
+  var state = { layer: 'all', outcome: 'all' };
+  var out = document.getElementById('count');
+  function apply() {
+    var shown = 0;
+    rows.forEach(function (r) {
+      var ok = state.layer === 'all' || r.dataset.layer === state.layer;
+      if (ok && state.outcome !== 'all') { var p = state.outcome.split(':'); ok = r.dataset[p[0]] === p[1]; }
+      r.hidden = !ok; if (ok) shown++;
+    });
+    out.textContent = 'Showing ' + shown + ' of ' + rows.length + ' defects';
+  }
+  document.querySelectorAll('.group').forEach(function (g) {
+    g.addEventListener('click', function (e) {
+      var b = e.target.closest('button'); if (!b) return;
+      g.querySelectorAll('button').forEach(function (x) { x.setAttribute('aria-pressed', x === b ? 'true' : 'false'); });
+      state[g.dataset.key] = b.dataset.v; apply();
+    });
+  });
+  apply();
+})();
+</script>
