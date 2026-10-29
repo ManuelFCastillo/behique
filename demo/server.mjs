@@ -95,6 +95,7 @@ createServer(async (req, res) => {
     if (ui && !ui[1].startsWith('.') && existsSync(join(UI_DIR, ui[1]))) return send(res, 200, readFileSync(join(UI_DIR, ui[1]), ui[2] === 'html' ? 'utf8' : undefined), ui[2] === 'html' ? 'text/html; charset=utf-8' : 'image/png')
 
     if (u.pathname === '/report') return send(res, 200, readFileSync(join(ROOT, 'demo/report.html'), 'utf8'), 'text/html; charset=utf-8')
+    if (u.pathname === '/senses') return send(res, 200, readFileSync(join(ROOT, 'demo/senses.html'), 'utf8'), 'text/html; charset=utf-8')
 
     if (u.pathname === '/api/cases') return send(res, 200, listCases(EVIDENCE).map(id => { const s = summarize(openCase(join(EVIDENCE, id)).read()); return { id, decision: s.decision?.decision ?? null, proven: s.claims.some(c => c.label === 'reproduced_failure') } }))
 
