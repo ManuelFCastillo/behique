@@ -16,6 +16,7 @@ import { buildViewModel } from '../src/release/viewmodel.mjs'
 import { listApps } from '../src/release/appregistry.mjs'
 import { createGithub } from '../src/release/github.mjs'
 import { recordDecision } from '../src/release/decision.mjs'
+import { askModel, askPreview, whyNot } from '../src/release/ask.mjs'
 import adapter from '../src/release/adapters/freshrss.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
@@ -186,9 +187,30 @@ createServer(async (req, res) => {
       const c = caseOf(JSON.parse(await readBody(req) || '{}').id)
       if (!c) return send(res, 404, { error: 'no such case' })
       if (asking) return send(res, 409, { error: 'a model call is already running' })
+      const why = whyNot(c); if (why) return send(res, 400, { error: why }) // not mid-run, not past the limit
       asking = true
       try { const r = await hypothesize(c); return send(res, 200, { ok: true, usd: r.usd, grounded: r.grounded }) }
       catch (e) { return send(res, 502, { error: String(e.message) }) }
+      finally { asking = false }
+    }
+
+    if (u.pathname === '/api/ui/ask' && req.method === 'GET') { // what asking the model would send and cost; calls nothing
+      const c = caseOf(u.searchParams.get('id'))
+      if (!c) return send(res, 404, { error: 'no such case' })
+      return send(res, 200, await askPreview(c))
+    }
+    if (u.pathname === '/api/ui/ask' && req.method === 'POST') { // the paid call: only with the fingerprint of the text the person was shown
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      let body; try { body = JSON.parse(await readBody(req) || '{}') } catch { return send(res, 400, { error: 'invalid JSON' }) }
+      const c = caseOf(body.id)
+      if (!c) return send(res, 404, { error: 'no such case' })
+      if (asking) return send(res, 409, { error: 'A model call is already running.' })
+      asking = true
+      try {
+        const r = await askModel(c, { confirm: body.confirm })
+        if (!r.ok) return send(res, r.status, { error: r.error, stale: r.stale === true })
+        return send(res, 200, { asked: { usd: r.usd, grounded: r.grounded }, vm: buildViewModel(c, { caseId: body.id }) })
+      } catch (e) { return send(res, 502, { error: String(e.message) }) } // the model call failed or its reply was unusable; the record says what it cost
       finally { asking = false }
     }
 

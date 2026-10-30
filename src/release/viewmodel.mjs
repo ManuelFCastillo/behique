@@ -157,7 +157,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
     decisionHistory: s.decisions.map(decisionView).reverse(), // newest first; earlier decisions are superseded, never removed
     decisions: s.decisions.length,
     canDecide: verdict !== 'running', canShip: verdict !== 'running' && verdict !== 'fail',
-    model: { calls: calls.length, costUsd: calls.reduce((a, e) => a + (e.data.estUsd ?? 0), 0), guesses, limit: 3, canAsk: Boolean(bisect?.commit) && guesses < 3 },
+    model: { calls: calls.length, costUsd: calls.reduce((a, e) => a + (e.data.estUsd ?? 0), 0), guesses, limit: 3, canAsk: verdict !== 'running' && Boolean(bisect?.commit) && guesses < 3 },
     startedAt: events[0].ts, chain: c.verify(), events: events.length, rawLines: raw,
   }
 }
