@@ -1,10 +1,13 @@
 // Turn the top changed fact between two builds into an exported Playwright test, then run it 3 times on each build.
-//   node src/release/confirm.mjs <goodRef> <candidateRef> [--scenario share|scroll] [--port 8300] [--steps file] [--adapter name] [--runs 3] [--bisect]
-// The test states the good build's value. It must PASS every run on the good build and FAIL every run on the candidate;
-// each run starts from a freshly seeded build. Anything else (flaky, or passes on both) is not a confirmed regression.
+//   node src/release/confirm.mjs <goodRef> <candidateRef> [--scenario share|scroll] [--port 8300] [--steps file] [--adapter name] [--runs 3] [--max-findings 3] [--bisect]
+// Each changed fact (earliest step per fact, at most --max-findings) becomes a test that states the good build's value. A test must PASS
+// every run on the good build and FAIL every run on the candidate; every run of every test starts from its own freshly seeded build, so tests
+// cannot change each other's state. Anything else (flaky, or passes on both) is not a confirmed regression. --bisect searches for the
+// first bad change of the first confirmed test only.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runExported, writeExport } from '../export.mjs'
+import { firstConfirmed, judgeFindings, selectFindings, summarize } from './findings.mjs'
 import { startBuild, stopAll } from './build.mjs'
 import { compareBuilds, summaryLines } from './compare.mjs'
 import { openCase } from './evidence.mjs'
@@ -14,45 +17,12 @@ const args = process.argv.slice(2)
 const opt = (n, d) => (args.includes('--' + n) ? args[args.indexOf('--' + n) + 1] : d)
 const [goodRef, candRef] = args.filter(a => !a.startsWith('--') && !args[args.indexOf(a) - 1]?.startsWith('--'))
 if (!goodRef || !candRef) { console.error('usage: node src/release/confirm.mjs <goodRef> <candidateRef> [--port N] [--steps file] [--adapter name] [--runs N]'); process.exit(2) }
-const port = +opt('port', 8300), runs = +opt('runs', 3)
+const port = +opt('port', 8300), runs = +opt('runs', 3), maxFindings = +opt('max-findings', 3)
 const scenario = opt('scenario', null) // a named case (adapter + steps + description); otherwise --adapter and --steps
 if (scenario && !SCENARIOS[scenario]) { console.error(`unknown scenario "${scenario}"; choose one of ${Object.keys(SCENARIOS).join(', ')}`); process.exit(2) }
 const sc = SCENARIOS[scenario] ?? null
 const adapter = (await import(`./adapters/${sc?.adapter ?? opt('adapter', 'freshrss')}.mjs`)).default
 const actions = JSON.parse(readFileSync(sc?.steps ?? opt('steps', 'bench/fixtures/freshrss/steps.json'), 'utf8'))
-
-/**
- * A changed fact as a finding the exporter understands, or null if it cannot be turned into a test.
- * Markup facts are keyed by body/tag[n]/..., which is an XPath. A scroll fact becomes a RELATIVE test: how far the last
- * action moved the page, compared with how far it moved it on the old version (no absolute pixel positions).
- */
-export function factToFinding(d, actions, start, baseline) {
-  if (d.key === 'window@scrollY') {
-    const before = baseline.stable[`${d.i - 1}|${d.key}`]
-    if (d.i < 1 || typeof before !== 'number' || typeof d.was !== 'number') return null
-    const moved = d.was - before, a = actions[d.i - 1]
-    return {
-      id: 'R1', start,
-      title: `the page scrolls by ${moved} pixels after: ${a.type} ${a.selector ?? ''}`.slice(0, 140),
-      expected: `the page scrolls by ${moved} pixels (the old version)`, actual: `the page ends ${Math.abs(d.now - d.was)} pixels ${d.now < d.was ? 'higher up' : 'lower down'} than the old version leaves it`,
-      history: actions.slice(0, d.i), assert: { kind: 'scroll_delta', value: moved },
-    }
-  }
-  const m = d.key.match(/^(.*?)(?:@([^/]+)|#text)$/)
-  const selector = 'xpath=/html/' + m[1]
-  const attr = m[2]
-  const long = String(d.was).length >= 300 // facts cut values at 300 characters
-  const assert = attr
-    ? { kind: 'attr', selector, name: attr, op: long ? 'contains' : 'equals', value: d.was }
-    : { kind: 'text', selector, op: 'contains', value: d.was }
-  const what = attr ? `${attr} of ${m[1].split('/').slice(-2).join('/')}` : `text of ${m[1].split('/').slice(-2).join('/')}`
-  return {
-    id: 'R1', start,
-    title: `${what} after step ${d.i} keeps the previous release's value`,
-    expected: JSON.stringify(d.was), actual: JSON.stringify(d.now),
-    history: actions.slice(0, d.i), assert,
-  }
-}
 
 // Everything below is also written to an evidence case: an append-only log plus saved evidence files, with each
 // conclusion recorded as a labelled claim (see evidence.mjs). The report page reads from it.
@@ -102,49 +72,58 @@ ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${changed.lengt
 const probe = await startBuild({ adapter, ref: goodRef, port })
 const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pathname
 await probe.stop()
-let top = null, finding = null // the first changed fact that can be written as a test
-for (const d of changed) { finding = factToFinding(d, actions, start, baseline); if (finding) { top = d; break } }
-if (!finding) { console.log('none of the changed facts can be written as a test'); ev.event('case.closed', { outcome: 'no testable change' }); process.exit(0) }
+const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings })
+if (!findings.length) { console.log('none of the changed facts can be written as a test'); ev.event('case.closed', { outcome: 'no testable change' }); process.exit(0) }
 const dir = join('out', 'regression', `${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_'))
 rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
-writeExport(dir, [finding])
-const specH = ev.artifact(`${finding.id}.spec.js`, readFileSync(join(dir, finding.id + '.spec.js'), 'utf8'), 'text/javascript')
-ev.event('test.exported', { id: finding.id, fact: top.key, good: finding.expected, candidate: finding.actual })
-console.log(`test written: ${join(dir, finding.id + '.spec.js')}\n  fact: ${top.key.slice(-70)}\n  good: ${finding.expected.slice(0, 80)}\n  cand: ${finding.actual.slice(0, 80)}`)
+writeExport(dir, findings)
+const specH = {}
+for (const f of findings) {
+  specH[f.id] = ev.artifact(`${f.id}.spec.js`, readFileSync(join(dir, f.id + '.spec.js'), 'utf8'), 'text/javascript')
+  ev.event('test.exported', { id: f.id, fact: f.fact.key, good: f.expected, candidate: f.actual })
+  console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}`)
+}
+if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.length === 1 ? '' : 's'} not tested separately (${[...new Set(skipped.map(k => k.why.replace(/ \d+/, ' N')))].join('; ')})`)
 
-const tally = {}, runLog = []
+// Every run of every test gets its own freshly seeded build, so one test cannot change the state another sees.
+const runsOf = { [goodRef]: {}, [candRef]: {} }, runLog = []
 for (const ref of [goodRef, candRef]) {
-  tally[ref] = []
-  for (let n = 0; n < runs; n++) {
-    const b = await startBuild({ adapter, ref, port })
-    const r = runExported(dir, origin)
-    await b.stop()
-    const outcome = r.error ? 'error' : r.results[finding.id] === true ? 'passed' : 'failed'
-    tally[ref].push(r.error ? `error: ${r.error}` : r.results[finding.id] === true)
-    runLog.push({ ref, sha: b.sha, n: n + 1, outcome, ...(outcome === 'failed' ? { message: (r.errors?.[finding.id] ?? '').split('\n').slice(0, 6).join('\n') } : {}) })
-    ev.event('test.run', { ref, sha: b.sha, n: n + 1, outcome })
-    console.log(`  run ${ref} ${n + 1}/${runs}: ${outcome}`)
+  for (const f of findings) {
+    runsOf[ref][f.id] = []
+    for (let n = 0; n < runs; n++) {
+      const b = await startBuild({ adapter, ref, port })
+      const r = runExported(dir, origin, { only: f.id })
+      await b.stop()
+      const outcome = r.error ? 'error' : r.results[f.id] === true ? 'passed' : 'failed'
+      runsOf[ref][f.id].push(r)
+      runLog.push({ id: f.id, ref, sha: b.sha, n: n + 1, outcome, ...(outcome === 'failed' ? { message: (r.errors?.[f.id] ?? '').split('\n').slice(0, 6).join('\n') } : {}) })
+      ev.event('test.run', { id: f.id, ref, sha: b.sha, n: n + 1, outcome })
+      console.log(`  run ${f.id} ${ref} ${n + 1}/${runs}: ${outcome}`)
+    }
   }
 }
-const passes = ref => tally[ref].filter(x => x === true).length
-const fails = ref => tally[ref].filter(x => x === false).length
-console.log(`\n${goodRef} (good):      passed ${passes(goodRef)}/${runs}`)
-console.log(`${candRef} (candidate): failed ${fails(candRef)}/${runs}`)
-const confirmed = passes(goodRef) === runs && fails(candRef) === runs
-console.log(confirmed ? '\nCONFIRMED: reproducible behaviour change, test passes on good and fails on candidate every time' : `\nNOT CONFIRMED: ${JSON.stringify(tally)}`)
+const judged = findings.map(f => judgeFindings([f], runsOf[goodRef][f.id], runsOf[candRef][f.id])[0])
 const runsH = ev.artifact('test-runs.json', runLog, 'application/json')
-if (confirmed) ev.claim('reproduced_failure', `The test ${finding.id} passed ${runs} of ${runs} runs on ${goodRef} and failed ${runs} of ${runs} runs on ${candRef}, each run on a freshly seeded build.`, { evidence: [specH, runsH] })
-else ev.claim('statistical', `The test ${finding.id} passed ${passes(goodRef)} of ${runs} runs on ${goodRef} and failed ${fails(candRef)} of ${runs} on ${candRef}. That is not consistent enough to call a regression.`, { evidence: [runsH] })
+for (const j of judged) {
+  ev.event('test.judged', { id: j.id, verdict: j.verdict, goodPassed: j.goodPassed, candFailed: j.candFailed, runs })
+  console.log(`\n${j.id}: ${goodRef} (good) passed ${j.goodPassed}/${runs}, ${candRef} (candidate) failed ${j.candFailed}/${runs}: ${j.verdict}`)
+  if (j.verdict === 'confirmed') ev.claim('reproduced_failure', `The test ${j.id} passed ${runs} of ${runs} runs on ${goodRef} and failed ${runs} of ${runs} runs on ${candRef}, each run on a freshly seeded build.`, { evidence: [specH[j.id], runsH] })
+  else ev.claim('statistical', `The test ${j.id} passed ${j.goodPassed} of ${runs} runs on ${goodRef} and failed ${j.candFailed} of ${runs} on ${candRef}. That is not consistent enough to call a regression.`, { evidence: [runsH] })
+}
+console.log(`\n${summarize(judged, skipped)}`)
+const first = firstConfirmed(judged)
+const confirmed = Boolean(first)
+console.log(confirmed ? '\nCONFIRMED: reproducible behaviour change, test passes on good and fails on candidate every time' : `\nNOT CONFIRMED: ${JSON.stringify(judged)}`)
 
-let found = null // --bisect: only worth doing once the regression is confirmed
+let found = null // --bisect: only worth doing once a regression is confirmed, and only for the first confirmed test
 if (confirmed && args.includes('--bisect')) {
   const { bisect } = await import('./bisect.mjs')
   const blog = []
-  found = await bisect({ adapter, goodRef, badRef: candRef, dir, id: finding.id, port, runs, log: l => { console.log(l); blog.push(l) }, onEvent: (type, data) => ev.event('bisect.' + type, data) })
+  found = await bisect({ adapter, goodRef, badRef: candRef, dir, id: first.id, port, runs, log: l => { console.log(l); blog.push(l) }, onEvent: (type, data) => ev.event('bisect.' + type, data) })
   const bisH = ev.artifact('bisect.json', { result: found, log: blog }, 'application/json')
   ev.event('bisect.done', { conclusive: found.conclusive, verified: found.verified, steps: found.steps, seconds: found.seconds })
   if (found.conclusive && found.verified) {
-    ev.claim('reproduced_failure', `The first change that makes the test fail is ${found.commit.slice(0, 7)}, "${found.subject}" (${found.author}, ${found.date}). The change just before it passed ${runs} of ${runs} runs and it failed ${runs} of ${runs} runs. Found by binary search over ${found.changes} changes in ${found.steps} steps.`, { evidence: [bisH, specH] })
+    ev.claim('reproduced_failure', `The first change that makes the test fail is ${found.commit.slice(0, 7)}, "${found.subject}" (${found.author}, ${found.date}). The change just before it passed ${runs} of ${runs} runs and it failed ${runs} of ${runs} runs. Found by binary search over ${found.changes} changes in ${found.steps} steps.`, { evidence: [bisH, specH[first.id]] })
     ev.claim('verified_fact', `That change touched ${found.files.length} file${found.files.length === 1 ? '' : 's'}: ${found.files.slice(0, 6).join(', ')}.`, { evidence: [bisH] })
   } else if (found.conclusive) {
     ev.claim('suspected_cause', `The search points at ${found.commit.slice(0, 7)}, "${found.subject}", but the verification runs were not clean, so this is a lead and not a result.`, { evidence: [bisH] })
@@ -154,5 +133,6 @@ if (confirmed && args.includes('--bisect')) {
 }
 ev.event('case.closed', { outcome: confirmed ? 'regression proven' : 'not confirmed', bisected: !!found })
 console.log(`evidence log verified: ${ev.verify().ok}`)
-writeFileSync(join(dir, 'result.json'), JSON.stringify({ goodRef, candRef, caseId, fact: top, tally, confirmed, bisect: found }, null, 1))
+const topFact = findings[0].fact, tally = Object.fromEntries([goodRef, candRef].map(ref => [ref, runsOf[ref][findings[0].id].map(r => (r.error ? `error: ${r.error}` : r.results[findings[0].id] === true))]))
+writeFileSync(join(dir, 'result.json'), JSON.stringify({ goodRef, candRef, caseId, fact: topFact, tally, confirmed, findings: judged, skipped, bisect: found }, null, 1))
 process.exit(confirmed ? 0 : 1)

@@ -121,6 +121,19 @@ test('progress follows the record: recording, comparing, testing n of 6, searchi
   assert.equal(vm().progress, null); assert.equal(vm().verdict, 'hold')
 })
 
+test('with several exported tests the progress counts every one, and only confirmed tests are counted as proven', () => {
+  const { c, vm } = growing()
+  c.event('builds.compared', { good: { ref: '1.0', sha: 'a'.repeat(40) }, candidate: { ref: '2.0', sha: 'b'.repeat(40) } })
+  const facts = c.artifact('facts-diff.json', { control: [], candidate: [{ kind: 'changed', key: 'body/a[1]@href', was: 'x', now: 'y', step: '1:click', i: 1 }] })
+  c.claim('verified_fact', 'two values changed', { evidence: [facts] })
+  c.event('test.exported', { id: 'R1' }); c.event('test.exported', { id: 'R2' })
+  assert.match(vm().sub, /0 of 12 done/)
+  const spec = c.artifact('R1.spec.js', 'x'); c.claim('reproduced_failure', 'R1 fails on new', { evidence: [spec] })
+  c.event('test.judged', { id: 'R1', verdict: 'confirmed' }); c.event('test.judged', { id: 'R2', verdict: 'unstable' })
+  c.event('case.closed', { outcome: 'regression proven' })
+  assert.match(vm().sub, /^1 reproduced behaviour change(?!s)/)
+})
+
 test('while a search is running only the commits actually tested are drawn, with no culprit yet', () => {
   const { c, vm } = growing()
   c.event('builds.compared', { good: { ref: '1.0', sha: 'a'.repeat(40) }, candidate: { ref: '2.0', sha: 'b'.repeat(40) } })

@@ -51,7 +51,7 @@ function bisectNodes(steps, n, culpritAt, onlyTested = false) {
 /** Where a run in flight is up to, read from the record alone. null once the run has closed. */
 export function progressOf(events, s, stepEv = []) {
   if (events.some(e => e.type === 'case.closed')) return null
-  const runs = s.opened?.options?.runs ?? 3, total = 2 * runs
+  const runs = s.opened?.options?.runs ?? 3, total = 2 * runs * Math.max(1, events.filter(e => e.type === 'test.exported').length) // each finding is run on its own fresh builds
   const ev = t => events.find(e => e.type === t)
   if (!ev('builds.compared')) return { phase: 'recording', fraction: 0.05, text: 'Recording both versions from clean installs (about 15 seconds)' }
   if (ev('bisect.verifying')) return { phase: 'verifying', fraction: 0.9, text: 'Double-checking the answer' }
@@ -129,7 +129,8 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   }
   const calls = events.filter(e => e.type === 'model.call')
   const changed = (art('facts-diff.json')?.candidate ?? []).filter(d => d.kind === 'changed')
-  const nProven = o.kind === 'canvas' ? s.claims.filter(k => k.label === 'reproduced_failure').length : events.filter(e => e.type === 'test.exported').length // a canvas case proves a change with a reproduced failure, not an exported test
+  const judged = events.filter(e => e.type === 'test.judged') // newer reports judge each exported test; older ones have none
+  const nProven = o.kind === 'canvas' ? s.claims.filter(k => k.label === 'reproduced_failure').length : judged.length ? judged.filter(e => e.data.verdict === 'confirmed').length : events.filter(e => e.type === 'test.exported').length // a canvas case proves a change with a reproduced failure, not an exported test
   const last = s.decision
   const progress = progressOf(events, s, steps.length ? stepEv : [])
   const sub = {
