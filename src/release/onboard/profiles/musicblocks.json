@@ -1,0 +1,51 @@
+{
+  "name": "musicblocks",
+  "repo": "/Users/mcastillo/dev/behique-apps/musicblocks",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v3.8.0",
+    "cand": "master"
+  },
+  "serve": {
+    "kind": "static"
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {
+    "edge-left": {
+      "x": 0,
+      "y": 0,
+      "w": 8,
+      "h": 800
+    },
+    "edge-right": {
+      "x": 1272,
+      "y": 0,
+      "w": 8,
+      "h": 800
+    },
+    "toolbar": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 64
+    }
+  },
+  "anchors": {
+    "workspace": {
+      "x": 700,
+      "y": 130,
+      "w": 340,
+      "h": 560
+    }
+  },
+  "notes": "Top-level index.html exists and no build script was seen, so static serving was preferred. Could not confirm from the facts whether static serving alone is sufficient versus the express or http-server scripts, nor the correct readiness path, viewport, or interactive setup. | Added by a person after verification passed (not proposed by the model): the three regions (the two screen edges and the toolbar) and the workspace anchor, chosen from the measured difference between v3.8.0 and master, in CSS pixels at 1280x800."
+}
