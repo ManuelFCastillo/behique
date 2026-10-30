@@ -7,7 +7,17 @@
  * Markup facts are keyed by body/tag[n]/..., which is an XPath. A scroll fact becomes a RELATIVE test: how far the last
  * action moved the page, compared with how far it moved it on the old version (no absolute pixel positions).
  */
+/**
+ * The actions a test must replay to reach step i. The crawl joins its flows with a `goto /`, which starts the app over, so a test
+ * for a step in the third flow replays that flow only, not the two before it (they would only add time and shared state).
+ */
+function historyFor(actions, i) {
+  for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto' && actions[g].path === '/') return actions.slice(g + 1, i)
+  return actions.slice(0, i)
+}
+
 export function factToFinding(d, actions, start, baseline, id = 'R1') {
+  if (d.key === 'step@error') return null // a step that could not be performed is reported, but there is no element to test
   if (d.key === 'window@scrollY') {
     const before = baseline.stable[`${d.i - 1}|${d.key}`]
     if (d.i < 1 || typeof before !== 'number' || typeof d.was !== 'number') return null
@@ -16,7 +26,7 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
       id, start,
       title: `the page scrolls by ${moved} pixels after: ${a.type} ${a.selector ?? ''}`.slice(0, 140),
       expected: `the page scrolls by ${moved} pixels (the old version)`, actual: `the page ends ${Math.abs(d.now - d.was)} pixels ${d.now < d.was ? 'higher up' : 'lower down'} than the old version leaves it`,
-      history: actions.slice(0, d.i), assert: { kind: 'scroll_delta', value: moved },
+      history: historyFor(actions, d.i), assert: { kind: 'scroll_delta', value: moved },
     }
   }
   const m = d.key.match(/^(.*?)(?:@([^/]+)|#text)$/)
@@ -31,7 +41,7 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
     id, start,
     title: `${what} after step ${d.i} keeps the previous release's value`,
     expected: JSON.stringify(d.was), actual: JSON.stringify(d.now),
-    history: actions.slice(0, d.i), assert,
+    history: historyFor(actions, d.i), assert,
   }
 }
 

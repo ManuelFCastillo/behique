@@ -16,10 +16,10 @@ export function summaryLines({ baseline, cand, control }, baseRef, candRef) {
 }
 
 /** Returns { baseline, cand, control, baseSha, candSha }. cand and control are ranked difference lists. */
-export async function compareBuilds({ adapter, baseRef, candRef, port, actions }) {
+export async function compareBuilds({ adapter, baseRef, candRef, port, actions, readOnly = false }) {
   const record = async ref => {
     const b = await startBuild({ adapter, ref, port })
-    try { return { steps: await recordRun(b.base, actions), sha: b.sha } } finally { await b.stop() }
+    try { return { steps: await recordRun(b.base, actions, { readOnly }), sha: b.sha } } finally { await b.stop() }
   }
   const a = await record(baseRef), b = await record(baseRef)
   const baseline = buildBaseline(a.steps, b.steps)

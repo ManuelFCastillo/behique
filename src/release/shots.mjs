@@ -12,7 +12,7 @@ const safeRef = (ref) => String(ref).replace(/[^A-Za-z0-9._-]/g, '_')
  * Step 0 is right after opening, step n is after the n-th action (1-based).
  * Only the largest requested step is reached, the rest of the actions are not run.
  */
-export async function captureShots(base, actions, steps, { viewport = { width: 1280, height: 900 }, settleOptions = {} } = {}) {
+export async function captureShots(base, actions, steps, { viewport = { width: 1280, height: 900 }, settleOptions = {}, readOnly = false } = {}) {
   for (const s of steps) {
     if (!Number.isInteger(s) || s < 0 || s > actions.length) throw new Error(`step ${s} is outside 0..${actions.length}`)
   }
@@ -22,6 +22,7 @@ export async function captureShots(base, actions, steps, { viewport = { width: 1
   const s = new Session(base, { viewport })
   try {
     await s.open()
+    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort())) // the same rule as the recording
     let r = await settle(s.page, settleOptions)
     if (wanted.has(0)) out[0] = r.png
     for (let i = 0; i < max; i++) {

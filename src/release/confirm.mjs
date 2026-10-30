@@ -1,5 +1,5 @@
 // Turn the top changed fact between two builds into an exported Playwright test, then run it 3 times on each build.
-//   node src/release/confirm.mjs <goodRef> <candidateRef> [--scenario share|scroll] [--port 8300] [--steps file] [--adapter name] [--runs 3] [--max-findings 3] [--bisect]
+//   node src/release/confirm.mjs <goodRef> <candidateRef> [--scenario share|scroll] [--port 8300] [--steps file] [--adapter name] [--app name --steps file] [--read-only] [--runs 3] [--max-findings 3] [--bisect]
 // Each changed fact (earliest step per fact, at most --max-findings) becomes a test that states the good build's value. A test must PASS
 // every run on the good build and FAIL every run on the candidate; every run of every test starts from its own freshly seeded build, so tests
 // cannot change each other's state. Anything else (flaky, or passes on both) is not a confirmed regression. --bisect searches for the
@@ -13,29 +13,34 @@ import { startBuild, stopAll } from './build.mjs'
 import { compareBuilds, summaryLines } from './compare.mjs'
 import { openCase } from './evidence.mjs'
 import { SCENARIOS } from './scenarios.mjs'
+import { listProfileNames, loadProfile, profileToAdapter } from './onboard/profile.mjs'
 
 const args = process.argv.slice(2)
 const opt = (n, d) => (args.includes('--' + n) ? args[args.indexOf('--' + n) + 1] : d)
 const [goodRef, candRef] = args.filter(a => !a.startsWith('--') && !args[args.indexOf(a) - 1]?.startsWith('--'))
 if (!goodRef || !candRef) { console.error('usage: node src/release/confirm.mjs <goodRef> <candidateRef> [--port N] [--steps file] [--adapter name] [--runs N]'); process.exit(2) }
 const port = +opt('port', 8300), runs = +opt('runs', 3), maxFindings = +opt('max-findings', 3)
+const readOnly = args.includes('--read-only') // crawled steps: every request but GET and HEAD is blocked, in the recording and in each test
 const scenario = opt('scenario', null) // a named case (adapter + steps + description); otherwise --adapter and --steps
 if (scenario && !SCENARIOS[scenario]) { console.error(`unknown scenario "${scenario}"; choose one of ${Object.keys(SCENARIOS).join(', ')}`); process.exit(2) }
 const sc = SCENARIOS[scenario] ?? null
-const adapter = (await import(`./adapters/${sc?.adapter ?? opt('adapter', 'freshrss')}.mjs`)).default
+const appName = opt('app', null) // an app Behique set up itself (a saved profile): needs --steps, for example from the crawl
+if (appName && !listProfileNames().includes(appName)) { console.error(`unknown app "${String(appName).slice(0, 30)}"; saved apps: ${listProfileNames().join(', ') || 'none'}`); process.exit(2) }
+if (appName && !sc && !args.includes('--steps')) { console.error('an app needs its click steps: pass --steps <file> (the crawl writes one: node src/release/crawl/cli.mjs <app>)'); process.exit(2) }
+const adapter = appName ? profileToAdapter(loadProfile(appName)) : (await import(`./adapters/${sc?.adapter ?? opt('adapter', 'freshrss')}.mjs`)).default
 const actions = JSON.parse(readFileSync(sc?.steps ?? opt('steps', 'bench/fixtures/freshrss/steps.json'), 'utf8'))
 
 // Everything below is also written to an evidence case: an append-only log plus saved evidence files, with each
 // conclusion recorded as a labelled claim (see evidence.mjs). The report page reads from it.
 const caseId = `${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}_${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_')
 const ev = openCase(join('out', 'evidence', caseId))
-ev.event('case.opened', { goodRef, candRef, adapter: adapter.name, steps: actions, options: { bisect: args.includes('--bisect'), runs }, scenario: sc ? { name: scenario, label: sc.label, about: sc.about, upstream: sc.upstream } : null })
+ev.event('case.opened', { goodRef, candRef, adapter: adapter.name, ...(appName ? { app: appName } : {}), steps: actions, options: { bisect: args.includes('--bisect'), runs }, scenario: sc ? { name: scenario, label: sc.label, about: sc.about, upstream: sc.upstream } : null })
 console.log(`evidence: ${caseId}`)
 // A cancelled run stops its builds, closes its record honestly, and exits; it never leaves servers or an unfinished record.
 process.on('SIGTERM', async () => { await stopAll(); try { ev.event('case.closed', { outcome: 'cancelled' }) } catch {} ; console.log('run cancelled'); process.exit(130) })
 
 let cmp
-try { cmp = await compareBuilds({ adapter, baseRef: goodRef, candRef, port, actions }) } catch (e) {
+try { cmp = await compareBuilds({ adapter, baseRef: goodRef, candRef, port, actions, readOnly }) } catch (e) {
   const msg = String(e.message ?? e).split('\n').filter(Boolean).slice(0, 2).join(' ').slice(0, 300)
   console.log(`a build failed to start, so the versions could not be compared: ${msg}`)
   ev.claim('verified_fact', `A build failed to start, so the two versions could not be compared: ${msg}`, { evidence: [ev.artifact('error.txt', String(e.stack ?? e).slice(0, 4000))] })
@@ -74,6 +79,7 @@ const probe = await startBuild({ adapter, ref: goodRef, port })
 const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pathname
 await probe.stop()
 const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings })
+if (readOnly) for (const f of findings) f.readOnly = true
 if (!findings.length) { console.log('none of the changed facts can be written as a test'); ev.event('case.closed', { outcome: 'no testable change' }); process.exit(0) }
 const dir = join('out', 'regression', `${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_'))
 rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
@@ -122,7 +128,19 @@ console.log(confirmed ? '\nCONFIRMED: reproducible behaviour change, test passes
 const shotSteps = [...new Set(judged.filter(j => j.verdict === 'confirmed').map(j => findings.find(f => f.id === j.id).fact.i))].sort((a, b) => a - b)
 if (shotSteps.length) {
   try {
-    const take = async ref => { const b = await startBuild({ adapter, ref, port }); try { return await captureShots(b.base, actions, shotSteps) } finally { await b.stop() } }
+    // A crawled step list holds several flows, each starting over with `goto /`: a screenshot replays only the flow its step is in,
+    // like the test does, in a fresh browser on a fresh build.
+    const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto' && actions[g].path === '/') return g + 1; return 0 }
+    const groups = new Map()
+    for (const step of shotSteps) groups.set(flowStart(step), [...(groups.get(flowStart(step)) ?? []), step])
+    const take = async ref => {
+      const all = {}
+      for (const [from, steps] of groups) {
+        const b = await startBuild({ adapter, ref, port })
+        try { for (const [k, png] of Object.entries(await captureShots(b.base, actions.slice(from), steps.map(x => x - from), { readOnly }))) all[+k + from] = png } finally { await b.stop() }
+      }
+      return all
+    }
     const goodA = await take(goodRef), goodB = await take(goodRef), candShots = await take(candRef)
     for (const step of shotSteps) {
       const forSteps = judged.filter(j => j.verdict === 'confirmed' && findings.find(f => f.id === j.id).fact.i === step).map(j => j.id)

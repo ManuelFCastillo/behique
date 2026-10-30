@@ -96,6 +96,7 @@ ${indent([
     "page.on('dialog', d => { dialogs.push(d.message()); d.accept() })",
     '// Start from a clean app. This hook is project specific: replace it with your own reset.',
     "await request.post('/api/reset').catch(() => {})",
+    ...(f.readOnly ? ["// The facts were recorded with every request but GET and HEAD blocked, so the test blocks them too.", "await page.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()))"] : []),
     `await page.goto(${q(f.start ?? '/')})`,
     ...steps,
     ...check,

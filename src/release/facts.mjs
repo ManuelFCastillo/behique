@@ -25,17 +25,25 @@ const EXTRACT = () => {
 }
 
 /** Open the build, record facts, perform each action and record again. Returns [{ label, facts }]. */
-export async function recordRun(base, actions, { viewport = { width: 1280, height: 900 } } = {}) {
+/** readOnly: no request but GET or HEAD gets through, so every step sees the app exactly as it was seeded (a click that would mark something read, or save, changes nothing). */
+export async function recordRun(base, actions, { viewport = { width: 1280, height: 900 }, readOnly = false } = {}) {
   const s = new Session(base, { viewport })
   const steps = []
   try {
     await s.open()
+    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()))
     await s.page.waitForLoadState('networkidle').catch(() => {})
     steps.push({ label: 'start', facts: await s.page.evaluate(EXTRACT) })
     for (const [i, a] of actions.entries()) {
-      await s.act(a)
+      // A `goto /` between flows (the crawl writes one) starts the app over, exactly like a test that opens a new browser: cookies and
+      // storage are cleared, so a flow does not see what an earlier flow changed (a view setting, a filter, a session).
+      if (a.type === 'goto' && a.path === '/') { await s.ctx.clearCookies(); await s.page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch {} }).catch(() => {}) }
+      let failed = null
+      try { await s.act(a) } catch (e) { failed = String(e.message ?? e).split('\n')[0].slice(0, 100) } // a click that cannot be made (the element is gone in this version) is itself a difference worth recording
       await s.page.waitForLoadState('networkidle').catch(() => {})
-      steps.push({ label: `${i + 1}:${a.type} ${a.selector ?? a.path ?? ''}`.slice(0, 80), facts: await s.page.evaluate(EXTRACT) })
+      const facts = await s.page.evaluate(EXTRACT)
+      if (failed) facts['step@error'] = failed
+      steps.push({ label: `${i + 1}:${a.type} ${a.selector ?? a.path ?? ''}`.slice(0, 80), facts })
     }
   } finally { await s.close() }
   return steps

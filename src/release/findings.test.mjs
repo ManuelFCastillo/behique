@@ -242,3 +242,34 @@ describe('firstConfirmed and summarize', () => {
     assert.equal(s, '0 of 2 findings confirmed; 1 error (R1); 1 not_reproduced (R2)')
   })
 })
+
+describe('a step that could not be performed', () => {
+  it('is reported as a changed or added fact but never becomes a test', () => {
+    const d = { i: 2, step: '2:click role=link[name="Gone"]', key: 'step@error', kind: 'added', was: null, now: 'locator.click: Timeout 3000ms exceeded.' }
+    assert.equal(factToFinding(d, [{ type: 'click', selector: 'a' }, { type: 'click', selector: 'b' }], '/', { stable: {} }), null)
+    const { findings, skipped } = selectFindings([{ ...d, kind: 'changed', was: 'x' }], [], '/', { stable: {} })
+    assert.deepEqual(findings, []); assert.equal(skipped[0].why, 'cannot be written as a test')
+  })
+})
+
+describe('history of a step in a crawled flow', () => {
+  const crawled = [
+    { type: 'click', selector: 'a.one' },
+    { type: 'goto', path: '/' },
+    { type: 'click', selector: 'a.two' },
+    { type: 'click', selector: 'a.three' },
+  ]
+  const d = { i: 4, step: '4', key: 'body/p[1]@title', kind: 'changed', was: 'x', now: 'y' }
+  it('replays only the flow the step is in, after the last goto to the start', () => {
+    const f = factToFinding(d, crawled, '/', { stable: {} })
+    assert.deepEqual(f.history, [{ type: 'click', selector: 'a.two' }, { type: 'click', selector: 'a.three' }])
+  })
+  it('replays everything when there is no goto, and for a step in the first flow', () => {
+    assert.equal(factToFinding({ ...d, i: 1 }, crawled, '/', { stable: {} }).history.length, 1)
+    assert.equal(factToFinding({ ...d, i: 3 }, crawled.filter(a => a.type !== 'goto'), '/', { stable: {} }).history.length, 3)
+  })
+  it('does not trim at a goto to some other page', () => {
+    const odd = [{ type: 'click', selector: 'a' }, { type: 'goto', path: '/about' }, { type: 'click', selector: 'b' }]
+    assert.equal(factToFinding({ ...d, i: 3 }, odd, '/', { stable: {} }).history.length, 3)
+  })
+})
