@@ -5,6 +5,15 @@ import { pictureOf, measureFloor } from '../visual/picture.mjs'
 import { profileToAdapter } from './profile.mjs'
 import { decode, emptiness } from '../../senses/pixels.mjs'
 
+/** The visible text length of the page the app serves (tags, scripts and styles removed); 0 when it cannot be fetched. */
+async function pageTextLength(fetchFn, base, path) {
+  try {
+    const res = await fetchFn(base + (path && path !== '/' ? path : '/'))
+    const html = await res.text()
+    return html.replace(/<(script|style)[\s\S]*?<\/\1>/gi, ' ').replace(/<[^>]*>/g, ' ').replace(/&[a-z#0-9]+;/gi, ' ').replace(/\s+/g, ' ').trim().length
+  } catch { return 0 }
+}
+
 function pngSize(png) {
   const buf = Buffer.from(png)
   return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) }
@@ -19,6 +28,7 @@ export async function verifyProfile(profile, {
   ports = [8301, 8302],
   loads = 3,
   log = () => {},
+  fetchFn = fetch,
 } = {}) {
   const adapter = profileToAdapter(profile)
   const checks = []
@@ -133,8 +143,13 @@ export async function verifyProfile(profile, {
         const image = decode(goodPic.png)
         const box = { x: 0, y: 0, w: image.width, h: image.height }
         const empty = emptiness(image, box)
-        const alive = empty < 0.99
-        const detail = `emptiness ${Number(empty).toFixed(3)}`
+        let alive = empty < 0.99
+        let detail = `emptiness ${Number(empty).toFixed(3)}`
+        if (!alive) {
+          // a page that is mostly white but says something (a minimal boilerplate page) is a page, not a failure: look at its text
+          const chars = await pageTextLength(fetchFn, goodBuild.base, profile?.ready?.path)
+          if (chars >= 12) { alive = true; detail += `, mostly white but the page has ${chars} characters of text` }
+        }
         push('the app is alive', alive, alive ? detail : `blank (${detail})`, alive ? null : goodBuild?.logTail?.())
       }
     } catch (err) {

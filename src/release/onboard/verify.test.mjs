@@ -163,12 +163,31 @@ test('different sizes fail the size check', async () => {
   assert.deepEqual(start.stopped.sort(), ['cand', 'good'])
 })
 
+test('a mostly white page that has text counts as alive, a truly empty one does not', async () => {
+  const start = makeStartFake()
+  const pic = makePictureFake({ goodPng: blankPng(), candPng: blankPng() })
+  const floor = makeFloorFake()
+  const withText = await verifyProfile(testProfile(), {
+    good: 'good', cand: 'cand', startBuildFn: start.fn, pictureFn: pic.fn, floorFn: floor.fn,
+    fetchFn: async () => ({ text: async () => '<html><style>p{}</style><script>var x=1</script><body><p>Hello world! This is a page.</p></body></html>' }),
+  })
+  const a = withText.checks.find((c) => c.name === 'the app is alive')
+  assert.equal(a.ok, true)
+  assert.match(a.detail, /characters of text/)
+  const scriptOnly = await verifyProfile(testProfile(), {
+    good: 'good', cand: 'cand', startBuildFn: makeStartFake().fn, pictureFn: pic.fn, floorFn: floor.fn,
+    fetchFn: async () => ({ text: async () => '<html><script>document.body.innerHTML="hello there friend"</script></html>' }),
+  })
+  assert.equal(scriptOnly.checks.find((c) => c.name === 'the app is alive').ok, false)
+})
+
 test('blank app fails the alive check', async () => {
   const start = makeStartFake()
   const pic = makePictureFake({ goodPng: blankPng(), candPng: blankPng() })
   const floor = makeFloorFake()
   const report = await verifyProfile(testProfile(), {
     good: 'good', cand: 'cand', startBuildFn: start.fn, pictureFn: pic.fn, floorFn: floor.fn,
+    fetchFn: async () => ({ text: async () => '<html><body></body></html>' }),
   })
   const alive = report.checks.find((c) => c.name === 'the app is alive')
   assert.equal(alive.ok, false)
