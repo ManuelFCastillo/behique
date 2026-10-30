@@ -36,19 +36,32 @@ export async function startBuild({ adapter, ref, port }) {
   const feedSrv = adapter.feed ? await startFeedServer(adapter.feed) : null // an app with no feed (a static site) leaves adapter.feed null
   const feedUrl = adapter.feed ? `http://127.0.0.1:${adapter.feed.port}/feed.xml` : null
   let child
-  const self = { stop: async () => { active.delete(self); child?.kill(); feedSrv?.close() } }
+  // a dev server started through yarn, pnpm or npm leaves its own child behind when only the first process is killed, and that child keeps the
+  // port: so the whole process group is stopped
+  const killTree = () => { if (!child) return; try { process.kill(-child.pid, 'SIGTERM') } catch { child.kill() } }
+  const self = { stop: async () => { active.delete(self); killTree(); feedSrv?.close() } }
   const stop = self.stop
   active.add(self)
   try {
     const seeded = await adapter.prepare(dir, { port, feedUrl })
     if (adapter.expectedEntries !== undefined && seeded.entries !== adapter.expectedEntries) throw new Error(`seed gave ${seeded.entries} entries, expected ${adapter.expectedEntries}`)
-    const { cmd, args } = adapter.serve(dir, port)
-    child = spawn(cmd, args, { cwd: dir, stdio: 'ignore' })
+    const { cmd, args, env } = adapter.serve(dir, port)
+    // the end of the app's own output is kept so a failure can say why (a dev server that crashes says so in its last lines)
+    let tail = '', exited = null
+    child = spawn(cmd, args, { cwd: dir, env: env ?? process.env, stdio: ['ignore', 'pipe', 'pipe'], detached: true })
+    const keep = d => { tail = (tail + String(d)).slice(-8000) }
+    child.stdout.on('data', keep); child.stderr.on('data', keep)
+    child.on('exit', (code, signal) => { exited = signal ?? code }); child.on('error', e => { exited = e.message; tail += `\n${e.message}` })
     const base = `http://127.0.0.1:${port}${adapter.basePath ?? ''}`
+    const readyMs = adapter.readyMs ?? 10_000, probe = base + (adapter.readyPath && adapter.readyPath !== '/' ? adapter.readyPath : '/')
     let up = false
-    for (let i = 0; i < 100 && !up; i++) { try { up = (await fetch(base + '/')).ok } catch { await sleep(100) } }
-    if (!up) throw new Error(`${adapter.name} ${ref} did not answer on ${base}`)
-    return { ref, sha, dir, base, port, entries: seeded.entries, buildMs: Date.now() - t0, stop }
+    for (const t0 = Date.now(); Date.now() - t0 < readyMs && !up && exited === null;) { try { up = (await fetch(probe)).ok } catch { await sleep(100) } }
+    if (!up) {
+      const e = new Error(`${adapter.name} ${ref} did not answer on ${base}${exited !== null ? ` (the server stopped: ${exited})` : ` within ${Math.round(readyMs / 1000)} s`}`)
+      e.logs = tail
+      throw e
+    }
+    return { ref, sha, dir, base, port, entries: seeded.entries, buildMs: Date.now() - t0, stop, logTail: () => tail }
   } catch (e) { await stop(); throw e }
 }
 
