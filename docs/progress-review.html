@@ -47,8 +47,8 @@
 <tr><td>Evidence store and report</td><td>Hash-chained evidence, labelled claims, report page, person's Ship or Hold, optional AI guess with price shown first.</td><td class="ok">Built, used</td><td>Report page and dashboard run end to end.</td></tr>
 <tr><td>Canvas senses</td><td>Pixel diff and coordinate actions for canvas apps (Music Blocks).</td><td class="ok">Built, measured</td><td>Fixture: 18 of 18 detectable bugs, 3/3 reproduced. Music Blocks v3.8.0 vs master run (about $0.07).</td></tr>
 <tr><td>Wave 1 and 2</td><td>Several findings per run, regions, screenshots, visual runs, set-up from the dashboard.</td><td class="ok">Built, committed</td><td>Share and scroll scenarios unchanged by the wiring.</td></tr>
-<tr><td>Phase 0: Measure</td><td>Does set-up work on real repos?</td><td class="warn">Measured in the sandbox</td><td><b>1 of 6</b> proposals pass as written; 3 more work with one small fix each; 2 not diagnosed to the end.</td></tr>
-<tr><td>Phase 1: Set-up v2</td><td>Richer repo facts, package-manager and env handling, repair loop, profile format v2.</td><td class="warn">Built, tested with fakes</td><td>Never run on a real failing repo.</td></tr>
+<tr><td>Phase 0: Measure</td><td>Does set-up work on real repos?</td><td class="warn">Measured in the sandbox</td><td><b>1 of 6</b> proposals pass as written; <b>6 of 6 verified after the repair loop</b> (1 to 3 rounds each, about $0.10).</td></tr>
+<tr><td>Phase 1: Set-up v2</td><td>Richer repo facts, package-manager and env handling, repair loop, profile format v2.</td><td class="ok">Built, measured</td><td>Repair loop ran on 5 real failing repos: all verified.</td></tr>
 <tr><td>Phase 2: Flow crawl</td><td>Finds click paths with no model, read-only, then compares along them.</td><td class="ok">Built, proven on one app</td><td>Reproduced the FreshRSS Share regression with zero hand-written steps. Tuned on FreshRSS only.</td></tr>
 <tr><td>Phase 3: Seed data</td><td>Put realistic data in an app that needs it.</td><td class="bad">Not built</td><td>Depends on Phase 4 sidecars.</td></tr>
 <tr><td>Phase 4: Isolation</td><td>Run untrusted repos in Docker with database sidecars.</td><td class="ok">Built, measured on hardac2</td><td>First-party app + Postgres, todomvc and umami (with Postgres) ran in it; see section 6. Uncommitted.</td></tr>
@@ -103,7 +103,7 @@
 <tr><td>todomvc (static)</td><td class="ok">VERIFIED end to end (build, pictures, noise floor).</td></tr>
 <tr><td>html5-boilerplate</td><td class="warn">Built (<code>npm ci</code> + build) and served; the "app is alive" check failed because the page is almost blank by design.</td></tr>
 <tr><td>umami v3.3.1 + Postgres</td><td class="ok">Install, build and <code>next start</code> ran in the sandbox; <code>/login</code> answered 200. Needed 10 GB, the full Node image and a corrected start command.</td></tr>
-<tr><td>nextjs-blog, excalidraw, vitepress</td><td class="bad">As proposed, all three fail: <code>-- -p {port}</code> breaks under yarn Berry and pnpm; excalidraw's workspace command does not fit that version; vitepress not diagnosed.</td></tr>
+<tr><td>Repair loop on the failing repos</td><td class="ok">nextjs-blog (2 rounds), vitepress (2), excalidraw (3) and umami (3, the loop added the Postgres sidecar itself) all VERIFIED; html5-boilerplate passes once the alive check accepts a mostly white page with text. Changed commands were approved only within a narrow policy (same programs, env, sandbox services); none was refused.</td></tr>
 </table>
 <h3>Bugs the real runs found (all fixed, each with a test)</h3>
 <ul>
@@ -113,7 +113,7 @@
 <li>The default Node image lacked openssl (Prisma needs it); <code>next build</code> was killed at 4 GB (needs about 10 GB); the model's <code>run start -- -p {port}</code> breaks with pnpm and yarn Berry.</li>
 <li>An ssh tunnel through the shared connection exited at once; it now uses its own connection.</li>
 </ul>
-<p><b>Limits:</b> plain Docker (runc) is not a hard wall; before arbitrary repos, move to Firecracker or gVisor. The sidecar proposer missed umami's Postgres (its compose file names a service <code>db</code> with no hint). The repair loop is still untested on a real failure, because it needs an approval step for each changed command. Phase 3 (seed data) is not built.</p>
+<p><b>Limits:</b> plain Docker (runc) is not a hard wall; before arbitrary repos, move to Firecracker or gVisor. The sidecar proposer missed umami's Postgres (its compose file names a service <code>db</code> with no hint). The repair loop now ran for real (see above) under a narrow standing approval; anything outside it (a new program, npx or dlx, scripts on) stops for a person. Phase 3 (seed data) is not built.</p>
 
 <h2>7. What I would check for "tip top shape"</h2>
 <h3>Run these (all safe, nothing is installed from third-party repos)</h3>
@@ -133,7 +133,7 @@ node --test src/release/*.test.mjs src/release/onboard/*.test.mjs \
 <h3>Known weak spots</h3>
 <ul>
 <li>The crawler is tuned on one app. A second app is the real test.</li>
-<li>The repair loop and profile v2 are tested with fakes only.</li>
+<li>The repair results are one run per repo on six public repos we picked; not repeated, not a success rate.</li>
 <li><code>~/dev/behique-ui/behique-live.html</code> (the dashboard page) is <b>not under git</b>; backups exist only in a scratch folder.</li>
 <li>A Ship or Hold decision's name is typed in, so it is attribution by honour, not identity.</li>
 <li>The demo script is out of date: Share now has 2 findings, plus the Music Blocks segment, the set-up flow and the crawl.</li>

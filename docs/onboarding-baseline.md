@@ -57,3 +57,21 @@ Nothing from these repos ran on the Mac: installs, builds, dev servers and the P
 | umami | not run by the bench (proposal had no database) | run by hand with a Postgres sidecar and the start command corrected: **up**, `/login` 200 |
 
 So: **1 of 6 pass as proposed; 3 more work with one small correction each** (nextjs-blog, umami, html5-boilerplate's check), 2 not diagnosed to the end. Every failure here is exactly what the repair loop is for (it gets the app's last output); the loop is still untested on a real failure because it needs a person to approve each changed command. The earlier row "NOT measured" above is superseded by this table.
+
+
+## After the repair loop (2026-10-30, same sandbox, `node bench/onboard-bench.mjs repair <name>`)
+
+The loop starts from the saved proposal, verifies it, and on failure sends the failing checks and the app's last output back to the model (up to 3 rounds, $0.30 cap per repo). A changed command is approved only inside `src/release/onboard/approve.mjs`: new arguments for a program already approved, env values and sandbox services. A new program, `npx`/`dlx`, or turning lifecycle scripts on stops the loop. Every approval was printed; none was refused in this run.
+
+| Repo | As written | After repair | What the model changed |
+|---|---|---|---|
+| todomvc | PASS | not needed | none |
+| html5-boilerplate | FAIL (alive check) | **VERIFIED, round 1** | nothing: the check now accepts a mostly white page that has text |
+| nextjs-blog | FAIL | **VERIFIED, round 2** | `yarn run dev -- -p {port}` became `yarn run dev -p {port}` |
+| excalidraw | FAIL | **VERIFIED, round 3** | wrong workspace command replaced by `yarn --cwd ./excalidraw-app vite --port {port} --host 0.0.0.0 --no-open`, plus `BROWSER=none`, `CI=true` |
+| vitepress | FAIL | **VERIFIED, round 2** | `pnpm --filter docs exec vitepress dev --port {port} --host 0.0.0.0` |
+| umami | not runnable (needs a database) | **VERIFIED, round 3** | round 2 added the Postgres sidecar by itself; round 3 dropped the `--` before `-p` |
+
+**6 of 6 verified; 1 as written, 5 after at most 3 rounds, about $0.10 in model calls in all.** Verified means: both versions build and start, the pictures settle and match in size, the page is alive, no page errors, and a noise floor is measured. It does not mean the app is fully exercised (no crawl, no logged-in flows, no seeded data).
+
+Caveats: six repos chosen by us, public, mostly web apps with simple start commands; the loop was run once per repo (not repeated). One `npm ci` stalled for 9 minutes in an earlier attempt and was killed (install timeout is 15 minutes; not diagnosed). The first repair run also exposed a launcher bug that broke apps listening on all addresses; that is fixed, and the two repos it hit were rerun.

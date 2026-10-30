@@ -25,7 +25,7 @@ Settings (all optional): `BEHIQUE_SANDBOX_IMAGE` (default `node:22-bookworm`, a 
 1. A private `open` network and an `internal` network (no outside access), and a volume. The repo (no `.git`, no `node_modules`) is copied in as a tar by a container running as uid 1000.
 2. Sidecars start on the internal network under their name (`db`, `redis`...) with throwaway test credentials; Behique waits for their health check.
 3. Install steps run on both networks (the package registry is reachable), as uid 1000, scripts disabled, read-only root, all capabilities dropped, memory/CPU/process limits.
-4. The app runs on the internal network ONLY: it cannot reach the internet. It is started through `launch.mjs`, which also relays the container address to a server that listens only on localhost (vite, vitepress and most dev servers do). Behique reaches it by its address (a local forwarder, or `ssh -L` to hardac2), so the app is always `http://127.0.0.1:<port>` for everything else in Behique.
+4. The app runs on the internal network ONLY: it cannot reach the internet. It is started through `launch.mjs`, which also relays the container address to a server that listens only on localhost (vite, vitepress and most dev servers do). The relay is bound only after the app is seen to listen on localhost alone: bound earlier it makes an app that listens on every address (next dev, the static server) fail with EADDRINUSE. Behique reaches it by its address (a local forwarder, or `ssh -L` to hardac2), so the app is always `http://127.0.0.1:<port>` for everything else in Behique.
 5. Everything is removed at the end (containers, networks, volume), labelled `behique=1` so `clean.mjs` can find leftovers.
 
 ## Measured (2026-10-30, hardac2)
@@ -35,11 +35,11 @@ Settings (all optional): `BEHIQUE_SANDBOX_IMAGE` (default `node:22-bookworm`, a 
 - html5-boilerplate (`npm ci` + `npm run build` inside the sandbox): built and served; the "app is alive" check failed because the page is nearly blank by design (emptiness 0.999). Not a sandbox problem.
 - umami v3.3.1 with a Postgres sidecar: `pnpm install`, `pnpm run build` and `next start` ran in the sandbox, `/login` answered 200 ("Login | Umami"). Needed 10 GB (a 4 GB limit was OOM-killed), the full Node image (the slim one lacks openssl, which Prisma needs) and a corrected start command (the model's `run start -- -p {port}` passes a literal `--` with pnpm). A good repair-loop case.
 
-- Baseline of the six proposals as written: 1 of 6 pass, see the table in `docs/onboarding-baseline.md` (nextjs-blog and vitepress hit the `-- -p` problem, excalidraw's command does not fit v0.17.6).
+- Baseline of the six proposals as written: 1 of 6 pass (and 6 of 6 verified after the repair loop, see `docs/onboarding-baseline.md`), see the table in `docs/onboarding-baseline.md` (nextjs-blog and vitepress hit the `-- -p` problem, excalidraw's command does not fit v0.17.6).
 
 ## Known limits
 
 - Isolation is Docker (runc) on a machine where the account is in the `docker` group, which is root-equivalent there. Fine for the repos tried so far; before pointing it at arbitrary repos, move to Firecracker (hardac2 has KVM) or gVisor.
-- The sidecar proposer misses Postgres for umami: its compose file names a service `db` and there is no `.env.example`. The compose `image:` lines would tell; inspect-more does not read them yet.
+- The sidecar proposer now reads compose `image:` lines (umami's `db` is postgres:15-alpine). A stalled install has no inactivity watchdog, only the 15 minute step timeout.
 - No data is seeded (Phase 3). Sidecars start empty; apps that create their own tables on build (umami) work, others may not.
 - The seed copies the whole checkout over docker; large repos with big assets are slow over ssh.
