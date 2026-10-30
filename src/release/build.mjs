@@ -33,15 +33,15 @@ export async function startBuild({ adapter, ref, port }) {
   if (!existsSync(dir)) await git('worktree', 'add', '-q', '--detach', dir, sha)
   await run('git', ['-C', dir, 'clean', '-fdxq', '--', ...adapter.cleanPaths])
 
-  const feedSrv = await startFeedServer(adapter.feed)
-  const feedUrl = `http://127.0.0.1:${adapter.feed.port}/feed.xml`
+  const feedSrv = adapter.feed ? await startFeedServer(adapter.feed) : null // an app with no feed (a static site) leaves adapter.feed null
+  const feedUrl = adapter.feed ? `http://127.0.0.1:${adapter.feed.port}/feed.xml` : null
   let child
-  const self = { stop: async () => { active.delete(self); child?.kill(); feedSrv.close() } }
+  const self = { stop: async () => { active.delete(self); child?.kill(); feedSrv?.close() } }
   const stop = self.stop
   active.add(self)
   try {
     const seeded = await adapter.prepare(dir, { port, feedUrl })
-    if (seeded.entries !== adapter.expectedEntries) throw new Error(`seed gave ${seeded.entries} entries, expected ${adapter.expectedEntries}`)
+    if (adapter.expectedEntries !== undefined && seeded.entries !== adapter.expectedEntries) throw new Error(`seed gave ${seeded.entries} entries, expected ${adapter.expectedEntries}`)
     const { cmd, args } = adapter.serve(dir, port)
     child = spawn(cmd, args, { cwd: dir, stdio: 'ignore' })
     const base = `http://127.0.0.1:${port}${adapter.basePath ?? ''}`
