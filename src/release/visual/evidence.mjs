@@ -52,6 +52,8 @@ export function recordVisualCase({
     scenario: { name: 'visual-' + name, label: `${name}, by picture`, about, upstream: null },
   })
 
+  // the regions as data, so the dashboard does not have to read them out of claim text
+  c.event('visual.regions', { regions: (reports ?? []).map(r => ({ name: r.name, box: profile?.regions?.[r.name] ?? r.region ?? null, inRegion: r.inRegion ?? r.changed ?? 0, floor: floor?.regions?.[r.name] ?? 0, above: Boolean(r.above) })), anchorsFailed: anchors && !anchors.ok ? (anchors.failed ?? []) : [], scale })
   const goodH = c.artifact('good-picture.png', reference, 'image/png')
   const candH = c.artifact('candidate-picture.png', candidate, 'image/png')
   const floorH = c.artifact('floor.json', JSON.stringify(floor ?? { n: 0, changed: 0, regions: {} }), 'application/json')

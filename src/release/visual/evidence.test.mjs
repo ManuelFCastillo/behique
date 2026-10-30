@@ -144,3 +144,16 @@ test('not verified and not conclusive bisect wording', () => {
   const sus2 = s2.claims.find(c => c.label === 'suspected_cause')
   assert.ok(sus2 && sus2.text.includes('one of 3'))
 })
+
+test('the regions are recorded as data, and the dashboard view reads them back', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'visreg-'))
+  const r = recordVisualCase(baseArgs(root, { anchors: { ok: false, failed: ['work'] } }))
+  const ev = readBack(root, r.caseId).find(e => e.type === 'visual.regions')
+  assert.deepEqual(ev.data.regions, [{ name: 'top', box: { x: 0, y: 0, w: 10, h: 5 }, inRegion: 12, floor: 0, above: true }])
+  assert.deepEqual(ev.data.anchorsFailed, ['work']); assert.equal(ev.data.scale, 1)
+  const { visualView } = await import('../ui/visual-view.mjs')
+  const v = visualView(openCase(join(root, r.caseId)), { caseId: r.caseId })
+  assert.equal(v.regionsKnown, true); assert.equal(v.regions[0].differs, true); assert.match(v.regions[0].diff, /^\/api\/artifact-image\?id=/)
+  assert.match(v.summary, /1 of 1 regions differ/); assert.match(v.summary, /anchor regions work also differ/)
+  assert.equal(buildViewModel(openCase(join(root, r.caseId)), { caseId: r.caseId }).visual.regions.length, 1, 'the view-model carries it')
+})

@@ -153,3 +153,19 @@ test('without --propose a profile with regions proposes nothing and writes nothi
   const out = await runCheck(opts(), deps({ writeProposals: () => { throw new Error('must not save') }, proposeRegions: () => { throw new Error('must not propose') } }))
   assert.equal(out.code, 0)
 })
+
+test('progress lines are handed out as they happen, in order, and are the ones the dashboard reads', async () => {
+  const { visualProgress, caseIdOf } = await import('../ui/visual-run.mjs')
+  const seen = []
+  const out = await runCheck(opts({ bisect: true }), deps({
+    log: l => seen.push(l),
+    visualBisectFn: async () => ({ conclusive: false, range: [1, 2], region: 'top', log: [], events: [] }),
+    recordVisualCase: () => ({ caseId: 'cid.1', outcome: 'differences found' }),
+  }))
+  const markers = seen.filter(l => l.startsWith('progress: '))
+  assert.deepEqual(markers, ['progress: building both versions', 'progress: taking pictures', 'progress: measuring noise', 'progress: comparing regions', 'progress: searching', 'progress: recording'])
+  assert.deepEqual(seen, out.lines, 'the live lines are the returned lines')
+  assert.equal(visualProgress(seen).phase, 'done'); assert.equal(caseIdOf(seen), 'cid.1')
+  assert.equal(visualProgress(seen.slice(0, seen.indexOf('progress: comparing regions') + 1)).phase, 'comparing')
+  assert.equal(seen.some(l => /^(could not|usage:|bisect failed:)/.test(l)), false, 'no routine line looks like a failure to the progress reader')
+})

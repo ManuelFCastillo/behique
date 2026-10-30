@@ -71,6 +71,8 @@ export function parseArgs(argv) {
  */
 export async function runCheck(options = {}, deps = {}) {
   const lines = []
+  const live = deps.log ?? (() => {}) // each line is also handed out as it happens, so a dashboard can show progress
+  const push = l => { lines.push(l); try { live(l) } catch {} }
   const loadProfile = deps.loadProfile ?? realLoadProfile
   const toAdapter = deps.profileToAdapter ?? realToAdapter
   const startBuildFn = deps.startBuildFn ?? realStartBuild
@@ -111,16 +113,18 @@ export async function runCheck(options = {}, deps = {}) {
   let proposals = null
   let effProfile = profile
   try {
+    push('progress: building both versions')
     goodBuild = await startBuildFn({ adapter, ref: goodRef, port: ports[0] ?? 8301 })
     candBuild = await startBuildFn({ adapter, ref: candRef, port: ports[1] ?? 8302 })
+    push('progress: taking pictures')
     const goodPic = await pictureFn(goodBuild.base, profile)
     if (!goodPic.settled) {
-      lines.push(`good version ${goodRef} did not settle, cannot compare`)
+      push(`good version ${goodRef} did not settle, cannot compare`)
       return { code: 1, lines, caseId: null, outcome: null }
     }
     const candPic = await pictureFn(candBuild.base, profile)
     if (!candPic.settled) {
-      lines.push(`candidate ${candRef} did not settle, cannot compare`)
+      push(`candidate ${candRef} did not settle, cannot compare`)
       return { code: 1, lines, caseId: null, outcome: null }
     }
     goodPng = goodPic.png
@@ -132,16 +136,18 @@ export async function runCheck(options = {}, deps = {}) {
       proposals = proposeFn(goodPng, candPng, { scale, noisePngs: noise ? [noise] : [] })
       if (!hasRegions && proposals.regions.length) effProfile = { ...profile, regions: toProfileRegions(proposals.regions) }
     }
+    push('progress: measuring noise')
     floor = await floorFn(goodBuild.base, effProfile, { loads })
   } finally {
     if (goodBuild) await goodBuild.stop().catch(() => {})
     if (candBuild) await candBuild.stop().catch(() => {})
   }
   if (!goodPng || !candPng || !floor) {
-    lines.push('could not take settled pictures')
+    push('could not take settled pictures')
     return { code: 1, lines, caseId: null, outcome: null }
   }
 
+  push('progress: comparing regions')
   const reports = []
   // human addition after review: with no regions in the profile nothing would be compared and the case would say "no candidate defects",
   // which is false assurance. Compare proposed regions, or the whole picture when the two pictures do not differ anywhere.
@@ -149,28 +155,28 @@ export async function runCheck(options = {}, deps = {}) {
   let regionsToCompare = effProfile.regions
   if (!hasRegions) {
     if (proposals?.regions.length) {
-      lines.push(`the profile has no regions, so ${proposals.regions.length} were proposed from where the two pictures differ (not approved by a person): ${proposals.regions.map(r => r.name).join(', ')}`)
+      push(`the profile has no regions, so ${proposals.regions.length} were proposed from where the two pictures differ (not approved by a person): ${proposals.regions.map(r => r.name).join(', ')}`)
     } else {
       regionsToCompare = { 'whole picture': { x: 0, y: 0, w: vp.width, h: vp.height } }
-      lines.push('the profile has no regions, so the whole picture is compared')
+      push('the profile has no regions, so the whole picture is compared')
     }
   }
   if (proposals?.regions.length && (!hasRegions || options.propose)) {
     if (hasRegions) {
       const outside = proposals.regions.filter(r => !Object.values(profile.regions).some(b => overlaps(r.box, b)))
-      lines.push(outside.length ? `also differs outside the named regions: ${outside.map(r => `${r.name} (${r.changed} pixels)`).join(', ')}` : 'no difference outside the named regions')
+      push(outside.length ? `also differs outside the named regions: ${outside.map(r => `${r.name} (${r.changed} pixels)`).join(', ')}` : 'no difference outside the named regions')
     }
-    try { lines.push(`proposed regions saved for a person to review: ${saveProposals(app, proposals, candPng, scale)}`) } catch (e) { lines.push(`could not save the proposed regions: ${String(e.message).split('\n')[0]}`) }
+    try { push(`proposed regions saved for a person to review: ${saveProposals(app, proposals, candPng, scale)}`) } catch (e) { push(`proposed regions were not saved: ${String(e.message).split('\n')[0]}`) }
   }
   for (const [rname, box] of Object.entries(regionsToCompare)) {
     const r = regionReport(goodPng, candPng, rname, box, { floor, scale })
     reports.push(r)
-    lines.push(`region ${rname}: ${r.inRegion} pixels (floor ${floor?.regions?.[rname] ?? 0}) ${r.above ? 'above' : 'within noise'}`)
+    push(`region ${rname}: ${r.inRegion} pixels (floor ${floor?.regions?.[rname] ?? 0}) ${r.above ? 'above' : 'within noise'}`)
   }
   let anchorRes = null
   if (profile?.anchors && Object.keys(profile.anchors).length) {
     anchorRes = anchorsOk(goodPng, candPng, profile.anchors, { floor, scale })
-    if (!anchorRes.ok) lines.push(`anchors differ: ${anchorRes.failed.join(', ')}`)
+    if (!anchorRes.ok) push(`anchors differ: ${anchorRes.failed.join(', ')}`)
   }
 
   let bisect = null
@@ -178,10 +184,11 @@ export async function runCheck(options = {}, deps = {}) {
   let bisectRegion = regionOpt
   let code = 0
   if (wantBisect) {
+    push('progress: searching')
     if (!bisectRegion) {
       bisectRegion = reports.find(r => r.above)?.name ?? null
       if (!bisectRegion) {
-        lines.push('nothing to bisect: no region is above the floor')
+        push('nothing to bisect: no region is above the floor')
       }
     }
     if (bisectRegion) {
@@ -195,18 +202,19 @@ export async function runCheck(options = {}, deps = {}) {
           port: ports[0] ?? 8301,
           runs,
           loads,
-          log: l => { lines.push(String(l)); bisectLog.push(String(l)) },
+          log: l => { push(String(l)); bisectLog.push(String(l)) },
           onEvent: (type, data) => bisectEvents.push({ type, data }),
         })
         bisect = { ...bisect, log: bisectLog, events: bisectEvents } // human addition after review: the record needs the search steps
       } catch (e) {
-        lines.push(`bisect failed: ${String(e.message).split('\n')[0]}`)
+        push(`bisect failed: ${String(e.message).split('\n')[0]}`)
         bisect = null
         code = 1
       }
     }
   }
 
+  push('progress: recording')
   const rec = recordFn({
     evidenceRoot,
     profile: effProfile,
@@ -223,9 +231,9 @@ export async function runCheck(options = {}, deps = {}) {
     anchors: anchorRes,
     now,
   })
-  lines.push(`case ${rec.caseId}`)
-  lines.push(`outcome: ${rec.outcome}`)
-  lines.push(`See it at /report?case=${rec.caseId} on the demo server.`)
+  push(`case ${rec.caseId}`)
+  push(`outcome: ${rec.outcome}`)
+  push(`See it at /report?case=${rec.caseId} on the demo server.`)
   return { code, lines, caseId: rec.caseId, outcome: rec.outcome }
 }
 
@@ -237,8 +245,9 @@ if (isMain) {
     console.log(parsed.error)
     process.exitCode = 2
   } else {
-    const out = await runCheck(parsed.opts, {})
-    for (const l of out.lines) console.log(l)
+    const printed = new Set()
+    const out = await runCheck(parsed.opts, { log: l => { printed.add(l); console.log(l) } }) // lines are printed as they happen
+    for (const l of out.lines) if (!printed.has(l)) console.log(l) // early exits return their lines without logging them
     process.exitCode = out.code
   }
 }
