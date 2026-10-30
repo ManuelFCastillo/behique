@@ -22,8 +22,8 @@ export async function verifyProfile(profile, {
 } = {}) {
   const adapter = profileToAdapter(profile)
   const checks = []
-  const push = (name, ok, detail) => {
-    checks.push({ name, ok, detail })
+  const push = (name, ok, detail, logs) => {
+    checks.push({ name, ok, detail, ...(logs ? { logs: String(logs).slice(-4000) } : {}) }) // logs: the end of the app's own output, for a person or the repair loop
     try {
       log(`${ok ? 'ok' : 'FAILED'} ${name}: ${detail}`)
     } catch {}
@@ -64,7 +64,7 @@ export async function verifyProfile(profile, {
       const secs = (Number(goodBuild.buildMs ?? 0) / 1000).toFixed(1)
       push('builds the good version', true, `${sha12} in ${secs}s`)
     } catch (err) {
-      push('builds the good version', false, String((err && err.message) || err))
+      push('builds the good version', false, String((err && err.message) || err), err && err.logs)
       skipRest(AFTER_GOOD, 'good build failed')
       return { ok: false, checks, floor }
     }
@@ -75,7 +75,7 @@ export async function verifyProfile(profile, {
       const secs = (Number(candBuild.buildMs ?? 0) / 1000).toFixed(1)
       push('builds the candidate version', true, `${sha12} in ${secs}s`)
     } catch (err) {
-      push('builds the candidate version', false, String((err && err.message) || err))
+      push('builds the candidate version', false, String((err && err.message) || err), err && err.logs)
       skipRest(AFTER_CAND, 'candidate build failed')
       return { ok: checks.every((c) => c.ok), checks, floor }
     }
@@ -135,7 +135,7 @@ export async function verifyProfile(profile, {
         const empty = emptiness(image, box)
         const alive = empty < 0.99
         const detail = `emptiness ${Number(empty).toFixed(3)}`
-        push('the app is alive', alive, alive ? detail : `blank (${detail})`)
+        push('the app is alive', alive, alive ? detail : `blank (${detail})`, alive ? null : goodBuild?.logTail?.())
       }
     } catch (err) {
       push('the app is alive', false, String((err && err.message) || err))

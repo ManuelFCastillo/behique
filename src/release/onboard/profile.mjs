@@ -2,10 +2,12 @@
 //   node --test src/release/onboard/profile.test.mjs
 import { execFile } from 'node:child_process'
 import { homedir } from 'node:os'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
+import { describeEnv, shimFile, withIgnoreScripts } from './toolchain.mjs'
+import { cleanLogs } from './repair.mjs'
 
 const runFile = promisify(execFile)
 
@@ -17,12 +19,16 @@ const DEFAULT_SERVER = join(HERE, 'static-server.mjs')
 
 const TOP_FIELDS = new Set(['name', 'repo', 'workRoot', 'defaults', 'serve', 'ready', 'viewport', 'setup', 'regions', 'anchors', 'notes'])
 const NAME_RE = /^[a-z0-9-]+$/
-const EVAL_ARGS = new Set(['-e', '--eval', '-p', '--print', '-c', '-r', '--require', '--import', '--loader', '--experimental-loader'])
+// Arguments that make a command run inline code or a shell string. What counts depends on the program: -p is node's --print but
+// a port flag for next, -c is python's inline code and npm's or pnpm's shell mode.
+const NODE_EVAL = new Set(['-e', '--eval', '-p', '--print', '-r', '--require', '--import', '--loader', '--experimental-loader'])
+const PM_EVAL = new Set(['-c', '--call', '-e', '--eval'])
+const EVAL_ARGS = { node: NODE_EVAL, python3: new Set(['-c']), php: new Set(['-r', '-R', '-B', '-E', '--run']), npm: PM_EVAL, npx: PM_EVAL, pnpm: PM_EVAL, yarn: PM_EVAL }
 
-function isEvalArg(a) {
-  if (EVAL_ARGS.has(a)) return true
-  if (a.startsWith('--eval=')) return true
-  if (a.startsWith('--print=')) return true
+function isEvalArg(a, cmd) {
+  const set = EVAL_ARGS[cmd] ?? NODE_EVAL
+  if (set.has(a)) return true
+  if (a.startsWith('--eval=') || a.startsWith('--print=') || a.startsWith('--call=')) return true
   return false
 }
 
@@ -35,7 +41,7 @@ function checkCmd(cmd, where, problems) {
   if (!ALLOWED_COMMANDS.includes(cmd)) problems.push(`${where}.cmd "${cmd}" is not in ALLOWED_COMMANDS`)
 }
 
-function checkArgs(args, where, problems) {
+function checkArgs(args, where, problems, cmd) {
   if (args === undefined) return
   if (!Array.isArray(args)) {
     problems.push(`${where}.args must be an array of strings`)
@@ -50,7 +56,7 @@ function checkArgs(args, where, problems) {
     if (/[;&|`$<>]/.test(a) || a.includes('\n') || a.includes('\r')) {
       problems.push(`${where}.args[${i}] contains a shell operator character`)
     }
-    if (isEvalArg(a)) {
+    if (isEvalArg(a, cmd)) {
       problems.push(`${where}.args[${i}] "${a}" would run inline code`)
     }
   }
@@ -110,6 +116,31 @@ export function validateProfile(profile) {
     if (serve.kind !== 'static' && serve.kind !== 'command') {
       problems.push('serve.kind must be "static" or "command"')
     }
+    // fields shared by both kinds: a person reads and approves every one of them
+    if (serve.env !== undefined) {
+      if (typeof serve.env !== 'object' || serve.env === null || Array.isArray(serve.env)) {
+        problems.push('serve.env must be an object of KEY to string')
+      } else {
+        for (const [k, v] of Object.entries(serve.env)) {
+          if (!/^[A-Z_][A-Z0-9_]*$/.test(k)) problems.push(`serve.env key "${k}" must be upper case letters, digits and underscores`)
+          else if (/(SECRET|PASSWORD|PASSWD|TOKEN|PRIVATE_KEY|API_KEY|CREDENTIAL|_KEY$)/.test(k)) problems.push(`serve.env key "${k}" looks like a credential: never put one in a profile`)
+          if (typeof v !== 'string' || v.length > 200 || /[\r\n]/.test(v)) problems.push(`serve.env["${k}"] must be a one-line string of at most 200 characters`)
+        }
+      }
+    }
+    if (serve.allowScripts !== undefined && typeof serve.allowScripts !== 'boolean') problems.push('serve.allowScripts must be true or false')
+    if (serve.kind === 'static' && serve.install !== undefined) {
+      if (!Array.isArray(serve.install)) problems.push('serve.install must be an array')
+      else serve.install.forEach((item, i) => {
+        if (typeof item !== 'object' || item === null) { problems.push(`serve.install[${i}] must be an object`); return }
+        checkCmd(item.cmd, `serve.install[${i}]`, problems)
+        checkArgs(item.args ?? [], `serve.install[${i}]`, problems, item.cmd)
+      })
+    }
+    if (serve.root !== undefined) {
+      if (serve.kind !== 'static') problems.push('serve.root only applies to a static serve')
+      else if (typeof serve.root !== 'string' || serve.root.startsWith('/') || serve.root.includes('..') || /[\0\\]/.test(serve.root) || serve.root.length > 100) problems.push('serve.root must be a relative sub-directory without ..')
+    }
     if (serve.kind === 'static' || serve.kind === undefined) {
       if (serve.overrides !== undefined) {
         if (typeof serve.overrides !== 'object' || serve.overrides === null || Array.isArray(serve.overrides)) {
@@ -124,7 +155,7 @@ export function validateProfile(profile) {
     }
     if (serve.kind === 'command') {
       checkCmd(serve.cmd, 'serve', problems)
-      checkArgs(serve.args ?? [], 'serve', problems)
+      checkArgs(serve.args ?? [], 'serve', problems, serve.cmd)
       if (serve.args !== undefined && !Array.isArray(serve.args)) {
         // already reported
       }
@@ -138,7 +169,7 @@ export function validateProfile(profile) {
               return
             }
             checkCmd(item.cmd, `serve.install[${i}]`, problems)
-            checkArgs(item.args ?? [], `serve.install[${i}]`, problems)
+            checkArgs(item.args ?? [], `serve.install[${i}]`, problems, item.cmd)
           })
         }
       }
@@ -255,17 +286,25 @@ function warn(text) {
 export function describeCommands(profile) {
   const p = normalizeProfile(profile)
   const lines = []
-  if (p.serve.kind === 'static') {
-    lines.push('serve: built-in static file server')
+  const installs = p.serve.install ?? []
+  if (p.serve.kind === 'static' && installs.length === 0) {
+    lines.push('serve: built-in static file server' + (p.serve.root ? ` (folder ${p.serve.root})` : ''))
+    lines.push(...describeEnv(p.serve.env ?? {}))
     return lines
   }
-  for (const item of p.serve.install ?? []) {
+  for (const item of installs) {
     const text = `install: ${item.cmd}${(item.args ?? []).length > 0 ? ' ' + item.args.join(' ') : ''}`
     lines.push(warnSuffix(item.cmd, item.args ?? []) ? warn(text) : text)
   }
-  const args = p.serve.args ?? []
-  const text = `serve: ${p.serve.cmd}${args.length > 0 ? ' ' + args.join(' ') : ''}`
-  lines.push(warnSuffix(p.serve.cmd, args) ? warn(text) : text)
+  if (p.serve.kind === 'static') {
+    lines.push('serve: built-in static file server' + (p.serve.root ? ` (folder ${p.serve.root})` : ''))
+  } else {
+    const args = p.serve.args ?? []
+    const text = `serve: ${p.serve.cmd}${args.length > 0 ? ' ' + args.join(' ') : ''}`
+    lines.push(warnSuffix(p.serve.cmd, args) ? warn(text) : text)
+  }
+  lines.push(...describeEnv(p.serve.env ?? {}))
+  if (p.serve.allowScripts === true) lines.push("installs run the repository's own lifecycle scripts (downloads and runs code from the internet)")
   return lines
 }
 
@@ -274,26 +313,58 @@ function expandHome(p, home) {
   return p
 }
 
-export function profileToAdapter(profile, { home = homedir(), serverPath = DEFAULT_SERVER } = {}) {
+export function profileToAdapter(profile, { home = homedir(), serverPath = DEFAULT_SERVER, env = process.env } = {}) {
   const p = normalizeProfile(profile)
   const repo = expandHome(p.repo, home)
   const workRoot = expandHome(p.workRoot, home)
   const basePath = p.serve.kind === 'command' ? (p.serve.basePath ?? '') : ''
-  const installs = p.serve.kind === 'command' ? (p.serve.install ?? []) : []
-  async function prepare(dir) {
+  // Install steps never run the repository's own lifecycle scripts unless the profile says so and a person approved it.
+  const installs = (p.serve.install ?? []).map(item => (p.serve.allowScripts === true ? item : withIgnoreScripts(item)))
+  const shimDir = join(workRoot, '.behique-shims')
+  const shimNames = [...new Set([...installs.map(i => i.cmd), p.serve.cmd].filter(c => c === 'yarn' || c === 'pnpm'))]
+  // yarn and pnpm are provided through corepack (shipped with Node) when the machine has none: nothing is installed globally,
+  // and a real yarn or pnpm on PATH always wins because the shims come last.
+  function ensureShims() {
+    mkdirSync(shimDir, { recursive: true })
+    for (const name of shimNames) {
+      const f = shimFile(name)
+      const path = join(shimDir, name)
+      writeFileSync(path, f.content)
+      chmodSync(path, 0o755)
+    }
+  }
+  function runEnv(port) {
+    const e = { ...env }
+    for (const [k, v] of Object.entries(p.serve.env ?? {})) e[k] = String(v).split('{port}').join(String(port))
+    if (shimNames.length > 0) {
+      ensureShims()
+      e.PATH = `${e.PATH ?? ''}:${shimDir}`
+      e.COREPACK_ENABLE_DOWNLOAD_PROMPT = '0'
+    }
+    return e
+  }
+  async function prepare(dir, ctx = {}) {
+    const e = runEnv(ctx.port ?? 0)
     for (const item of installs) {
-      await runFile(item.cmd, item.args ?? [], { cwd: dir, timeout: 600000 })
+      try {
+        await runFile(item.cmd, item.args ?? [], { cwd: dir, timeout: 600000, env: e, maxBuffer: 50 * 1024 * 1024 })
+      } catch (err) {
+        const failure = new Error(`${item.cmd} ${(item.args ?? []).join(' ')} failed: ${String((err && err.message) || err).split('\n')[0]}`.slice(0, 300))
+        failure.logs = cleanLogs(`${err.stdout ?? ''}\n${err.stderr ?? ''}`, 2500) // the end of the output, for the repair loop
+        throw failure
+      }
     }
     return { entries: 0 }
   }
   function serve(dir, port) {
     if (p.serve.kind === 'static') {
-      return { cmd: 'node', args: [serverPath, dir, String(port), JSON.stringify(p.serve.overrides ?? {})] }
+      const root = p.serve.root ? join(dir, p.serve.root) : dir
+      return { cmd: 'node', args: [serverPath, root, String(port), JSON.stringify(p.serve.overrides ?? {})], env: runEnv(port) }
     }
     const args = (p.serve.args ?? []).map(a => a.split('{port}').join(String(port)))
-    return { cmd: p.serve.cmd, args }
+    return { cmd: p.serve.cmd, args, env: runEnv(port) }
   }
-  return { name: p.name, repo, workRoot, cleanPaths: ['.behique-never-exists'], feed: null, basePath, prepare, serve }
+  return { name: p.name, repo, workRoot, cleanPaths: ['.behique-never-exists'], feed: null, basePath, prepare, serve, readyMs: p.ready.timeoutMs, readyPath: p.ready.path, installs }
 }
 
 function effectiveDir(explicit) {
@@ -332,4 +403,13 @@ export function loadProfile(name, dir) {
     throw new Error(`profile "${name}" at ${path} is not valid JSON`)
   }
   return normalizeProfile(parsed)
+}
+
+/** The names of the saved profiles, sorted. */
+export function listProfileNames(dir) {
+  try {
+    return readdirSync(dirname(profilePath('x', dir))).filter(f => /^[a-z0-9-]+\.json$/.test(f)).map(f => f.slice(0, -5)).sort()
+  } catch {
+    return []
+  }
 }

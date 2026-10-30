@@ -3,6 +3,7 @@
 import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { promises as fs } from 'node:fs'
+import { inspectMore } from './inspect-more.mjs'
 
 function runGit(repoPath, args) {
   return new Promise((resolve, reject) => {
@@ -153,6 +154,7 @@ export async function inspectRepo(repoPath, { git = defaultGit } = {}) {
     hasIndexHtml,
     hasDockerfile,
     hasMakefile,
-    readme
+    readme,
+    more: await inspectMore(repoPath) // package manager, workspaces, frameworks, .env.example, compose, static roots: plain file reads
   }
 }

@@ -91,9 +91,18 @@ describe('validateProfile', () => {
     assert.ok(problems.some(m => m.includes('regions.r')), JSON.stringify(problems))
   })
 
-  it('refuses eval-style arguments for node, python3 and php', () => {
-    for (const cmd of ['node', 'python3', 'php']) {
-      for (const arg of ['-e', '--eval', '-p', '--print', '-c', '-r', '--require', '--import', '--loader', '--experimental-loader', '--eval=x', '--print=x']) {
+  it('refuses the arguments that run inline code, program by program', () => {
+    const table = {
+      node: ['-e', '--eval', '-p', '--print', '-r', '--require', '--import', '--loader', '--experimental-loader', '--eval=x', '--print=x'],
+      python3: ['-c'],
+      php: ['-r', '-R', '-B', '-E', '--run'],
+      npm: ['-c', '--call', '--call=x'],
+      npx: ['-c', '--call'],
+      pnpm: ['-c'],
+      yarn: ['-c'],
+    }
+    for (const [cmd, args] of Object.entries(table)) {
+      for (const arg of args) {
         const p = validCommand()
         p.serve.cmd = cmd
         p.serve.args = [arg]
@@ -101,6 +110,19 @@ describe('validateProfile', () => {
         assert.ok(problems.some(m => m.includes('inline code')), `${cmd} ${arg}: ${JSON.stringify(problems)}`)
       }
     }
+  })
+
+  it('does not mistake a framework port flag for inline code', () => {
+    for (const [cmd, args] of [['pnpm', ['--filter', 'web', 'dev', '--', '-p', '{port}']], ['yarn', ['dev', '-p', '{port}']], ['npm', ['run', 'dev', '--', '-p', '{port}']]]) {
+      const p = validCommand()
+      p.serve.cmd = cmd
+      p.serve.args = args
+      assert.deepEqual(validateProfile(p), [], `${cmd} ${args.join(' ')}`)
+    }
+    const p = validCommand()
+    p.serve.cmd = 'node'
+    p.serve.args = ['-p', '1']
+    assert.ok(validateProfile(p).some(m => m.includes('inline code')), 'but node -p still is')
   })
 
   it('allows a real file argument to node', () => {
