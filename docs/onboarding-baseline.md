@@ -41,3 +41,19 @@ Run the verification in an isolated environment (a container, the Phase 4 work) 
 node bench/onboard-bench.mjs verify html5-boilerplate todomvc            # static, nothing installed
 node bench/onboard-bench.mjs verify nextjs-blog excalidraw vitepress     # installs with scripts disabled
 ```
+
+
+## Measured in the sandbox (2026-10-30, hardac2, proposals exactly as the model wrote them)
+
+Nothing from these repos ran on the Mac: installs, builds, dev servers and the Postgres sidecar ran in Docker on hardac2 (see `docs/sandbox.md`). Command lists were read before running.
+
+| Repo | As proposed | Why / what it took |
+|---|---|---|
+| todomvc | **PASS** (build, pictures, noise floor) | static, nothing to run |
+| html5-boilerplate | builds and serves, "app is alive" check **FAILS** | `npm ci` + `npm run build` worked; the page is almost blank by design (emptiness 0.999), so the check is too strict for minimal pages |
+| nextjs-blog | **FAIL** | server exits at once: `yarn run dev -- -p {port}` passes the `--` through under yarn Berry ("Invalid project directory: /work/-p"). Install itself works after the Berry fix |
+| excalidraw | **FAIL** | server exits: `yarn workspace excalidraw-app start` does not fit v0.17.6 ("Cannot find the root of your workspace"); the proposal was written from newer-looking facts |
+| vitepress | **FAIL** | no answer within 30 s; probably the same `pnpm ... -- --port {port}` problem (not diagnosed) |
+| umami | not run by the bench (proposal had no database) | run by hand with a Postgres sidecar and the start command corrected: **up**, `/login` 200 |
+
+So: **1 of 6 pass as proposed; 3 more work with one small correction each** (nextjs-blog, umami, html5-boilerplate's check), 2 not diagnosed to the end. Every failure here is exactly what the repair loop is for (it gets the app's last output); the loop is still untested on a real failure because it needs a person to approve each changed command. The earlier row "NOT measured" above is superseded by this table.

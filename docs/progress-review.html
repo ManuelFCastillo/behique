@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Behique: phases and progress review</title>
+<style>
+  @page { size: Letter; margin: 0.7in 0.75in; }
+  * { box-sizing: border-box; }
+  body { font: 10.2pt/1.45 -apple-system, "Helvetica Neue", Arial, sans-serif; color: #1c1f24; }
+  h1 { font-size: 22pt; margin: 0 0 2pt; letter-spacing: -0.3pt; }
+  h2 { font-size: 13.5pt; margin: 20pt 0 6pt; padding-bottom: 3pt; border-bottom: 1.5pt solid #1c1f24; break-after: avoid; }
+  h3 { font-size: 10.8pt; margin: 12pt 0 3pt; break-after: avoid; }
+  p { margin: 0 0 6pt; }
+  .sub { color: #5b6370; margin-bottom: 10pt; }
+  table { width: 100%; border-collapse: collapse; margin: 6pt 0 10pt; font-size: 9.2pt; }
+  th { text-align: left; background: #eef0f3; padding: 4pt 6pt; border: 0.6pt solid #c7ccd4; }
+  td { padding: 4pt 6pt; border: 0.6pt solid #c7ccd4; vertical-align: top; }
+  tr { break-inside: avoid; }
+  .ok { color: #0b6b3a; font-weight: 600; }
+  .warn { color: #8a5a00; font-weight: 600; }
+  .bad { color: #a31d1d; font-weight: 600; }
+  .box { border: 1pt solid #c7ccd4; background: #f7f8fa; padding: 7pt 10pt; margin: 8pt 0; break-inside: avoid; }
+  code, pre { font: 8.8pt "SF Mono", Menlo, monospace; background: #eef0f3; padding: 0 2pt; }
+  pre { display: block; padding: 6pt 8pt; margin: 4pt 0 8pt; white-space: pre-wrap; break-inside: avoid; }
+  ul { margin: 2pt 0 6pt 0; padding-left: 16pt; } li { margin-bottom: 2pt; }
+  .num { font-size: 20pt; font-weight: 700; letter-spacing: -0.5pt; }
+  .stats { display: flex; gap: 8pt; margin: 8pt 0 6pt; }
+  .stat { flex: 1; border: 1pt solid #c7ccd4; padding: 6pt 8pt; } .stat small { display: block; color: #5b6370; font-size: 8.4pt; }
+  .small { font-size: 8.8pt; color: #5b6370; }
+</style></head><body>
+
+<h1>Behique: phases and progress review</h1>
+<p class="sub">Status as of 2026-10-30, end of day. For a read-through before more is built. Everything here is marked as measured, built but unmeasured, or not built.</p>
+
+<div class="stats">
+  <div class="stat"><span class="num">34</span><small>commits on main (since 2026-10-29)</small></div>
+  <div class="stat"><span class="num">465</span><small>offline tests passing in release, onboard, crawl, ui, sandbox (re-run today)</small></div>
+  <div class="stat"><span class="num">~$40</span><small>model spend so far of about $250 credits (estimate)</small></div>
+  <div class="stat"><span class="num">5 days</span><small>to the hackathon deadline (2026-11-04, 9 PM ET, not verified)</small></div>
+</div>
+
+<h2>1. What Behique is</h2>
+<p>An autonomous release-verification and visual QA tool. You give it a known-good release and a release candidate of a web app. It records what each one shows along real click paths, finds what changed, replays every change on a fresh build to prove it is real (3 of 3 on each side), finds the exact commit that caused it, and writes an evidence-backed report. <b>A model proposes, code verifies, a person approves.</b> A bug only counts when a replayable assertion proves it, and the Ship or Hold decision is always a person's.</p>
+
+<h2>2. Phases at a glance</h2>
+<table>
+<tr><th style="width:23%">Piece</th><th style="width:44%">What it does</th><th style="width:13%">Status</th><th>Evidence</th></tr>
+<tr><td>Explorer (early)</td><td>Explores an unseen app, reports defects as data assertions, replays each fresh.</td><td class="warn">Built, n=1</td><td>28 planted bugs on a todo app; noisy results.</td></tr>
+<tr><td>Release pipeline</td><td>Build a git ref by sha, record page facts, compare good vs candidate with a control, write a test, bisect.</td><td class="ok">Built, measured</td><td>FreshRSS 1.29.1 vs 1.30.0: 2 real changes, 3/3 + 3/3, first bad commit 1b7178a in 8 steps.</td></tr>
+<tr><td>Evidence store and report</td><td>Hash-chained evidence, labelled claims, report page, person's Ship or Hold, optional AI guess with price shown first.</td><td class="ok">Built, used</td><td>Report page and dashboard run end to end.</td></tr>
+<tr><td>Canvas senses</td><td>Pixel diff and coordinate actions for canvas apps (Music Blocks).</td><td class="ok">Built, measured</td><td>Fixture: 18 of 18 detectable bugs, 3/3 reproduced. Music Blocks v3.8.0 vs master run (about $0.07).</td></tr>
+<tr><td>Wave 1 and 2</td><td>Several findings per run, regions, screenshots, visual runs, set-up from the dashboard.</td><td class="ok">Built, committed</td><td>Share and scroll scenarios unchanged by the wiring.</td></tr>
+<tr><td>Phase 0: Measure</td><td>Does set-up work on real repos?</td><td class="warn">Measured in the sandbox</td><td><b>1 of 6</b> proposals pass as written; 3 more work with one small fix each; 2 not diagnosed to the end.</td></tr>
+<tr><td>Phase 1: Set-up v2</td><td>Richer repo facts, package-manager and env handling, repair loop, profile format v2.</td><td class="warn">Built, tested with fakes</td><td>Never run on a real failing repo.</td></tr>
+<tr><td>Phase 2: Flow crawl</td><td>Finds click paths with no model, read-only, then compares along them.</td><td class="ok">Built, proven on one app</td><td>Reproduced the FreshRSS Share regression with zero hand-written steps. Tuned on FreshRSS only.</td></tr>
+<tr><td>Phase 3: Seed data</td><td>Put realistic data in an app that needs it.</td><td class="bad">Not built</td><td>Depends on Phase 4 sidecars.</td></tr>
+<tr><td>Phase 4: Isolation</td><td>Run untrusted repos in Docker with database sidecars.</td><td class="ok">Built, measured on hardac2</td><td>First-party app + Postgres, todomvc and umami (with Postgres) ran in it; see section 6. Uncommitted.</td></tr>
+<tr><td>Phase 5: Cloning</td><td>Clone a repo from the dashboard after a person approves the exact command.</td><td class="warn">Built, previewed only</td><td>Refusals tested; nothing cloned through it. Your own GitHub repos only.</td></tr>
+</table>
+
+<h2>3. The result that matters</h2>
+<p>With no hand-written steps, the crawler plus compare reproduced the FreshRSS Share regression: the share button's <code>data-url</code> and <code>data-title</code> are now URL-encoded. The crawl visited 30 states and produced 37 steps. The two changes were confirmed 3 of 3 on the good build and 3 of 3 on the candidate. Bisect found commit <code>1b7178a</code> in 8 steps, the same commit the hand-written case gives. The same comparison started from the dashboard returned HOLD with 2 reproduced changes and a screenshot.</p>
+<div class="box"><b>Read this as:</b> the mechanism works. It is <b>not</b> evidence that it works on any app, because FreshRSS is the app the crawler was tuned on. The first runs of the crawl returned <code>fails_both</code> because recorded steps shared state across flows. The fix (replay each flow alone, read-only, cookies and storage cleared between flows) is what made it honest.</div>
+
+<h2>4. What was built overnight (2026-10-30)</h2>
+<p>Built with Muse (Meta's model) from written specs, each file read and corrected by hand. Seven commits, all offline-tested, nothing pushed.</p>
+<table>
+<tr><th style="width:22%">Commit</th><th>Contents</th></tr>
+<tr><td><code>894f337</code></td><td>inspect-more, toolchain, repair modules (specs 13 to 15)</td></tr>
+<tr><td><code>a7b57bd</code></td><td>Profile format v2: env, static root, build steps, installs with scripts disabled</td></tr>
+<tr><td><code>4de1d99</code></td><td>Build runner: output tail, early-exit detection, whole process group is stopped</td></tr>
+<tr><td><code>b0f1cd0</code></td><td>The read-only crawler and <code>check-app</code> (specs 16 to 18)</td></tr>
+<tr><td><code>a21da41</code></td><td>Read-only, per-flow replay in confirm, facts, compare, findings, shots</td></tr>
+<tr><td><code>13dcaa4</code></td><td>Clone flow and crawl runs in the dashboard server (spec 19)</td></tr>
+<tr><td><code>ea6e14a</code></td><td>Set-up bench, baseline and overnight log, STATUS</td></tr>
+</table>
+<p>Real bugs found in the process: Muse's code had a test design flaw, two contradictory tests, a wrong ANSI pattern and a risk filter that treated any row containing "post" as dangerous. The build runner had a genuine bug: a dev server started through yarn or npm left a child process holding its port after a stop.</p>
+
+<h2>5. Safety: what was blocked and why</h2>
+<p>Twice the six-repo run was refused by the permission policy on the Mac: it does not allow installing dependencies and starting dev servers from freshly cloned third-party repos unattended, because that runs the repo's code on your Mac. I did not work around it. That is why Phase 4 was built: the same runs, executed in Docker on hardac2, were accepted, and nothing from those repos ran on the Mac.</p>
+<ul>
+<li>Behique's own safeguards: installs run with scripts disabled; commands come from an allowlist; clone and set-up run only with the fingerprint of what a person reviewed; the crawler sends only GET and aborts cross-origin requests.</li>
+<li>I read each proposed command list before running it. Everything still runs only when <code>BEHIQUE_SANDBOX</code> is set; without it, profile apps run as normal host processes, as before. A mistyped value is an error, never a silent fallback to the host.</li>
+</ul>
+
+<h2>6. Phase 4: untrusted repos run in Docker, with database sidecars</h2>
+<p>Decision: one Docker runner with two targets, switched by <code>BEHIQUE_SANDBOX</code>. hardac2 over ssh is the real target (x86_64, Docker 29.9.2, 24 cores, KVM available); OrbStack on the Mac is the local option (arm64, daemon was off, not used today). Full details: <code>docs/sandbox.md</code>.</p>
+<h3>How it works</h3>
+<ul>
+<li>Each check gets an <b>internal network</b> (no outside access) and an open one. Sidecars (Postgres, MySQL, MariaDB, Redis, MongoDB) and the app run on the internal one; install steps also join the open one for the package registry.</li>
+<li>The app is reached by its container address through a tunnel, so everything else in Behique still sees <code>http://127.0.0.1:port</code>. Nothing is published to hardac2's network.</li>
+<li>Every container: all capabilities dropped, no-new-privileges, read-only root, non-root user (databases excepted, with a minimal capability set), memory, CPU and process limits, deleted after the check. Lifecycle scripts stay disabled on installs.</li>
+<li>Every docker argument is built by code from validated parts (<code>docker-args.mjs</code>); nothing from a repo, a model or a page can become a docker flag. This matters because the docker group is root-equivalent on hardac2.</li>
+</ul>
+<table>
+<tr><th style="width:24%">Piece</th><th>Made by</th><th style="width:20%">Result</th></tr>
+<tr><td>docker-args (policy)</td><td>Muse spec 20, then my review fixed: root users via gid, <code>..</code> paths, a missing service-user rule</td><td class="ok">29 tests</td></tr>
+<tr><td>services (sidecars)</td><td>Muse spec 22; I fixed redis and mongo needing the same capabilities as the databases</td><td class="ok">14 tests</td></tr>
+<tr><td>sandbox (lifecycle)</td><td>Muse spec 21; I fixed broken ANSI patterns that deleted letters, and stale-run cleanup that missed orphaned networks and volumes</td><td class="ok">16 tests</td></tr>
+<tr><td>runner, tunnel, backend, launcher, clean</td><td>By hand</td><td class="ok">tests with local sockets and fakes</td></tr>
+</table>
+<h3>Measured on hardac2</h3>
+<table>
+<tr><th style="width:26%">Case</th><th>Result</th></tr>
+<tr><td>First-party app + Postgres sidecar</td><td class="ok">Up in 3.6 s. The app reached <code>db:5432</code> by name, ran as uid 1000, and an outbound connection to the internet failed (ENETUNREACH). Nothing left behind.</td></tr>
+<tr><td>todomvc (static)</td><td class="ok">VERIFIED end to end (build, pictures, noise floor).</td></tr>
+<tr><td>html5-boilerplate</td><td class="warn">Built (<code>npm ci</code> + build) and served; the "app is alive" check failed because the page is almost blank by design.</td></tr>
+<tr><td>umami v3.3.1 + Postgres</td><td class="ok">Install, build and <code>next start</code> ran in the sandbox; <code>/login</code> answered 200. Needed 10 GB, the full Node image and a corrected start command.</td></tr>
+<tr><td>nextjs-blog, excalidraw, vitepress</td><td class="bad">As proposed, all three fail: <code>-- -p {port}</code> breaks under yarn Berry and pnpm; excalidraw's workspace command does not fit that version; vitepress not diagnosed.</td></tr>
+</table>
+<h3>Bugs the real runs found (all fixed, each with a test)</h3>
+<ul>
+<li>Docker copies the image folder's owner (root) onto a still-empty volume at first mount, silently undoing the permission fix. Fixed with <code>nocopy</code>.</li>
+<li><code>/tmp</code> must allow execution: yarn Berry writes launchers there. Yarn Berry also refuses <code>--ignore-scripts</code>; scripts are now turned off the way each yarn version accepts.</li>
+<li>Dev servers that listen only on localhost were unreachable from outside the container. A small launcher inside the container relays to them.</li>
+<li>The default Node image lacked openssl (Prisma needs it); <code>next build</code> was killed at 4 GB (needs about 10 GB); the model's <code>run start -- -p {port}</code> breaks with pnpm and yarn Berry.</li>
+<li>An ssh tunnel through the shared connection exited at once; it now uses its own connection.</li>
+</ul>
+<p><b>Limits:</b> plain Docker (runc) is not a hard wall; before arbitrary repos, move to Firecracker or gVisor. The sidecar proposer missed umami's Postgres (its compose file names a service <code>db</code> with no hint). The repair loop is still untested on a real failure, because it needs an approval step for each changed command. Phase 3 (seed data) is not built.</p>
+
+<h2>7. What I would check for "tip top shape"</h2>
+<h3>Run these (all safe, nothing is installed from third-party repos)</h3>
+<pre>cd ~/dev/behique
+git status                      # new: src/release/sandbox/, docs/sandbox.md, specs 20 to 22, small edits to build.mjs and profile.mjs (not committed yet)
+git log --oneline | head -10    # the seven overnight commits are there
+node --test src/release/*.test.mjs src/release/onboard/*.test.mjs \
+  src/release/crawl/*.test.mjs src/release/ui/*.test.mjs \
+  src/release/sandbox/*.test.mjs   # expect 465 pass, 0 fail</pre>
+<h3>Look at by hand</h3>
+<ul>
+<li><code>docs/overnight-log.md</code> and <code>docs/onboarding-baseline.md</code>: the honest account of the overnight run and what is unmeasured.</li>
+<li><code>docs/STATUS.md</code>: the full list of what is built and the known limits.</li>
+<li><code>docs/specs/wave3/</code> (specs 13 to 22): what each Muse module was told to do, in plain English.</li>
+<li>The dashboard on port 8790: pick Check, then Behaviour, and look at the crawl result and the clone panel.</li>
+</ul>
+<h3>Known weak spots</h3>
+<ul>
+<li>The crawler is tuned on one app. A second app is the real test.</li>
+<li>The repair loop and profile v2 are tested with fakes only.</li>
+<li><code>~/dev/behique-ui/behique-live.html</code> (the dashboard page) is <b>not under git</b>; backups exist only in a scratch folder.</li>
+<li>A Ship or Hold decision's name is typed in, so it is attribution by honour, not identity.</li>
+<li>The demo script is out of date: Share now has 2 findings, plus the Music Blocks segment, the set-up flow and the crawl.</li>
+</ul>
+
+<h2>8. Open questions for you</h2>
+<ul>
+<li><b>Hackathon rules:</b> the deadline (8 or 9 PM ET), track, video length limit and whether Muse Code is expected are all unverified. Please paste them from the confirmation email or official page.</li>
+<li><b>Order after Phase 4:</b> Phase 3 seed data, or update the demo script and record? With five days left I would update the demo script next, then record.</li>
+<li><b>Credits:</b> Meta API about $146 left of $150; Baseten about $70 of $100 (estimates). Canvas work was allowed $10 and has used about $2. The Phase 4 Muse builds cost about $0.35 in all (three specs, one rebuilt).</li>
+</ul>
+
+<p class="small">Sources: docs/STATUS.md, docs/overnight-log.md, docs/onboarding-baseline.md, git log, the hardac2 read-only check on 2026-10-30. Numbers marked estimate come from those notes and were not re-measured today, except the test count and commit count.</p>
+</body></html>
