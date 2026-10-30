@@ -110,15 +110,46 @@ test('parseArgs parses flags', () => {
 })
 
 // added by a person after review, not by the model
-test('a profile with no regions compares the whole picture and never reports "nothing differs" without looking', async () => {
+test('a profile with no regions gets regions proposed from where the pictures differ, and says a person did not approve them', async () => {
+  const seen = [], saved = []
+  const d = deps({
+    loadProfile: () => fakeProfile({ regions: {} }),
+    writeProposals: (app, proposals) => { saved.push([app, proposals.regions.length]); return 'out/onboard/x.json' },
+    recordVisualCase: args => { seen.push(args); return { caseId: 'cid', outcome: 'differences found' } },
+  })
+  const out = await runCheck(opts(), d)
+  assert.equal(out.code, 0)
+  assert.match(out.lines.join('\n'), /so 1 were proposed from where the two pictures differ \(not approved by a person\)/)
+  assert.equal(seen[0].reports.length, 1); assert.notEqual(seen[0].reports[0].name, 'whole picture'); assert.equal(seen[0].reports[0].above, true)
+  assert.deepEqual(Object.keys(seen[0].profile.regions), [seen[0].reports[0].name], 'the case is recorded with the proposed regions')
+  assert.deepEqual(saved, [['demoapp', 1]])
+})
+
+test('a profile with no regions and two identical pictures compares the whole picture and never reports "nothing differs" without looking', async () => {
   const seen = []
   const d = deps({
     loadProfile: () => fakeProfile({ regions: {} }),
-    recordVisualCase: args => { seen.push(args.reports); return { caseId: 'cid', outcome: 'differences found' } },
+    pictureFn: async () => ({ png: refPng(), settled: true }),
+    writeProposals: () => { throw new Error('nothing to save') },
+    recordVisualCase: args => { seen.push(args.reports); return { caseId: 'cid', outcome: 'no candidate defects' } },
   })
   const out = await runCheck(opts(), d)
   assert.equal(out.code, 0)
   assert.match(out.lines.join('\n'), /the profile has no regions, so the whole picture is compared/)
-  assert.match(out.lines.join('\n'), /region whole picture: \d+ pixels/)
+  assert.match(out.lines.join('\n'), /region whole picture: 0 pixels/)
   assert.equal(seen[0].length, 1); assert.equal(seen[0][0].name, 'whole picture')
+})
+
+test('--propose lists differences outside the named regions and a clean outside is said so', async () => {
+  const named = { corner: { x: 12, y: 6, w: 4, h: 3 } } // away from the changed square at the top left
+  const out = await runCheck(opts({ propose: true }), deps({ loadProfile: () => fakeProfile({ regions: named }), writeProposals: () => 'out/onboard/x.json' }))
+  assert.match(out.lines.join('\n'), /also differs outside the named regions: \S.* \(\d+ pixels\)/)
+  assert.match(out.lines.join('\n'), /region corner: 0 pixels/)
+  const inside = await runCheck(opts({ propose: true }), deps({ writeProposals: () => 'out/onboard/x.json' })) // fakeProfile's region covers the changed square
+  assert.match(inside.lines.join('\n'), /no difference outside the named regions/)
+})
+
+test('without --propose a profile with regions proposes nothing and writes nothing', async () => {
+  const out = await runCheck(opts(), deps({ writeProposals: () => { throw new Error('must not save') }, proposeRegions: () => { throw new Error('must not propose') } }))
+  assert.equal(out.code, 0)
 })
