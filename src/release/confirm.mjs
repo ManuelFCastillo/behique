@@ -8,6 +8,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runExported, writeExport } from '../export.mjs'
 import { firstConfirmed, judgeFindings, selectFindings, summarize } from './findings.mjs'
+import { captureShots, recordShots } from './shots.mjs'
 import { startBuild, stopAll } from './build.mjs'
 import { compareBuilds, summaryLines } from './compare.mjs'
 import { openCase } from './evidence.mjs'
@@ -114,6 +115,27 @@ console.log(`\n${summarize(judged, skipped)}`)
 const first = firstConfirmed(judged)
 const confirmed = Boolean(first)
 console.log(confirmed ? '\nCONFIRMED: reproducible behaviour change, test passes on good and fails on candidate every time' : `\nNOT CONFIRMED: ${JSON.stringify(judged)}`)
+
+// Pictures for a person: the page at the step where each confirmed change shows up, on the good version (twice, so the
+// difference between two runs of the SAME version is the noise floor) and on the candidate. They are a lead for the eye, never the proof:
+// a change that lives in an attribute looks identical in a picture, and the claim says exactly that.
+const shotSteps = [...new Set(judged.filter(j => j.verdict === 'confirmed').map(j => findings.find(f => f.id === j.id).fact.i))].sort((a, b) => a - b)
+if (shotSteps.length) {
+  try {
+    const take = async ref => { const b = await startBuild({ adapter, ref, port }); try { return await captureShots(b.base, actions, shotSteps) } finally { await b.stop() } }
+    const goodA = await take(goodRef), goodB = await take(goodRef), candShots = await take(candRef)
+    for (const step of shotSteps) {
+      const forSteps = judged.filter(j => j.verdict === 'confirmed' && findings.find(f => f.id === j.id).fact.i === step).map(j => j.id)
+      const r = recordShots({ ev, step, label: baseline.labels[step], goodRef, candRef, goodPng: goodA[step], candPng: candShots[step], floorPng: goodB[step] })
+      ev.event('shots.recorded', { step, label: baseline.labels[step], findings: forSteps, above: r.above, text: r.text, good: r.hashes[0], candidate: r.hashes[1], diff: r.hashes[2] })
+      console.log(`screenshot after step ${step}: ${r.above ? 'the pictures differ' : 'the pictures look the same'}`)
+    }
+  } catch (e) { // pictures are extra evidence: a failure here must not change the result of the check
+    const msg = String(e.message ?? e).split('\n')[0].slice(0, 200)
+    ev.event('shots.failed', { reason: msg })
+    console.log(`screenshots unavailable: ${msg}`)
+  }
+}
 
 let found = null // --bisect: only worth doing once a regression is confirmed, and only for the first confirmed test
 if (confirmed && args.includes('--bisect')) {

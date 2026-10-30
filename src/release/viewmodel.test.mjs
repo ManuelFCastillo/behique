@@ -134,6 +134,17 @@ test('with several exported tests the progress counts every one, and only confir
   assert.match(vm().sub, /^1 reproduced behaviour change(?!s)/)
 })
 
+test('screenshots recorded for a case come out as picture links, and only real hashes become links', () => {
+  const { c, vm } = growing()
+  const png = c.artifact('step2-a-screenshot.png', Buffer.from('x'), 'image/png')
+  c.event('shots.recorded', { step: 2, label: '2:click .share', findings: ['R1'], above: true, text: 'After step 2 the screenshot differs.', good: png, candidate: png, diff: 'not-a-hash' })
+  const p = vm().pictures
+  assert.equal(p.length, 1); assert.equal(p[0].step, 2); assert.equal(p[0].differs, true)
+  assert.match(p[0].good, /^\/api\/artifact-image\?id=.+&hash=[0-9a-f]{64}$/)
+  assert.equal(p[0].diff, null, 'a value that is not a sha256 never becomes a link')
+  assert.deepEqual(growing().vm().pictures, [], 'a report with no screenshots has none')
+})
+
 test('while a search is running only the commits actually tested are drawn, with no culprit yet', () => {
   const { c, vm } = growing()
   c.event('builds.compared', { good: { ref: '1.0', sha: 'a'.repeat(40) }, candidate: { ref: '2.0', sha: 'b'.repeat(40) } })

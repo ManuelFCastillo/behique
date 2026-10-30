@@ -54,7 +54,7 @@ export function describeShots(c, { step, label, goodRef, candRef }) {
   }
   if (c.above) {
     const b = c.bbox
-    return `After step ${step} (${label}) a screenshot of ${candRef} differs from ${goodRef} by ${c.changed} pixels (the same version differs from itself by ${c.floor}), in the box x ${b.x}, y ${b.y}, ${b.w} by ${b.h}.`
+    return `After step ${step} (${label}) a screenshot of ${candRef} differs from ${goodRef} by ${c.changed} pixels (the same version differs from itself by ${c.floor}), in the box x ${b.x}, y ${b.y}, ${b.w} by ${b.h}. The screen can differ for reasons unrelated to the change the test proves, so look at the difference.`
   }
   return `After step ${step} (${label}) a screenshot of ${candRef} looks the same as ${goodRef} (${c.changed} pixels differ, ${c.floor} from run to run noise). A change that does not show on screen, such as a link address, cannot be seen in a picture.`
 }
@@ -74,5 +74,5 @@ export function recordShots({ ev, step, label, goodRef, candRef, goodPng, candPn
   const hashes = [h1, h2, h3]
   const text = describeShots(c, { step, label, goodRef, candRef })
   const claimId = ev.claim('verified_fact', text, { evidence: hashes }) // the hash of the claim event
-  return { claimId, above: c.above, hashes }
+  return { claimId, text, above: c.above, hashes }
 }

@@ -54,7 +54,7 @@ describe('compareShots and describeShots', () => {
     assert.equal(c.above, true)
     assert.deepEqual(c.bbox, { x: 5, y: 6, w: 4, h: 2 })
     const text = describeShots(c, { step: 1, label: 'click', goodRef: 'v1', candRef: 'v2' })
-    assert.equal(text, 'After step 1 (click) a screenshot of v2 differs from v1 by 8 pixels (the same version differs from itself by 4), in the box x 5, y 6, 4 by 2.')
+    assert.equal(text, 'After step 1 (click) a screenshot of v2 differs from v1 by 8 pixels (the same version differs from itself by 4), in the box x 5, y 6, 4 by 2. The screen can differ for reasons unrelated to the change the test proves, so look at the difference.')
   })
 
   it('a size mismatch cannot be compared pixel by pixel', () => {

@@ -127,6 +127,8 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
     const m = claims.find(k => k.isCulprit)?.text.match(/passed (\d+) of (\d+) runs and it failed (\d+) of (\d+)/)
     bisect.verifiedText = m ? `verified ${m[1]}/${m[2]} and ${m[3]}/${m[4]}` : bisect.verified ? 'verified' : 'not verified'
   }
+  const imgUrl = h => (/^[0-9a-f]{64}$/.test(h ?? '') ? `/api/artifact-image?id=${encodeURIComponent(caseId)}&hash=${h}` : null)
+  const pictures = events.filter(e => e.type === 'shots.recorded').map(e => ({ step: e.data.step, label: e.data.label, findings: e.data.findings ?? [], differs: Boolean(e.data.above), text: e.data.text, good: imgUrl(e.data.good), candidate: imgUrl(e.data.candidate), diff: imgUrl(e.data.diff) })) // screenshots of the step where a change shows; a lead for the eye, never the proof
   const calls = events.filter(e => e.type === 'model.call')
   const changed = (art('facts-diff.json')?.candidate ?? []).filter(d => d.kind === 'changed')
   const judged = events.filter(e => e.type === 'test.judged') // newer reports judge each exported test; older ones have none
@@ -150,7 +152,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
 
   return {
     id: caseId, appId: appOfOpened(o), title: o.kind === 'canvas' ? `Canvas test app: ${o.candRef} (candidate) vs ${o.goodRef} (good)` : `${app} ${o.goodRef} (good) vs ${o.candRef} (candidate)`, app, goodRef: o.goodRef, candRef: o.candRef,
-    scenario: o.scenario ?? null, verdict, sub, failReason, progress, claims, bisect,
+    scenario: o.scenario ?? null, verdict, sub, failReason, progress, claims, bisect, pictures,
     culpritClaimId: claims.find(k => k.isCulprit)?.id ?? null,
     facts: changed.slice(0, 4).map(d => ({ where: d.key.replace(/(@[^/]+|#text)$/, '').split('/').slice(-2).join('/'), what: d.key.match(/@([^/]+)$/)?.[1] ?? (d.key === 'window@scrollY' ? 'scrollY' : 'text'), was: d.was, now: d.now, step: d.step })),
     recommendation: verdict, // Behique's advice; the person's decision below is a separate thing
