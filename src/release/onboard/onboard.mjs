@@ -11,7 +11,7 @@ import { validateProfile, describeCommands as realDescribe, saveProfile as realS
 const HERE = dirname(fileURLToPath(import.meta.url))
 const SKILL_PATH = join(HERE, '..', '..', '..', 'docs', 'skills', 'onboard-app.md')
 
-function defaultSkillText() {
+export function defaultSkillText() {
   try {
     return readFileSync(join(HERE, '../../../docs/skills/onboard-app.md'), 'utf8')
   } catch {
@@ -28,7 +28,7 @@ function defaultWriteFile(path, content) {
   writeFileSync(path, content, 'utf8')
 }
 
-async function defaultAsk(messages) {
+export async function defaultAsk(messages) {
   const { chat } = await import('../../llm.mjs')
   const res = await chat('meta', messages, { maxTokens: 4000, reasoning: 'low' })
   return {

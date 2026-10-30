@@ -2,7 +2,7 @@
 //   node demo/server.mjs [port]      then open http://127.0.0.1:8790
 // One pipeline job at a time (they share port 8300). Hand-test builds use their own ports (8301, 8302).
 import { spawn } from 'node:child_process'
-import { existsSync, readFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -18,6 +18,14 @@ import { createGithub } from '../src/release/github.mjs'
 import { recordDecision } from '../src/release/decision.mjs'
 import { askModel, askPreview, whyNot } from '../src/release/ask.mjs'
 import adapter from '../src/release/adapters/freshrss.mjs'
+import { ENV, PROVIDERS } from '../src/llm.mjs'
+import { validateVisualRun, visualArgv, visualProgress, caseIdOf } from '../src/release/ui/visual-run.mjs'
+import { listCandidates, onboardPreview, onboardPropose, onboardVerify } from '../src/release/ui/onboard-flow.mjs'
+import { loadProfile, profilePath, validateProfile, describeCommands, saveProfile } from '../src/release/onboard/profile.mjs'
+import { inspectRepo } from '../src/release/onboard/inspect.mjs'
+import { buildMessages, projectCost, proposeProfile } from '../src/release/onboard/propose.mjs'
+import { verifyProfile } from '../src/release/onboard/verify.mjs'
+import { defaultAsk, defaultSkillText } from '../src/release/onboard/onboard.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PORT = +(process.argv[2] ?? 8790)
@@ -44,17 +52,31 @@ const badPost = req => {
   if (!String(req.headers['content-type'] ?? '').startsWith('application/json')) return [415, 'send JSON']
   return null
 }
+// ---- apps Behique set up itself (saved profiles) and the guarded set-up steps ----
+const APPS_ROOT = join(homedir(), 'dev/behique-apps') // only repositories already cloned here can be set up; nothing is cloned by the page
+const profileDir = () => dirname(profilePath('x'))
+const profileNames = () => { try { return readdirSync(profileDir()).filter(f => /^[a-z0-9-]+\.json$/.test(f)).map(f => f.slice(0, -5)).sort() } catch { return [] } }
+const profiles = () => profileNames().flatMap(n => { try { return [loadProfile(n)] } catch { return [] } })
+let onboarding = false // one paid proposal or verification at a time; verification uses the builds' ports
+const onboardDeps = () => ({
+  appsRoot: APPS_ROOT, isGitRepo: async p => { try { return statSync(join(p, '.git')).isDirectory() } catch { return false } }, /* a real clone only: a build worktree has a .git file instead */ readdir: async d => readdirSync(d), listProfiles: async () => profileNames(),
+  inspectRepo, skillText: defaultSkillText(), buildMessages, projectCost, provider: 'meta', keyPresent: Boolean(ENV[PROVIDERS.meta.keyEnv]),
+  ask: defaultAsk, proposeProfile, describeCommands, validateProfile, verifyProfile, saveProfile,
+  writeFile: async (path, text) => { const f = join(ROOT, path); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, text, 'utf8') },
+  readFile: async path => readFileSync(join(ROOT, path), 'utf8'),
+})
+
 // ---- runs started from the dashboard: they live in the background, independent of any open page ----
 let uiRun = null // the current or most recent run: { runId, params, startedAt, caseId, lines, status, code, proc }
-const runView = r => r && ({ runId: r.runId, running: r.status === 'running', status: r.status, code: r.code, caseId: r.caseId, params: r.params, startedAt: r.startedAt, lastLine: r.lines.at(-1) ?? null })
+const runView = r => r && ({ runId: r.runId, kind: r.kind, running: r.status === 'running', status: r.status, code: r.code, caseId: r.caseId, params: r.params, startedAt: r.startedAt, lastLine: r.lines.at(-1) ?? null, ...(r.kind === 'visual' ? { progress: visualProgress(r.lines) } : {}) })
 const adapterOf = async app => (await import(`../src/release/adapters/${APPS[app].adapter}.mjs`)).default
-function startUiRun(params) {
-  const argv = ['src/release/confirm.mjs', params.goodRef, params.candRef, '--scenario', params.scenario, ...(params.bisect ? ['--bisect'] : [])]
+function startUiRun(params, kind = 'release') {
+  const argv = kind === 'visual' ? visualArgv(params) : ['src/release/confirm.mjs', params.goodRef, params.candRef, '--scenario', params.scenario, ...(params.bisect ? ['--bisect'] : [])]
   const proc = spawn('node', argv, { cwd: ROOT })
-  const r = uiRun = { runId: 'r' + Date.now().toString(36), params, startedAt: new Date().toISOString(), caseId: null, lines: [], status: 'running', code: null, proc }
+  const r = uiRun = { runId: 'r' + Date.now().toString(36), kind, params, startedAt: new Date().toISOString(), caseId: null, lines: [], status: 'running', code: null, proc }
   job = proc
   let buf = ''
-  const take = d => { buf += String(d); const parts = buf.split('\n'); buf = parts.pop(); for (const l of parts) { if (!l.trim()) continue; r.lines.push(l); if (r.lines.length > 400) r.lines.shift(); const m = l.match(/^evidence: (\S+)$/); if (m) r.caseId = m[1] } }
+  const take = d => { buf += String(d); const parts = buf.split('\n'); buf = parts.pop(); for (const l of parts) { if (!l.trim()) continue; r.lines.push(l); if (r.lines.length > 400) r.lines.shift(); const m = l.match(/^(?:evidence|case): (\S+)$/) ?? (kind === 'visual' && l.match(/^case (\S+)$/)); if (m && /^[\w.-]+$/.test(m[1])) r.caseId = m[1] } }
   proc.stdout.on('data', take); proc.stderr.on('data', take)
   proc.on('error', e => { r.lines.push('could not start: ' + e.message) })
   proc.on('close', (code, signal) => { r.code = code; r.status = signal === 'SIGTERM' || code === 130 ? 'cancelled' : code === 0 || code === 1 ? 'finished' : 'failed'; if (job === proc) job = null })
@@ -217,22 +239,29 @@ createServer(async (req, res) => {
     if (u.pathname === '/api/ui/repos') { // the sidebar's list: built-in apps, then the GitHub account's repos (read-only, nothing is cloned)
       const wantRefresh = u.searchParams.get('refresh') === '1' && Date.now() - lastGithubRefresh > 10_000 // at most one real refresh per 10 s
       if (wantRefresh) lastGithubRefresh = Date.now()
-      return send(res, 200, await listApps({ github, refresh: wantRefresh }))
+      return send(res, 200, await listApps({ github, refresh: wantRefresh, profiles: profiles() }))
     }
     if (u.pathname === '/api/ui/cases') { // the runs list for the dashboard: newest first
       return send(res, 200, listCases(EVIDENCE).map(id => { const vm = buildViewModel(openCase(join(EVIDENCE, id)), { caseId: id }); return { id, app: vm.appId, title: vm.title, scenario: vm.scenario?.label ?? null, verdict: vm.verdict, sub: vm.sub, decision: vm.decision?.choice ?? null, progress: vm.progress?.text ?? null } }))
     }
     if (u.pathname === '/api/ui/apps') { // what a run can target: apps, their known cases, and the versions found in the repository
-      return send(res, 200, await Promise.all(Object.entries(APPS).map(async ([name, a]) => {
+      const visualApps = await Promise.all(profiles().map(async p => ({ name: p.name, label: p.label ?? p.name, kind: 'visual', defaults: p.defaults ?? null, regions: Object.keys(p.regions ?? {}), scenarios: [], tags: (await gitIn(p.repo)(['tag', '--sort=-creatordate'])).out.split('\n').filter(Boolean).slice(0, 40) })))
+      return send(res, 200, [...await Promise.all(Object.entries(APPS).map(async ([name, a]) => {
         const tags = (await gitIn((await adapterOf(name)).repo)(['tag', '--sort=-creatordate'])).out.split('\n').filter(Boolean).slice(0, 40)
         return { name, label: a.label, defaults: a.defaults, tags, scenarios: Object.entries(SCENARIOS).filter(([, s]) => s.app === name).map(([id, s]) => ({ name: id, label: s.label, about: s.about })) }
-      })))
+      })), ...visualApps])
     }
     if (u.pathname === '/api/ui/runs' && req.method === 'POST') { // start a run
       const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
       if (job) return send(res, 409, { error: 'A run is already in progress. Wait for it to finish, or cancel it.' })
       if (live.size) return send(res, 409, { error: 'The hand-test versions are running. Stop them first: a run reuses their folders.' })
       const body = JSON.parse(await readBody(req) || '{}')
+      if (onboarding) return send(res, 409, { error: 'An app is being set up right now. Wait for it to finish: it uses the same ports.' })
+      if (body.kind === 'visual') { // a visual check of an app Behique set up itself
+        const v = await validateVisualRun(body, { listProfiles: async () => profileNames(), loadProfile: async n => loadProfile(n), git: gitIn })
+        if (!v.ok) return send(res, 400, { error: v.error })
+        return send(res, 200, { ...runView(startUiRun(v.params, 'visual')), note: v.note })
+      }
       const sc = SCENARIOS[body.scenario]
       if (!sc) return send(res, 400, { error: 'Choose one of the known cases.' })
       const v = await validateRun(body, { scenarios: SCENARIOS, git: gitIn((await adapterOf(sc.app)).repo) })
@@ -245,6 +274,27 @@ createServer(async (req, res) => {
       if (!uiRun || uiRun.status !== 'running') return send(res, 409, { error: 'No run from the dashboard is in progress.' })
       uiRun.proc.kill('SIGTERM') // the run stops its own builds, closes its record as cancelled, and exits
       return send(res, 200, { cancelling: true, runId: uiRun.runId })
+    }
+
+    if (u.pathname === '/api/ui/onboard/candidates') return send(res, 200, await listCandidates(onboardDeps())) // repositories already cloned in the apps folder
+    if (u.pathname === '/api/ui/onboard/preview' && req.method === 'POST') { // what would be sent and what it would cost; calls no model
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      const r = await onboardPreview(JSON.parse(await readBody(req) || '{}'), onboardDeps())
+      return send(res, r.ok ? 200 : r.status ?? 400, r)
+    }
+    if (u.pathname === '/api/ui/onboard/propose' && req.method === 'POST') { // the paid call: only with the fingerprint of the text that was shown
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      if (onboarding) return send(res, 409, { error: 'Another set-up step is running.' })
+      onboarding = true
+      try { const r = await onboardPropose(JSON.parse(await readBody(req) || '{}'), onboardDeps()); return send(res, r.ok ? 200 : r.status ?? 400, r) } finally { onboarding = false }
+    }
+    if (u.pathname === '/api/ui/onboard/verify' && req.method === 'POST') { // build both versions, take pictures, measure noise; saves the profile only if all of it passed
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      if (job || uiRun?.status === 'running') return send(res, 409, { error: 'A run is in progress. Wait for it to finish: verification builds both versions.' })
+      if (live.size) return send(res, 409, { error: 'The hand-test versions are running. Stop them first: verification reuses their ports.' })
+      if (onboarding) return send(res, 409, { error: 'Another set-up step is running.' })
+      onboarding = true
+      try { const r = await onboardVerify(JSON.parse(await readBody(req) || '{}'), { ...onboardDeps(), log: () => {} }); return send(res, r.ok ? 200 : r.status ?? 400, r) } finally { onboarding = false }
     }
 
     if (u.pathname === '/api/ui/rules') { // may this actor write this kind of claim? answered by the record's own rule; writes nothing

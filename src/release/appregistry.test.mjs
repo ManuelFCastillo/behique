@@ -33,3 +33,13 @@ test('a report belongs to the right app', () => {
 test('built-in apps carry what the sidebar needs', () => {
   for (const a of builtinApps()) assert.ok(a.id && a.label && a.statusText && typeof a.runnable === 'boolean')
 })
+
+test('an app Behique set up itself is listed as ready, and its visual reports are filed under it', async () => {
+  const { profileApp } = await import('./appregistry.mjs')
+  const a = profileApp({ name: 'musicblocks', defaults: { good: 'v1', cand: 'v2' }, regions: { top: { x: 0, y: 0, w: 1, h: 1 } } })
+  assert.equal(a.runnable, true); assert.equal(a.status, 'ready'); assert.equal(a.visual, true); assert.deepEqual(a.regions, ['top'])
+  const l = await listApps({ profiles: [{ name: 'musicblocks' }] })
+  assert.deepEqual(l.apps.map(x => x.id).slice(0, 2), ['freshrss', 'musicblocks'])
+  assert.equal(appOfOpened({ kind: 'visual', adapter: 'visual-musicblocks' }), 'musicblocks')
+  assert.equal(appOfOpened({ kind: 'visual', adapter: 'visual-../x' }), null, 'only plain names')
+})

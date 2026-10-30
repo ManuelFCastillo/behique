@@ -9,6 +9,7 @@
 //   fail          evidence is incomplete: the noise filter could not be trusted, the build failed, or the run died
 import { readFileSync } from 'node:fs'
 import { appOfOpened } from './appregistry.mjs'
+import { visualView } from './ui/visual-view.mjs'
 import { sha, summarize } from './evidence.mjs'
 
 const STALE_MS = 15 * 60 * 1000
@@ -81,7 +82,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const art = name => { const a = Object.values(s.artifacts).find(x => x.name === name); return a ? JSON.parse(readFileSync(c.artifactPath(a.hash), 'utf8')) : null }
   const urlOf = h => `/api/artifact?id=${encodeURIComponent(caseId)}&hash=${h}`
   const verdict = verdictOf(events, s, now)
-  const app = APP_NAMES[String(o.adapter ?? '').split('-')[0]] ?? o.adapter ?? 'App'
+  const app = o.kind === 'visual' ? String(o.adapter ?? '').replace(/^visual-/, '') : APP_NAMES[String(o.adapter ?? '').split('-')[0]] ?? o.adapter ?? 'App'
   const builds = events.find(e => e.type === 'builds.compared')?.data
 
   // the search for the first bad change, from the saved search record
@@ -132,7 +133,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const calls = events.filter(e => e.type === 'model.call')
   const changed = (art('facts-diff.json')?.candidate ?? []).filter(d => d.kind === 'changed')
   const judged = events.filter(e => e.type === 'test.judged') // newer reports judge each exported test; older ones have none
-  const nProven = o.kind === 'canvas' ? s.claims.filter(k => k.label === 'reproduced_failure').length : judged.length ? judged.filter(e => e.data.verdict === 'confirmed').length : events.filter(e => e.type === 'test.exported').length // a canvas case proves a change with a reproduced failure, not an exported test
+  const nProven = o.kind === 'canvas' || o.kind === 'visual' ? s.claims.filter(k => k.label === 'reproduced_failure').length : judged.length ? judged.filter(e => e.data.verdict === 'confirmed').length : events.filter(e => e.type === 'test.exported').length // a canvas case proves a change with a reproduced failure, not an exported test
   const last = s.decision
   const progress = progressOf(events, s, steps.length ? stepEv : [])
   const sub = {
@@ -152,7 +153,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
 
   return {
     id: caseId, appId: appOfOpened(o), title: o.kind === 'canvas' ? `Canvas test app: ${o.candRef} (candidate) vs ${o.goodRef} (good)` : `${app} ${o.goodRef} (good) vs ${o.candRef} (candidate)`, app, goodRef: o.goodRef, candRef: o.candRef,
-    scenario: o.scenario ?? null, verdict, sub, failReason, progress, claims, bisect, pictures,
+    scenario: o.scenario ?? null, verdict, sub, failReason, progress, claims, bisect, pictures, visual: visualView(c, { caseId }),
     culpritClaimId: claims.find(k => k.isCulprit)?.id ?? null,
     facts: changed.slice(0, 4).map(d => ({ where: d.key.replace(/(@[^/]+|#text)$/, '').split('/').slice(-2).join('/'), what: d.key.match(/@([^/]+)$/)?.[1] ?? (d.key === 'window@scrollY' ? 'scrollY' : 'text'), was: d.was, now: d.now, step: d.step })),
     recommendation: verdict, // Behique's advice; the person's decision below is a separate thing

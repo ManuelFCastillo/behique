@@ -9,6 +9,13 @@ export const builtinApps = () => Object.entries(APPS).map(([id, a]) => ({
   statusText: 'Ready: install, seed data and click steps are defined, so checks can run.',
 }))
 
+/** An app Behique set up itself (a saved profile): runnable by picture, no hand-written adapter. */
+export const profileApp = p => ({
+  id: p.name, kind: 'profile', visual: true, label: p.label ?? p.name, subtitle: 'set up by Behique', runnable: true, status: 'ready',
+  statusText: 'Ready: Behique set this app up. A visual check compares pictures of two versions and can search for the first change.',
+  defaults: p.defaults ?? null, regions: Object.keys(p.regions ?? {}),
+})
+
 export const githubApp = r => ({
   id: `github:${r.fullName}`, kind: 'github', label: r.name, owner: r.owner, fullName: r.fullName,
   subtitle: [r.private ? 'private' : 'public', r.language, r.fork ? 'fork' : null].filter(Boolean).join(' · '),
@@ -19,10 +26,10 @@ export const githubApp = r => ({
 })
 
 /** The sidebar's list: built-in apps first, then the connected account's repos (if any), plus the connection state. */
-export async function listApps({ github, refresh = false } = {}) {
+export async function listApps({ github, refresh = false, profiles = [] } = {}) {
   const g = github ? await github.repos({ refresh }) : { connected: false, login: null, repos: [], error: null, fetchedAt: null }
   return {
-    apps: [...builtinApps(), ...(g.connected ? g.repos.map(githubApp) : [])],
+    apps: [...builtinApps(), ...profiles.map(profileApp), ...(g.connected ? g.repos.map(githubApp) : [])],
     github: { connected: g.connected, login: g.login, error: g.error, fetchedAt: g.fetchedAt, count: g.repos.length },
   }
 }
@@ -30,6 +37,7 @@ export async function listApps({ github, refresh = false } = {}) {
 /** Which app a saved report belongs to, so the reports list can follow the sidebar selection. */
 export function appOfOpened(opened) {
   if (opened?.app) return opened.app
+  if (opened?.kind === 'visual' && /^visual-[a-z0-9-]+$/.test(String(opened.adapter))) return opened.adapter.slice(7) // a visual check is filed under the app it checked
   const fromAdapter = String(opened?.adapter ?? '').split('-')[0]
   return APPS[fromAdapter] ? fromAdapter : null
 }
