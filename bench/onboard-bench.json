@@ -1,0 +1,8 @@
+[
+  { "name": "html5-boilerplate", "repo": "html5-boilerplate", "good": "v9.0.0", "cand": "v9.0.1", "note": "static site in src/, build with npm" },
+  { "name": "nextjs-blog", "repo": "tailwind-nextjs-starter-blog", "good": "v2.3.0", "cand": "v2.4.0", "note": "Next.js blog, no backend" },
+  { "name": "excalidraw", "repo": "excalidraw", "good": "v0.17.6", "cand": "v0.18.0", "note": "Vite + React, canvas app, yarn workspaces" },
+  { "name": "vitepress", "repo": "vitepress", "good": "v2.0.0-alpha.20", "cand": "v2.0.0-alpha.21", "note": "docs generator, its own docs site, pnpm" },
+  { "name": "umami", "repo": "umami", "good": "v3.3.1", "cand": "v3.4.1", "note": "Next.js but needs a database: expected to fail" },
+  { "name": "todomvc", "repo": "todomvc", "good": "v1.4", "cand": "master", "note": "static examples, no build" }
+]
