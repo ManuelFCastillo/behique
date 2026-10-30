@@ -7,7 +7,7 @@
 // descriptions are cut, and a URL is only passed on if it is a plain https://github.com/<owner>/<name> link.
 import { execFile } from 'node:child_process'
 
-const FIELDS = 'name,nameWithOwner,description,isPrivate,isFork,isArchived,pushedAt,primaryLanguage,url,defaultBranchRef,owner,visibility'
+const FIELDS = 'name,nameWithOwner,description,isPrivate,isFork,isArchived,pushedAt,primaryLanguage,url,defaultBranchRef,owner,visibility,diskUsage'
 const NAME = /^[A-Za-z0-9._-]{1,100}$/
 const URL_OK = /^https:\/\/github\.com\/[A-Za-z0-9._-]{1,100}\/[A-Za-z0-9._-]{1,100}$/
 export const MAX_REPOS = 200
@@ -40,6 +40,7 @@ export function normalize(row) {
     language: typeof row.primaryLanguage?.name === 'string' ? row.primaryLanguage.name.slice(0, 40) : null,
     pushedAt: Number.isFinite(Date.parse(row.pushedAt)) ? row.pushedAt : null,
     defaultBranch: NAME.test(row.defaultBranchRef?.name ?? '') ? row.defaultBranchRef.name : null,
+    sizeKb: Number.isFinite(row.diskUsage) && row.diskUsage >= 0 ? row.diskUsage : null, // what GitHub reports as the repository's size
     url: URL_OK.test(row.url ?? '') ? row.url : null,
   }
 }

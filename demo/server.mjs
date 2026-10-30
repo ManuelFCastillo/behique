@@ -1,7 +1,7 @@
 // Local demo server: serves demo/index.html and runs the release pipeline on request. No model calls.
 //   node demo/server.mjs [port]      then open http://127.0.0.1:8790
 // One pipeline job at a time (they share port 8300). Hand-test builds use their own ports (8301, 8302).
-import { spawn } from 'node:child_process'
+import { execFile, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { homedir } from 'node:os'
@@ -21,6 +21,8 @@ import adapter from '../src/release/adapters/freshrss.mjs'
 import { ENV, PROVIDERS } from '../src/llm.mjs'
 import { validateVisualRun, visualArgv, visualProgress, caseIdOf } from '../src/release/ui/visual-run.mjs'
 import { listCandidates, onboardPreview, onboardPropose, onboardVerify } from '../src/release/ui/onboard-flow.mjs'
+import { crawlProgress } from '../src/release/ui/crawl-run.mjs'
+import { cloneRun, clonePreview } from '../src/release/ui/clone-flow.mjs'
 import { loadProfile, profilePath, validateProfile, describeCommands, saveProfile } from '../src/release/onboard/profile.mjs'
 import { inspectRepo } from '../src/release/onboard/inspect.mjs'
 import { buildMessages, projectCost, proposeProfile } from '../src/release/onboard/propose.mjs'
@@ -57,6 +59,18 @@ const APPS_ROOT = join(homedir(), 'dev/behique-apps') // only repositories alrea
 const profileDir = () => dirname(profilePath('x'))
 const profileNames = () => { try { return readdirSync(profileDir()).filter(f => /^[a-z0-9-]+\.json$/.test(f)).map(f => f.slice(0, -5)).sort() } catch { return [] } }
 const profiles = () => profileNames().flatMap(n => { try { return [loadProfile(n)] } catch { return [] } })
+// Cloning: only repositories in the user's own GitHub list (already read through the fixed, read-only `gh` calls) can be cloned from the page,
+// into the apps folder, with `git clone`, and only with the fingerprint of the preview that was shown.
+let cloning = false
+const cloneDeps = () => ({
+  appsRoot: APPS_ROOT, exists: p => existsSync(p),
+  repoInfo: async (owner, name) => {
+    const r = (await github.repos()).repos.find(x => x.fullName === `${owner}/${name}`)
+    if (!r) throw new Error('not in the connected GitHub account')
+    return { sizeKb: r.sizeKb, isPrivate: r.private, isFork: r.fork, isArchived: r.archived, defaultBranch: r.defaultBranch }
+  },
+  exec: (command, { timeoutMs }) => new Promise(resolve => execFile(command[0], command.slice(1), { timeout: timeoutMs, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }, (err, stdout, stderr) => resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stderr: String(stderr ?? '') }))),
+})
 let onboarding = false // one paid proposal or verification at a time; verification uses the builds' ports
 const onboardDeps = () => ({
   appsRoot: APPS_ROOT, isGitRepo: async p => { try { return statSync(join(p, '.git')).isDirectory() } catch { return false } }, /* a real clone only: a build worktree has a .git file instead */ readdir: async d => readdirSync(d), listProfiles: async () => profileNames(),
@@ -68,10 +82,10 @@ const onboardDeps = () => ({
 
 // ---- runs started from the dashboard: they live in the background, independent of any open page ----
 let uiRun = null // the current or most recent run: { runId, params, startedAt, caseId, lines, status, code, proc }
-const runView = r => r && ({ runId: r.runId, kind: r.kind, running: r.status === 'running', status: r.status, code: r.code, caseId: r.caseId, params: r.params, startedAt: r.startedAt, lastLine: r.lines.at(-1) ?? null, ...(r.kind === 'visual' ? { progress: visualProgress(r.lines) } : {}) })
+const runView = r => r && ({ runId: r.runId, kind: r.kind, running: r.status === 'running', status: r.status, code: r.code, caseId: r.caseId, params: r.params, startedAt: r.startedAt, lastLine: r.lines.at(-1) ?? null, ...(r.kind === 'visual' ? { progress: visualProgress(r.lines) } : r.kind === 'crawl' ? { progress: crawlProgress(r.lines) } : {}) })
 const adapterOf = async app => (await import(`../src/release/adapters/${APPS[app].adapter}.mjs`)).default
 function startUiRun(params, kind = 'release') {
-  const argv = kind === 'visual' ? visualArgv(params) : ['src/release/confirm.mjs', params.goodRef, params.candRef, '--scenario', params.scenario, ...(params.bisect ? ['--bisect'] : [])]
+  const argv = kind === 'visual' ? visualArgv(params) : kind === 'crawl' ? ['src/release/check-app.mjs', params.app, params.goodRef, params.candRef, ...(params.bisect ? ['--bisect'] : [])] : ['src/release/confirm.mjs', params.goodRef, params.candRef, '--scenario', params.scenario, ...(params.bisect ? ['--bisect'] : [])]
   const proc = spawn('node', argv, { cwd: ROOT })
   const r = uiRun = { runId: 'r' + Date.now().toString(36), kind, params, startedAt: new Date().toISOString(), caseId: null, lines: [], status: 'running', code: null, proc }
   job = proc
@@ -257,6 +271,12 @@ createServer(async (req, res) => {
       if (live.size) return send(res, 409, { error: 'The hand-test versions are running. Stop them first: a run reuses their folders.' })
       const body = JSON.parse(await readBody(req) || '{}')
       if (onboarding) return send(res, 409, { error: 'An app is being set up right now. Wait for it to finish: it uses the same ports.' })
+      if (body.kind === 'crawl') { // a release check without hand-written steps: crawl the good version, compare both along the crawled steps (an app Behique set up, or FreshRSS)
+        const builtin = async n => ({ repo: (await adapterOf(n)).repo, defaults: APPS[n].defaults, regions: {} })
+        const v = await validateVisualRun({ ...body, region: undefined }, { listProfiles: async () => [...profileNames(), ...Object.keys(APPS)], loadProfile: async n => (profileNames().includes(n) ? loadProfile(n) : builtin(n)), git: gitIn })
+        if (!v.ok) return send(res, 400, { error: v.error })
+        return send(res, 200, { ...runView(startUiRun(v.params, 'crawl')), note: v.note })
+      }
       if (body.kind === 'visual') { // a visual check of an app Behique set up itself
         const v = await validateVisualRun(body, { listProfiles: async () => profileNames(), loadProfile: async n => loadProfile(n), git: gitIn })
         if (!v.ok) return send(res, 400, { error: v.error })
@@ -276,6 +296,16 @@ createServer(async (req, res) => {
       return send(res, 200, { cancelling: true, runId: uiRun.runId })
     }
 
+    if (u.pathname === '/api/ui/clone/preview') { // what cloning would run and how big it is; clones nothing
+      const r = await clonePreview({ repo: u.searchParams.get('repo') }, cloneDeps())
+      return send(res, r.ok ? 200 : r.status ?? 400, r)
+    }
+    if (u.pathname === '/api/ui/clone' && req.method === 'POST') { // the clone itself: only with the fingerprint of the preview
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      if (cloning) return send(res, 409, { error: 'Another clone is running.' })
+      cloning = true
+      try { const r = await cloneRun(JSON.parse(await readBody(req) || '{}'), cloneDeps()); return send(res, r.ok ? 200 : r.status ?? 400, r) } finally { cloning = false }
+    }
     if (u.pathname === '/api/ui/onboard/candidates') return send(res, 200, await listCandidates(onboardDeps())) // repositories already cloned in the apps folder
     if (u.pathname === '/api/ui/onboard/preview' && req.method === 'POST') { // what would be sent and what it would cost; calls no model
       const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
