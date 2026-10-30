@@ -2,10 +2,10 @@
 //   node --test src/release/onboard/profile-v2.test.mjs
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { describeCommands, profileToAdapter, validateProfile } from './profile.mjs'
+import { describeCommands, profileToAdapter, scriptsOffEnv, validateProfile, yarnMajor } from './profile.mjs'
 
 const base = (serve, over = {}) => ({ name: 'demo', repo: '/tmp/repo', workRoot: '/tmp/work', serve, ...over })
 
@@ -86,5 +86,56 @@ describe('the adapter', () => {
   it('hands the readiness settings to the build runner', () => {
     const a = profileToAdapter(base({ kind: 'command', cmd: 'npm', args: ['start'] }, { ready: { path: '/health', timeoutMs: 45000 } }), { env: {} })
     assert.equal(a.readyMs, 45000); assert.equal(a.readyPath, '/health')
+  })
+})
+
+describe('services (sidecar databases)', () => {
+  const cmd = { kind: 'command', cmd: 'npm', args: ['start'] }
+  it('accepts a valid list and refuses a bad one with a plain sentence', () => {
+    assert.deepEqual(validateProfile(base(cmd, { services: [{ kind: 'postgres', name: 'db', inject: { DATABASE_URL: 'url' } }] })), [])
+    const problems = validateProfile(base(cmd, { services: [{ kind: 'oracle', name: 'db' }] }))
+    assert.ok(problems.some(p => /unknown kind oracle/.test(p)))
+    assert.ok(validateProfile(base(cmd, { services: 'postgres' })).length > 0)
+  })
+  it('is listed for a person to read, and a static profile with services is no longer "nothing to approve"', () => {
+    const lines = describeCommands(base(cmd, { services: [{ kind: 'redis', name: 'cache' }] }))
+    assert.ok(lines.includes('service: redis (redis:7-alpine) as cache, injects REDIS_URL'))
+    const staticLines = describeCommands(base({ kind: 'static' }, { services: [{ kind: 'postgres', name: 'db' }] }))
+    assert.ok(staticLines.some(l => l.startsWith('service: postgres')))
+  })
+  it('the adapter carries the normalized profile so a sandbox can read its services', () => {
+    const a = profileToAdapter(base(cmd, { services: [{ kind: 'mongo', name: 'mongo' }] }), { env: {} })
+    assert.equal(a.profile.services[0].kind, 'mongo')
+  })
+})
+
+describe('scripts stay off for every package manager', () => {
+  const checkout = files => { const d = mkdtempSync(join(tmpdir(), 'bq-yarn-')); for (const [n, c] of Object.entries(files)) writeFileSync(join(d, n), c); return d }
+  it('npm, pnpm and yarn 1 get the flag; yarn Berry gets none because it refuses it', () => {
+    const a = profileToAdapter(base({ kind: 'command', cmd: 'npm', args: ['start'], install: [{ cmd: 'npm', args: ['ci'] }, { cmd: 'pnpm', args: ['install'] }, { cmd: 'yarn', args: ['install'] }] }), { env: {} })
+    assert.deepEqual(a.installs.map(i => i.args), [['ci', '--ignore-scripts'], ['install', '--ignore-scripts'], ['install', '--ignore-scripts']]) // a checkout we cannot read counts as yarn 1
+    assert.deepEqual(a.installsFor(checkout({ '.yarnrc.yml': '' })).map(i => i.args), [['ci', '--ignore-scripts'], ['install', '--ignore-scripts'], ['install']])
+    assert.deepEqual(a.installsFor(checkout({ 'package.json': '{}' })).map(i => i.args)[2], ['install', '--ignore-scripts'])
+  })
+  it('knows yarn 1 from Berry by the files in the checkout', () => {
+    assert.equal(yarnMajor(checkout({ 'package.json': '{}' })), 1)
+    assert.equal(yarnMajor(checkout({ '.yarnrc.yml': 'nodeLinker: node-modules' })), 2)
+    assert.equal(yarnMajor(checkout({ 'package.json': '{"packageManager":"yarn@3.6.1"}' })), 2)
+    assert.equal(yarnMajor(checkout({ 'package.json': '{"packageManager":"yarn@1.22.19"}' })), 1)
+    assert.equal(yarnMajor(checkout({ 'package.json': '{}', 'yarn.lock': '# yarn lockfile v1' })), 1)
+    assert.equal(yarnMajor(checkout({ 'package.json': '{}', 'yarn.lock': '__metadata:\n  version: 6' })), 2)
+    assert.equal(yarnMajor('/definitely/not/here'), 1)
+  })
+  it('turns scripts off through the setting that version understands', () => {
+    assert.deepEqual(scriptsOffEnv(checkout({ '.yarnrc.yml': '' })), { YARN_ENABLE_SCRIPTS: 'false' })
+    assert.deepEqual(scriptsOffEnv(checkout({ 'package.json': '{}' })), {})
+    const a = profileToAdapter(base({ kind: 'command', cmd: 'yarn', args: ['dev'] }), { env: {} })
+    assert.equal(a.serve(checkout({ '.yarnrc.yml': '' }), 8300).env.YARN_ENABLE_SCRIPTS, 'false')
+  })
+  it('a profile that allows scripts sets nothing', () => {
+    const a = profileToAdapter(base({ kind: 'command', cmd: 'npm', args: ['start'], allowScripts: true, install: [{ cmd: 'yarn', args: ['install'] }] }), { env: {} })
+    assert.deepEqual(a.installs.map(i => i.args), [['install']])
+    const e = a.serve(checkout({ '.yarnrc.yml': '' }), 8300).env
+    assert.equal(e.YARN_ENABLE_SCRIPTS, undefined)
   })
 })

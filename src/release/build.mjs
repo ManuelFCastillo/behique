@@ -2,14 +2,14 @@
 //   node src/release/build.mjs 1.30.0 8300          start, check it answers, stop
 //   node src/release/build.mjs 1.30.0 8300 --serve  keep it running until Ctrl-C
 // A build is identified by its commit sha, never by the ref name, so a tag that moves cannot change a result.
-import { execFile, spawn } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import { existsSync, readFileSync } from 'node:fs'
 import { createServer } from 'node:http'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import { promisify } from 'node:util'
+import { checkoutRef } from './checkout.mjs'
+import { sandboxConfigFromEnv, startSandboxedBuild } from './sandbox/backend.mjs'
 
-const run = promisify(execFile)
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
 /** Serve the adapter's fixed feed files on localhost so every build sees the same data. */
@@ -25,13 +25,11 @@ function startFeedServer({ dir, port }) {
 const active = new Set() // running builds, so a cancelled run can stop them all (a killed process would leave its servers behind)
 export async function stopAll() { await Promise.all([...active].map(b => b.stop())) }
 
-export async function startBuild({ adapter, ref, port }) {
+export async function startBuild({ adapter, ref, port, sandbox = sandboxConfigFromEnv(process.env) }) {
   const t0 = Date.now()
-  const git = (...a) => run('git', ['-C', adapter.repo, ...a]).then(r => r.stdout.trim())
-  const sha = await git('rev-parse', `${ref}^{commit}`)
-  const dir = join(adapter.workRoot, 'w-' + sha.slice(0, 12))
-  if (!existsSync(dir)) await git('worktree', 'add', '-q', '--detach', dir, sha)
-  await run('git', ['-C', dir, 'clean', '-fdxq', '--', ...adapter.cleanPaths])
+  // an app set up from a repository we do not control runs in a sandbox when one is configured (BEHIQUE_SANDBOX), never as a process here
+  if (sandbox && adapter.profile) return startSandboxedBuild({ adapter, ref, port, config: sandbox, register: active })
+  const { sha, dir } = await checkoutRef(adapter, ref)
 
   const feedSrv = adapter.feed ? await startFeedServer(adapter.feed) : null // an app with no feed (a static site) leaves adapter.feed null
   const feedUrl = adapter.feed ? `http://127.0.0.1:${adapter.feed.port}/feed.xml` : null

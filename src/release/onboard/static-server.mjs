@@ -124,5 +124,5 @@ if (process.argv[1] && pathToFileURL(process.argv[1]).href === import.meta.url) 
   let overrides = {}
   if (process.argv[4]) overrides = JSON.parse(process.argv[4])
   const server = createStaticServer(dir, overrides)
-  server.listen(port, '127.0.0.1')
+  server.listen(port, process.env.BEHIQUE_BIND || '127.0.0.1') // inside a sandbox the build runner sets 0.0.0.0, so the server is reachable from outside the container
 }

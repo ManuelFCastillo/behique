@@ -2,12 +2,13 @@
 //   node --test src/release/onboard/profile.test.mjs
 import { execFile } from 'node:child_process'
 import { homedir } from 'node:os'
-import { chmodSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { promisify } from 'node:util'
 import { describeEnv, shimFile, withIgnoreScripts } from './toolchain.mjs'
 import { cleanLogs } from './repair.mjs'
+import { validateServices, describeServices } from '../sandbox/services.mjs'
 
 const runFile = promisify(execFile)
 
@@ -17,7 +18,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 export const PROFILE_DIR = join(HERE, 'profiles')
 const DEFAULT_SERVER = join(HERE, 'static-server.mjs')
 
-const TOP_FIELDS = new Set(['name', 'repo', 'workRoot', 'defaults', 'serve', 'ready', 'viewport', 'setup', 'regions', 'anchors', 'notes'])
+const TOP_FIELDS = new Set(['name', 'repo', 'workRoot', 'defaults', 'serve', 'ready', 'viewport', 'setup', 'regions', 'anchors', 'services', 'notes'])
 const NAME_RE = /^[a-z0-9-]+$/
 // Arguments that make a command run inline code or a shell string. What counts depends on the program: -p is node's --print but
 // a port flag for next, -c is python's inline code and npm's or pnpm's shell mode.
@@ -248,6 +249,10 @@ export function validateProfile(profile) {
   if (profile.notes !== undefined && typeof profile.notes !== 'string') {
     problems.push('notes must be a string')
   }
+  // sidecar databases and caches (started only in a sandbox, see src/release/sandbox/services.mjs)
+  if (profile.services !== undefined) {
+    for (const p of validateServices(profile.services)) problems.push(p.startsWith('services') ? p : `services: ${p}`)
+  }
   return problems
 }
 
@@ -287,7 +292,7 @@ export function describeCommands(profile) {
   const p = normalizeProfile(profile)
   const lines = []
   const installs = p.serve.install ?? []
-  if (p.serve.kind === 'static' && installs.length === 0) {
+  if (p.serve.kind === 'static' && installs.length === 0 && (p.services ?? []).length === 0) {
     lines.push('serve: built-in static file server' + (p.serve.root ? ` (folder ${p.serve.root})` : ''))
     lines.push(...describeEnv(p.serve.env ?? {}))
     return lines
@@ -304,6 +309,7 @@ export function describeCommands(profile) {
     lines.push(warnSuffix(p.serve.cmd, args) ? warn(text) : text)
   }
   lines.push(...describeEnv(p.serve.env ?? {}))
+  lines.push(...describeServices(p.services ?? []))
   if (p.serve.allowScripts === true) lines.push("installs run the repository's own lifecycle scripts (downloads and runs code from the internet)")
   return lines
 }
@@ -313,13 +319,33 @@ function expandHome(p, home) {
   return p
 }
 
+/** Which yarn a checkout wants: 2 and up (Berry) or 1. Read from files only: .yarnrc.yml, a yarn.lock that starts like Berry's, or the packageManager field. */
+export function yarnMajor(dir) {
+  try {
+    if (existsSync(join(dir, '.yarnrc.yml'))) return 2
+    const pm = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')).packageManager
+    const m = typeof pm === 'string' ? pm.match(/^yarn@(\d+)/) : null
+    if (m) return Number(m[1]) >= 2 ? 2 : 1
+    if (existsSync(join(dir, 'yarn.lock')) && readFileSync(join(dir, 'yarn.lock'), 'utf8').slice(0, 400).includes('__metadata:')) return 2
+  } catch { /* an unreadable checkout counts as yarn 1 */ }
+  return 1
+}
+
+/** Environment that turns lifecycle scripts off for yarn Berry, which refuses `--ignore-scripts` (yarn 1 takes the flag instead, see installsFor). Empty for yarn 1. */
+export function scriptsOffEnv(dir) {
+  return yarnMajor(dir) >= 2 ? { YARN_ENABLE_SCRIPTS: 'false' } : {}
+}
+
 export function profileToAdapter(profile, { home = homedir(), serverPath = DEFAULT_SERVER, env = process.env } = {}) {
   const p = normalizeProfile(profile)
   const repo = expandHome(p.repo, home)
   const workRoot = expandHome(p.workRoot, home)
   const basePath = p.serve.kind === 'command' ? (p.serve.basePath ?? '') : ''
   // Install steps never run the repository's own lifecycle scripts unless the profile says so and a person approved it.
-  const installs = (p.serve.install ?? []).map(item => (p.serve.allowScripts === true ? item : withIgnoreScripts(item)))
+  // Install steps never run lifecycle scripts: the flag for npm, pnpm and yarn 1; yarn Berry refuses the flag and gets an environment setting instead (scriptsOffEnv)
+  // Which yarn it is depends on the checkout, so the list is made per directory (installsFor); `installs` is the list for a checkout we cannot read.
+  const installsFor = dir => (p.serve.install ?? []).map(item => (p.serve.allowScripts === true || (item.cmd === 'yarn' && dir && yarnMajor(dir) >= 2) ? item : withIgnoreScripts(item)))
+  const installs = installsFor(undefined)
   const shimDir = join(workRoot, '.behique-shims')
   const shimNames = [...new Set([...installs.map(i => i.cmd), p.serve.cmd].filter(c => c === 'yarn' || c === 'pnpm'))]
   // yarn and pnpm are provided through corepack (shipped with Node) when the machine has none: nothing is installed globally,
@@ -333,8 +359,9 @@ export function profileToAdapter(profile, { home = homedir(), serverPath = DEFAU
       chmodSync(path, 0o755)
     }
   }
-  function runEnv(port) {
+  function runEnv(port, dir) {
     const e = { ...env }
+    if (p.serve.allowScripts !== true && dir) Object.assign(e, scriptsOffEnv(dir))
     for (const [k, v] of Object.entries(p.serve.env ?? {})) e[k] = String(v).split('{port}').join(String(port))
     if (shimNames.length > 0) {
       ensureShims()
@@ -344,8 +371,8 @@ export function profileToAdapter(profile, { home = homedir(), serverPath = DEFAU
     return e
   }
   async function prepare(dir, ctx = {}) {
-    const e = runEnv(ctx.port ?? 0)
-    for (const item of installs) {
+    const e = runEnv(ctx.port ?? 0, dir)
+    for (const item of installsFor(dir)) {
       try {
         await runFile(item.cmd, item.args ?? [], { cwd: dir, timeout: 600000, env: e, maxBuffer: 50 * 1024 * 1024 })
       } catch (err) {
@@ -359,12 +386,12 @@ export function profileToAdapter(profile, { home = homedir(), serverPath = DEFAU
   function serve(dir, port) {
     if (p.serve.kind === 'static') {
       const root = p.serve.root ? join(dir, p.serve.root) : dir
-      return { cmd: 'node', args: [serverPath, root, String(port), JSON.stringify(p.serve.overrides ?? {})], env: runEnv(port) }
+      return { cmd: 'node', args: [serverPath, root, String(port), JSON.stringify(p.serve.overrides ?? {})], env: runEnv(port, dir) }
     }
     const args = (p.serve.args ?? []).map(a => a.split('{port}').join(String(port)))
-    return { cmd: p.serve.cmd, args, env: runEnv(port) }
+    return { cmd: p.serve.cmd, args, env: runEnv(port, dir) }
   }
-  return { name: p.name, repo, workRoot, cleanPaths: ['.behique-never-exists'], feed: null, basePath, prepare, serve, readyMs: p.ready.timeoutMs, readyPath: p.ready.path, installs }
+  return { profile: p, name: p.name, repo, workRoot, cleanPaths: ['.behique-never-exists'], feed: null, basePath, prepare, serve, readyMs: p.ready.timeoutMs, readyPath: p.ready.path, installs, installsFor }
 }
 
 function effectiveDir(explicit) {
