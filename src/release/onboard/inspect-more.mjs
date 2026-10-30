@@ -130,22 +130,42 @@ function patternToDirs(pattern) {
   return { kind: 'plain', base: norm }
 }
 
-function parseComposeServices(raw) {
-  const services = []
-  const lines = String(raw).split('\n')
-  let inServices = false
-  for (const line of lines) {
+/** The service blocks of a compose file: { name, lines }. A service name sits at the indent of the FIRST key under `services:` (2 or 4 spaces vary), so `environment:` and `healthcheck:` one level deeper are not mistaken for services. */
+function composeBlocks(raw) {
+  const blocks = []
+  let inServices = false, indent = null, current = null
+  for (const line of String(raw).split('\n')) {
     if (!inServices) {
       if (/^services:\s*(#.*)?$/.test(line)) inServices = true
       continue
     }
     if (/^[^\s#]/.test(line)) break
     if (/^\s*$/.test(line) || /^\s*#/.test(line)) continue
-    const m = line.match(/^ {2,4}([A-Za-z0-9_.\-]+):\s*(#.*)?$/)
-    if (m) {
-      if (services.length < 12 && !services.includes(m[1])) services.push(m[1])
+    const key = line.match(/^( +)([A-Za-z0-9_.\-]+):\s*(#.*)?$/)
+    if (indent === null && key) indent = key[1].length
+    if (key && key[1].length === indent) { current = { name: key[2], lines: [] }; blocks.push(current); continue }
+    if (current) current.lines.push(line)
+  }
+  return blocks
+}
+
+/** The `image:` of each compose service, by service name (at most 12): the image tells what a service named `db` really is. */
+function parseComposeImages(raw) {
+  const images = {}
+  let count = 0
+  for (const b of composeBlocks(raw)) {
+    if (count >= 12) break
+    for (const line of b.lines) {
+      const img = line.match(/^\s+image:\s*["']?([^\s"'#]+)["']?/)
+      if (img) { images[b.name] = img[1].slice(0, 120); count += 1; break }
     }
   }
+  return images
+}
+
+function parseComposeServices(raw) {
+  const services = []
+  for (const b of composeBlocks(raw)) if (services.length < 12 && !services.includes(b.name)) services.push(b.name)
   return services
 }
 
@@ -353,7 +373,7 @@ export async function inspectMore(repoPath) {
       for (const cand of COMPOSE_CANDIDATES) {
         const raw = await reader.readFile(join(repoPath, cand))
         if (raw === null) continue
-        done = { file: cand, services: parseComposeServices(raw) }
+        done = { file: cand, services: parseComposeServices(raw), images: parseComposeImages(raw) }
         break
       }
       result.compose = done

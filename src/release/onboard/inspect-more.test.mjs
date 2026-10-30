@@ -165,7 +165,7 @@ test('compose services', async () => {
   const r = makeRepo()
   write(r, 'docker-compose.yml', 'services:\n  web:\n    image: x\n  db:\n    image: y\nvolumes:\n  data:\n')
   const res = await inspectMore(r)
-  assert.deepEqual(res.compose, { file: 'docker-compose.yml', services: ['web', 'db'] })
+  assert.deepEqual(res.compose, { file: 'docker-compose.yml', services: ['web', 'db'], images: { web: 'x', db: 'y' } })
 })
 
 test('static roots with node_modules ignored', async () => {
@@ -202,4 +202,12 @@ test('path that is a file does not throw', async () => {
   const f = join(r, 'file.txt')
   writeFileSync(f, 'hello')
   emptyCheck(await inspectMore(f))
+})
+
+test('compose images: by service, quotes and comments removed, other keys ignored', async () => {
+  const r = makeRepo()
+  write(r, 'compose.yml', 'services:\n  umami:\n    image: "ghcr.io/umami-software/umami:postgresql-latest"\n    environment:\n      DATABASE_URL: x\n  db:\n    image: postgres:15-alpine # database\n    healthcheck:\n      test: [CMD, pg_isready]\n  cache:\n    build: .\n')
+  const res = await inspectMore(r)
+  assert.deepEqual(res.compose.images, { umami: 'ghcr.io/umami-software/umami:postgresql-latest', db: 'postgres:15-alpine' })
+  assert.deepEqual(res.compose.services, ['umami', 'db', 'cache'])
 })

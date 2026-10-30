@@ -295,6 +295,17 @@ export function proposeServices(facts) {
     }
 
     const compose = facts.compose
+    // the image says what a service really is, even when it is only called `db`
+    if (isRecord(compose) && isRecord(compose.images)) {
+      for (const [svc, image] of Object.entries(compose.images)) {
+        if (typeof image !== 'string') continue
+        const base = image.split('/').pop().split(':')[0].toLowerCase()
+        const kind = kindForComposeName(base)
+        if (!kind || found.has(kind)) continue
+        found.set(kind, { kind, name: kind, keys: null })
+        evByKind.set(kind, { source: 'compose', name: svc, text: `compose.yml service ${svc} uses the image ${image} (high confidence)` })
+      }
+    }
     if (isRecord(compose) && Array.isArray(compose.services)) {
       for (const rawName of compose.services) {
         if (typeof rawName !== 'string') continue

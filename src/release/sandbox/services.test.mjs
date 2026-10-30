@@ -251,3 +251,10 @@ test('proposeServices empty or malformed facts give empty result and every propo
   })
   assert.deepEqual(validateServices(combo.services), [])
 })
+
+test('proposeServices reads the compose image when the service is only called db', () => {
+  const r = proposeServices({ compose: { file: 'docker-compose.yml', services: ['umami', 'db'], images: { umami: 'ghcr.io/umami-software/umami:postgresql-latest', db: 'postgres:15-alpine' } }, envExample: null, packageJson: { dependencies: { redis: '1' } } })
+  assert.deepEqual(r.services.map(s => s.kind), ['postgres', 'redis'])
+  assert.match(r.evidence.find(e => /postgres/.test(e)), /service db uses the image postgres:15-alpine/)
+  assert.deepEqual(validateServices(r.services), [])
+})
