@@ -84,7 +84,7 @@ const probe = await startBuild({ adapter, ref: goodRef, port })
 const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pathname
 await probe.stop()
 const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings })
-if (readOnly) for (const f of findings) f.readOnly = true
+for (const f of findings) { f.origin = origin; if (readOnly) f.readOnly = true } // origin: so a test can swap it for the address of the build it runs against
 if (!findings.length) { console.log('none of the changed facts can be written as a test'); close({ outcome: 'no testable change' }); process.exit(0) }
 const dir = join('out', 'regression', `${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_'))
 rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })

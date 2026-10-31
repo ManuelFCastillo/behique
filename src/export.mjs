@@ -27,15 +27,27 @@ function stepCode(a) {
   }
 }
 
-function cmp(expr, op = 'equals', value) {
+const ORIGIN_RE = /^https?:\/\/[^/?#]+$/
+
+// A recorded value can embed the address the app was served from (a share link, the referer in a widget's iframe src). The
+// test may run against the same build on another port (a pooled run serves each build on its own), so where the recording
+// origin appears in an expected value, plain or URL-encoded, the test swaps in the origin it is actually talking to.
+function expectedCode(value, ctx) {
+  const str = String(value ?? ''), v = q(str), o = ctx?.origin
+  if (!o || !(str.includes(o) || str.includes(encodeURIComponent(o)))) return v
+  ctx.live = true
+  return `${v}.split(${q(o)}).join(live).split(${q(encodeURIComponent(o))}).join(encodeURIComponent(live))`
+}
+
+function cmp(expr, op = 'equals', value, ctx = null) {
   const s = `String(${expr})`
   const v = q(String(value ?? ''))
   switch (op) {
-    case 'equals': return `expect(${s}).toBe(${v})`
-    case 'not_equals': return `expect(${s}).not.toBe(${v})`
-    case 'contains': return `expect(${s}).toContain(${v})`
-    case 'not_contains': return `expect(${s}).not.toContain(${v})`
-    case 'matches': return `expect(${s}).toMatch(new RegExp(${v}))`
+    case 'equals': return `expect(${s}).toBe(${expectedCode(value, ctx)})`
+    case 'not_equals': return `expect(${s}).not.toBe(${expectedCode(value, ctx)})`
+    case 'contains': return `expect(${s}).toContain(${expectedCode(value, ctx)})`
+    case 'not_contains': return `expect(${s}).not.toContain(${expectedCode(value, ctx)})`
+    case 'matches': return `expect(${s}).toMatch(new RegExp(${v}))` // a pattern is left as recorded
     case 'eq': return `expect(Number(${expr})).toBe(${Number(value)})`
     case 'ne': return `expect(Number(${expr})).not.toBe(${Number(value)})`
     case 'gte': return `expect(Number(${expr})).toBeGreaterThanOrEqual(${Number(value)})`
@@ -44,30 +56,30 @@ function cmp(expr, op = 'equals', value) {
   }
 }
 
-function assertionCode(spec) {
+function assertionCode(spec, ctx = null) {
   const el = `const el = ${loc(spec.selector)}`
   const attached = 'await expect(el).toBeAttached()'
   switch (spec.kind) {
-    case 'text': return [el, attached, "const text = ((await el.textContent()) ?? '').trim()", cmp('text', spec.op, spec.value)]
-    case 'own_text': return [el, attached, "const text = await el.evaluate(n => [...n.childNodes].filter(c => c.nodeType === 3).map(c => c.textContent).join(' ').replace(/\\s+/g, ' ').trim())", cmp('text', spec.op, spec.value)]
-    case 'value': return [el, attached, 'const value = await el.inputValue()', cmp('value', spec.op, spec.value)]
+    case 'text': return [el, attached, "const text = ((await el.textContent()) ?? '').trim()", cmp('text', spec.op, spec.value, ctx)]
+    case 'own_text': return [el, attached, "const text = await el.evaluate(n => [...n.childNodes].filter(c => c.nodeType === 3).map(c => c.textContent).join(' ').replace(/\\s+/g, ' ').trim())", cmp('text', spec.op, spec.value, ctx)]
+    case 'value': return [el, attached, 'const value = await el.inputValue()', cmp('value', spec.op, spec.value, ctx)]
     case 'visible': return [el, spec.expect === false ? 'await expect(el).toBeHidden()' : 'await expect(el).toBeVisible()']
     case 'checked': return [el, attached, spec.expect === false ? 'await expect(el).not.toBeChecked()' : 'await expect(el).toBeChecked()']
     case 'count': return [`const count = await page.locator(${q(spec.selector)}).count()`, cmp('count', spec.op ?? 'eq', spec.value)]
-    case 'style': return [el, attached, `const style = await el.evaluate((e, p) => getComputedStyle(e)[p], ${q(String(spec.property))})`, cmp('style', spec.op, spec.value)]
-    case 'attr': return [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).not.toBeNull()', cmp('attr', spec.op, spec.value)]
-    case 'dialog': return ["const dialog = dialogs.at(-1) ?? ''", cmp('dialog', spec.op, spec.value)]
+    case 'style': return [el, attached, `const style = await el.evaluate((e, p) => getComputedStyle(e)[p], ${q(String(spec.property))})`, cmp('style', spec.op, spec.value, ctx)]
+    case 'attr': return [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).not.toBeNull()', cmp('attr', spec.op, spec.value, ctx)]
+    case 'dialog': return ["const dialog = dialogs.at(-1) ?? ''", cmp('dialog', spec.op, spec.value, ctx)]
     case 'api': {
       const lines = ['let res']
       for (const st of spec.steps) lines.push(`res = await request.fetch(${q(st.path)}, { method: ${q(String(st.method || 'GET').toUpperCase())}${st.body !== undefined ? `, data: ${q(st.body)}` : ''} })`)
       lines.push('const body = await res.text()')
       if (spec.status !== undefined) lines.push(`expect(res.status()).toBe(${Number(spec.status)})`)
-      if (spec.header) lines.push(cmp(`res.headers()[${q(String(spec.header.name).toLowerCase())}] ?? ''`, spec.header.op, spec.header.value))
+      if (spec.header) lines.push(cmp(`res.headers()[${q(String(spec.header.name).toLowerCase())}] ?? ''`, spec.header.op, spec.header.value, ctx))
       if (spec.json) {
         lines.push('let parsed', 'try { parsed = JSON.parse(body) } catch {}',
           `const got = ${q(String(spec.json.path))}.split('.').filter(Boolean).reduce((o, k) => (o == null ? undefined : o[k]), parsed)`,
           'expect(got).not.toBeUndefined()',
-          cmp("typeof got === 'object' ? JSON.stringify(got) : got", spec.json.op, spec.json.value))
+          cmp("typeof got === 'object' ? JSON.stringify(got) : got", spec.json.op, spec.json.value, ctx))
       }
       return lines
     }
@@ -82,10 +94,11 @@ export function specSource(f) {
   const delta = f.assert.kind === 'scroll_delta'
   const steps = (delta ? f.history.slice(0, -1) : f.history).flatMap(a => [stepCode(a), ...pause(a)])
   const settle = f.assert.kind === 'api' ? [] : ['await page.waitForTimeout(250)']
+  const ctx = { origin: typeof f.origin === 'string' && ORIGIN_RE.test(f.origin) ? f.origin : null, live: false } // f.origin: where the facts were recorded
   const check = delta
     ? ['const readScroll = () => page.evaluate(() => Math.round(window.scrollY))', 'const before = await readScroll()', stepCode(f.history.at(-1)), ...pause(f.history.at(-1)), ...settle,
        'const after = await readScroll()', `expect(after - before).toBe(${Number(f.assert.value)})`]
-    : [...settle, ...assertionCode(f.assert)]
+    : [...settle, ...assertionCode(f.assert, ctx)]
   return `// Generated by Behique. ${f.id}: ${f.title.replace(/\n/g, ' ')}
 // Expected: ${String(f.expected).replace(/\n/g, ' ')}
 // Actual:   ${String(f.actual).replace(/\n/g, ' ')}
@@ -99,6 +112,7 @@ ${indent([
     "await request.post('/api/reset').catch(() => {})",
     ...(f.readOnly ? ["// The facts were recorded with every request but GET and HEAD blocked, so the test blocks them too.", "await page.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()))"] : []),
     `await page.goto(${q(f.start ?? '/')})`,
+    ...(ctx.live ? [`// The expected value embeds the address the app was served from when it was recorded (${ctx.origin}); compare against this build's address instead.`, 'const live = new URL(page.url()).origin'] : []),
     ...steps,
     ...check,
   ])}
