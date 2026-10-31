@@ -23,7 +23,7 @@ function jsonPath(obj, path) {
 }
 
 export function validSpec(spec) {
-  return spec && typeof spec === 'object' && ['text', 'value', 'visible', 'count', 'checked', 'style', 'dialog', 'attr', 'api'].includes(spec.kind)
+  return spec && typeof spec === 'object' && ['text', 'own_text', 'value', 'visible', 'count', 'checked', 'style', 'dialog', 'attr', 'api'].includes(spec.kind)
 }
 
 export async function evaluate(session, spec) {
@@ -36,6 +36,11 @@ export async function evaluate(session, spec) {
       if (!(await loc().count())) return { pass: false, detail: 'selector not found' }
       const t = ((await loc().textContent()) ?? '').trim()
       return { pass: cmp(spec.op, t, spec.value), detail: `text=${JSON.stringify(t.slice(0, 80))}` }
+    }
+    case 'own_text': { // the text owned by the element itself (its own text nodes, whitespace collapsed): exactly what a recorded text fact holds
+      if (!(await loc().count())) return { pass: false, detail: 'selector not found' }
+      const t = await loc().evaluate(n => [...n.childNodes].filter(c => c.nodeType === 3).map(c => c.textContent).join(' ').replace(/\s+/g, ' ').trim())
+      return { pass: cmp(spec.op, t, spec.value), detail: `own_text=${JSON.stringify(t.slice(0, 80))}` }
     }
     case 'value': {
       if (!(await loc().count())) return { pass: false, detail: 'selector not found' }

@@ -49,6 +49,7 @@ function assertionCode(spec) {
   const attached = 'await expect(el).toBeAttached()'
   switch (spec.kind) {
     case 'text': return [el, attached, "const text = ((await el.textContent()) ?? '').trim()", cmp('text', spec.op, spec.value)]
+    case 'own_text': return [el, attached, "const text = await el.evaluate(n => [...n.childNodes].filter(c => c.nodeType === 3).map(c => c.textContent).join(' ').replace(/\\s+/g, ' ').trim())", cmp('text', spec.op, spec.value)]
     case 'value': return [el, attached, 'const value = await el.inputValue()', cmp('value', spec.op, spec.value)]
     case 'visible': return [el, spec.expect === false ? 'await expect(el).toBeHidden()' : 'await expect(el).toBeVisible()']
     case 'checked': return [el, attached, spec.expect === false ? 'await expect(el).not.toBeChecked()' : 'await expect(el).toBeChecked()']

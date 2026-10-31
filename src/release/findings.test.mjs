@@ -31,11 +31,17 @@ describe('factToFinding', () => {
   it('turns a #text fact into a text finding', () => {
     const d = { i: 2, step: 's', key: 'body/div[1]/p[1]#text', kind: 'changed', was: 'hello', now: 'bye' }
     const f = factToFinding(d, actions, start, emptyBaseline)
-    assert.equal(f.assert.kind, 'text')
+    assert.equal(f.assert.kind, 'own_text') // the element's own text, compared exactly: a longer new text must not pass for the old one
     assert.equal(f.assert.selector, 'xpath=/html/body/div[1]/p[1]')
-    assert.equal(f.assert.op, 'contains')
+    assert.equal(f.assert.op, 'equals')
     assert.equal(f.assert.value, 'hello')
     assert.equal(f.title, 'text of div[1]/p[1] after step 2 keeps the previous release\'s value')
+  })
+
+  it('a #text fact of 300 or more characters is compared with contains (facts cut values there)', () => {
+    const d = { i: 2, step: 's', key: 'body/p[1]#text', kind: 'changed', was: 'x'.repeat(300), now: 'y' }
+    const f = factToFinding(d, actions, start, emptyBaseline)
+    assert.equal(f.assert.kind, 'own_text'); assert.equal(f.assert.op, 'contains')
   })
 
   it('uses contains for values of 300 or more characters', () => {

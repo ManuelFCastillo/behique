@@ -35,7 +35,7 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
   const long = String(d.was).length >= 300 // facts cut values at 300 characters
   const assert = attr
     ? { kind: 'attr', selector, name: attr, op: long ? 'contains' : 'equals', value: d.was }
-    : { kind: 'text', selector, op: 'contains', value: d.was }
+    : { kind: 'own_text', selector, op: long ? 'contains' : 'equals', value: d.was } // the fact is the element's own text, cut at 300 characters: compare it exactly, or a longer new text still contains the old one
   const what = attr ? `${attr} of ${m[1].split('/').slice(-2).join('/')}` : `text of ${m[1].split('/').slice(-2).join('/')}`
   return {
     id, start,
