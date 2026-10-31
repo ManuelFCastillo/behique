@@ -1,6 +1,6 @@
 # Behique status
 
-Last updated 2026-10-28. Hackathon deadline: 2026-11-04 9PM ET (Meta Global AI Developer Hackathon, Cerebral Valley). Track (Indie or Startup) and official judging criteria are NOT verified yet.
+Last updated 2026-10-31. This is the day-by-day log; the one-page summary of what is done, what is left and what stands between this and a product is `docs/CHECKLIST.md`. Hackathon deadline: treat as 2026-11-04 8 PM ET (Meta Global AI Developer Hackathon, Cerebral Valley; our earlier note said 9 PM, a third-party listing says 8 PM). Track (Indie or Startup) and official judging criteria are NOT verified yet.
 
 One line: an autonomous visual QA agent where a bug only counts if a replayable assertion proves it. The demo spine is a two-release regression check: known good release, release candidate, evidence-backed report, a human makes the ship or hold decision.
 
@@ -44,7 +44,7 @@ Demo recording kit (2026-10-29): `docs/DEMO-SCRIPT.md` (PDF copy: `docs/DEMO-SCR
 
 Design notes: full plan and build log in docs/regression-demo-plan.md.
 
-## Missing (as of 2026-10-29)
+## Missing (as of 2026-10-29; items marked DONE were closed by later sections, see `docs/CHECKLIST.md` for the current list)
 
 ### A. To hook the application into the dashboard (~/dev/behique-ui)
 Done (2026-10-29, second piece): **starting and watching runs from the UI.** The hero button is "New run" (and "Cancel run" while one is in progress): a dialog takes app, known case, old and new version (the repository's real tags are offered) and whether to search for the exact change. `POST /api/ui/runs` validates every field (`src/release/runparams.mjs`: strict ref pattern, version must exist, the old version must precede the new one for a search, same version twice becomes a clean run, a case must belong to its app), starts the pipeline in the background (independent of any open page), and enforces one run at a time. `GET /api/ui/runs/current`, `POST /api/ui/runs/cancel`, `GET /api/ui/apps`. The pipeline now records progress as it goes (`bisect.started`, `bisect.step` per step with the range, `bisect.verifying`; run options in `case.opened`), so the RUNNING state is drawn from the record: phase text, a progress bar, elapsed time, claims appearing one by one, search nodes appearing one per step. Cancel stops the builds (builds register themselves; `stopAll`), closes the record as `cancelled`, and leaves no servers behind. Reopening or reloading the page mid-run lands on the running report and carries on. The reports picker shows each run's status. Verified end to end in the browser (clean run, the full Share run with the search, cancel mid-test and mid-search, reload mid-run) and by API (7 refusals create nothing; a second start is refused while one runs).
@@ -54,11 +54,11 @@ Done (2026-10-29, fourth piece): **ask the model why, from the UI, with the pric
 Still to do, in order:
 1. Ship / Hold from the UI: DONE (see above). Remaining caveat: the name field is self-declared, there is no login, so a decision proves nothing about who made it.
 2. Ask the model from the UI: DONE (see the fourth piece above). The real send from the page has been exercised once (2026-10-29, about $0.006).
-3a. Run starts only know the apps and cases registered in `scenarios.mjs` (FreshRSS, two cases); a new app still needs an adapter. Runs started from a terminal are not tracked by the server (it cannot cancel them, and would not stop a dashboard run starting alongside one).
+3a. DONE 2026-10-30/31 for the first half: any repo can be set up from the dashboard (profile proposed by the model, verified by code) and the six benchmark profiles plus FreshRSS and Music Blocks are in the sidebar. Still true: runs started from a terminal are not tracked by the server (it cannot cancel them, and would not stop a dashboard run starting alongside one).
 3. Structured search steps: DONE for new runs (they are recorded as events); reports made before 2026-10-29 are still read from log text.
-5. Visual evidence: the UI promises screenshots and traces; the pipeline captures neither. For attribute-only changes (the Share link) a screenshot looks identical in both versions, so the panes show measured values instead; screenshots would help for visible changes such as the scroll jump.
-6. The nav views Evidence, Bisect, Reports and Settings do not exist; only the Runs screen was designed.
-7. Remove mock content from any non-live copy (the fabricated "Confidence: 99.6% (8/8)", the Replay demo animation, the mock FreshRSS screenshots).
+5. Screenshots DONE 2026-10-30 (`shots.mjs`: good twice for the floor, candidate once, at every confirmed step, with a plain sentence when the change is invisible). Traces are still not captured.
+6. DONE 2026-10-31: Evidence, Bisect, Reports and Settings views exist and work (see "Dashboard in the repo" below).
+7. Mostly DONE: the mock copy in `~/dev/behique-ui` is no longer used, and the fabricated confidence figure and the Replay animation are not in `ui/behique-live.html`. Still there: a drawn FreshRSS placeholder in the build panes for reports without pictures (`.mock` markup, about line 510).
 Fixed while checking: a build that fails to start used to crash and leave an unfinished record; it is now recorded (claim plus `build failed`, shown as FAIL). A clean run now records an explicit "no recorded value differs" claim. A run where nothing changed value but facts disappeared is no longer recommended SHIP (outcome `facts missing`, shown as REVIEW).
 
 ### A2. Repo selector in the left sidebar (2026-10-29): piece 1 DONE
@@ -66,13 +66,13 @@ FreshRSS built in, plus the user's GitHub repos listed through the existing `gh`
 
 ### B. The product itself
 8. The explorer does not find flows unaided on FreshRSS (0 of 2 without a hint) and is not connected to the release pipeline.
-9. One real app only (FreshRSS, two scenarios, the same version pair) plus the planted-bug todo app. Every new app needs a hand-written adapter (install, seed, serve).
-10. Click steps are hand-written; nothing generates them for a new app.
-11. One finding per run: only the first changed fact becomes a test. A release with several regressions shows one; and a vanished element is flagged but never turned into a test.
+9. DONE 2026-10-30/31: six real repos checked in the sandbox plus FreshRSS and Music Blocks; a new app gets a profile proposed by the model and verified by code, no hand-written adapter (Wave 3, Phase 4 sandbox, check bench below).
+10. DONE 2026-10-30: the read-only crawler finds click paths without a model (Wave 3); the FreshRSS regression is reproduced from the crawl alone.
+11. DONE 2026-10-30 for findings: up to `--max-findings` (default 5) changed facts become tests, each judged on its own (Wave 1 wiring). Still true: a vanished element is flagged but never turned into a test.
 12. Facts cover attributes, text and scroll position only: no network responses, console errors, accessibility or visual differences.
 13. No CI integration (the name only), no command-line packaging or config file.
 14. Record integrity: each event protects the ones before it, so the newest event is not protected until another follows, and nothing anchors the head hash outside the folder. "Tamper-evident" holds for earlier entries only.
-15. Only offline unit tests (23); no end-to-end test of the server and pipeline together. The server has no authentication (local use only).
+15. Only offline unit tests (681 as of 2026-10-31); no end-to-end test of the server and pipeline together. The server has no authentication (local use only).
 16. No spend ledger across runs; cost is tracked per report only.
 17. Hackathon rules, track and video limit are unverified. DEADLINE UNCONFIRMED: our notes say Wed 2026-11-04 9 PM ET, but a third-party listing (Internshala) says 5 Nov 2026 6:30 AM IST, which is 8 PM ET on Nov 4 (clocks fall back Nov 1), with judging Nov 5 to 9 and winners Nov 10. The official Cerebral Valley page renders blank for the fetch tool and the browser pane. Treat 8 PM ET on Nov 4 as the deadline until Manny's confirmation email or the official page says otherwise. The demo recording kit exists (docs/DEMO-SCRIPT.md); the recording itself is Manny's to make.
 
