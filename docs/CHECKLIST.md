@@ -58,8 +58,8 @@ Ranked by how much each changes what a user sees. Effort is a guess for one pers
 6. [ ] **Apps behind a login or needing seed data** are out of reach (umami's crawl sees 2 pages). Seed data in the profile, a login step a person approves. Effort: 2 days.
 
 ### Where it runs
-7. [ ] **A command and a CI hook**: `behique check <app> <good> <cand>` as a packaged command, and a GitHub Action that posts the verdict and the report link as a PR or release comment. Without this nothing triggers Behique when a release happens; the name promises it. Effort: 1 to 2 days (the pipeline is already a process with a record; this is packaging and one comment).
-8. [ ] **README.md** at the repo root: what it is, how to start it, what a report means, limits. Effort: 2 hours.
+7. [x] **A command and a CI hook** (2026-10-31). `node bin/behique.mjs check <app> <good> <cand>` (package `bin`: `behique`) runs the pipeline, streams its log, prints the result as Markdown, writes `out/check/<case>.json` and `.md`, and exits 0 SHIP, 1 HOLD, 2 REVIEW, 3 incomplete. `--profile file.json --repo path` takes the profile from the repository under test. `behique comment --result ... --repo owner/name --pr N` posts it through `gh api` as one marked comment, updated on later runs (`--dry-run` prints it). `action.yml` is a composite GitHub Action (inputs: profile, app, good, cand, bisect, max-findings, sandbox, comment, fail-on-hold, github-token; the Markdown also lands in the job summary); `docs/ci.md` has the workflow. Verified: 18 unit tests (`src/release/cli/`), a real `check` on html5-boilerplate v9.0.0 vs v9.0.1 in the hardac2 sandbox (SHIP, exit 0, 22 s), the same through `--profile`, and `comment --dry-run`. Not yet run on GitHub's runners; no real PR was commented on.
+8. [x] **README.md** at the repo root (2026-10-31): what it is, start, the command and the Action, what a report means, limits, tests, doc links.
 9. [ ] Login and identity: decisions are attributed by a typed name; the server is local use only. Not needed for the hackathon.
 10. [ ] Speed, next cut: run the compare phase's recordings through the pool (compare is now 60 to 90 percent of a check and is recording time, not install time); an npm/pnpm/yarn cache volume on hardac2 for first installs; Phase 3 floor cuts (small). Effort: 1 day for the pool part.
 
@@ -83,7 +83,7 @@ Not yet. The engine is strong and unusual: no model in the loop, every claim bac
 In order, each one makes the next better, and the first three fit in four days:
 
 1. DONE 2026-10-31: **ranked findings (item 1) plus "what cannot be seen" (item 2) plus third-party volatility (item 3).** A report now reads, for example, "2 reproduced behaviour changes (1 a person would notice, 1 markup churn)" and "1,223 of 15,259 recorded facts (8.0%) were masked as noise, mostly under body/div[1]/nav[1] (640)". That sentence is the product.
-2. **A command and a PR comment (item 7) and the README (item 8).** After this a judge can run it on their own repo in one line and see the verdict land on a pull request.
+2. DONE 2026-10-31: **a command and a PR comment (item 7) and the README (item 8).** A judge can run it on their own repo in one line; the verdict lands on a pull request through the Action (written and tested here, not yet run on a GitHub runner).
 3. **The video (item 18)**, built on FreshRSS (crawl, confirm, bisect, Hold) plus one of the six repos set up from zero in the dashboard, with the ranked report on screen. Three minutes.
 4. After the hackathon: login and seed data (item 6), more fact kinds (item 4), compare through the pool (item 10), the explorer decision (item 11).
 
