@@ -27,13 +27,13 @@
 </style></head><body>
 
 <h1>Behique: phases and progress review</h1>
-<p class="sub">Status as of 2026-10-30, end of day. For a read-through before more is built. Everything here is marked as measured, built but unmeasured, or not built.</p>
+<p class="sub">Status as of 2026-10-31, covering all work through 2026-10-30 (everything is committed). For a read-through before more is built. Everything here is marked as measured, built but unmeasured, or not built.</p>
 
 <div class="stats">
-  <div class="stat"><span class="num">34</span><small>commits on main (since 2026-10-29)</small></div>
-  <div class="stat"><span class="num">465</span><small>offline tests passing in release, onboard, crawl, ui, sandbox (re-run today)</small></div>
+  <div class="stat"><span class="num">51</span><small>commits on main, none pushed (since 2026-10-29)</small></div>
+  <div class="stat"><span class="num">567</span><small>offline tests passing in release, onboard, crawl, ui, sandbox (612 with bench tests, senses excluded; re-run today)</small></div>
   <div class="stat"><span class="num">~$40</span><small>model spend so far of about $250 credits (estimate)</small></div>
-  <div class="stat"><span class="num">5 days</span><small>to the hackathon deadline (2026-11-04, 9 PM ET, not verified)</small></div>
+  <div class="stat"><span class="num">4 days</span><small>to the hackathon deadline (2026-11-04, 9 PM ET, not verified)</small></div>
 </div>
 
 <h2>1. What Behique is</h2>
@@ -49,9 +49,11 @@
 <tr><td>Wave 1 and 2</td><td>Several findings per run, regions, screenshots, visual runs, set-up from the dashboard.</td><td class="ok">Built, committed</td><td>Share and scroll scenarios unchanged by the wiring.</td></tr>
 <tr><td>Phase 0: Measure</td><td>Does set-up work on real repos?</td><td class="warn">Measured in the sandbox</td><td><b>1 of 6</b> proposals pass as written; <b>6 of 6 verified after the repair loop</b> (1 to 3 rounds each, about $0.10).</td></tr>
 <tr><td>Phase 1: Set-up v2</td><td>Richer repo facts, package-manager and env handling, repair loop, profile format v2.</td><td class="ok">Built, measured</td><td>Repair loop ran on 5 real failing repos: all verified.</td></tr>
-<tr><td>Phase 2: Flow crawl</td><td>Finds click paths with no model, read-only, then compares along them.</td><td class="ok">Built, proven on one app</td><td>Reproduced the FreshRSS Share regression with zero hand-written steps. Tuned on FreshRSS only.</td></tr>
+<tr><td>Phase 2: Flow crawl</td><td>Finds click paths with no model, read-only, then compares along them.</td><td class="ok">Built, run on 7 apps</td><td>Reproduced the FreshRSS Share regression with zero hand-written steps (tuned on FreshRSS). Ran on six other repos, one run each; see section 7.</td></tr>
 <tr><td>Phase 3: Seed data</td><td>Put realistic data in an app that needs it.</td><td class="bad">Not built</td><td>Depends on Phase 4 sidecars.</td></tr>
-<tr><td>Phase 4: Isolation</td><td>Run untrusted repos in Docker with database sidecars.</td><td class="ok">Built, measured on hardac2</td><td>First-party app + Postgres, todomvc and umami (with Postgres) ran in it; see section 6. Uncommitted.</td></tr>
+<tr><td>Phase 4: Isolation</td><td>Run untrusted repos in Docker with database sidecars.</td><td class="ok">Built, measured on hardac2</td><td>First-party app + Postgres, todomvc and umami (with Postgres) ran in it; see section 6. A stalled install is now killed after 8 minutes and retried once.</td></tr>
+<tr><td>Check bench on six repos</td><td>Runs the whole check (crawl, compare, confirm) on each repo in the sandbox and keeps one table.</td><td class="warn">Built, one run per repo</td><td>5 of 6 gave confirmed changes, 1 no change; 0 failed after the noise fix. No ground truth. Section 7.</td></tr>
+<tr><td>Planted-changes bench</td><td>Plants known changes in a small generated app and counts what the check finds.</td><td class="ok">Built, measured</td><td>8 of 8 visible changes found, 7 of 8 confirmed, 0 false positives.</td></tr>
 <tr><td>Phase 5: Cloning</td><td>Clone a repo from the dashboard after a person approves the exact command.</td><td class="warn">Built, previewed only</td><td>Refusals tested; nothing cloned through it. Your own GitHub repos only.</td></tr>
 </table>
 
@@ -115,16 +117,39 @@
 </ul>
 <p><b>Limits:</b> plain Docker (runc) is not a hard wall; before arbitrary repos, move to Firecracker or gVisor. The sidecar proposer missed umami's Postgres (its compose file names a service <code>db</code> with no hint). The repair loop now ran for real (see above) under a narrow standing approval; anything outside it (a new program, npx or dlx, scripts on) stops for a person. Phase 3 (seed data) is not built.</p>
 
-<h2>7. What I would check for "tip top shape"</h2>
+<h2>7. Checks on six real repos (2026-10-30)</h2>
+<p><code>bench/check-bench.mjs</code> runs the full check (crawl the good version, compare both along the crawled paths, confirm each change as a test run 3 times on each side) on each repo in the sandbox on hardac2, and writes one table. The crawl is also graded (good, thin, degenerate, failed) so a result can be read with its coverage in mind.</p>
+<table>
+<tr><th style="width:17%">Repo</th><th style="width:17%">Result</th><th style="width:16%">Crawl</th><th>What it found</th></tr>
+<tr><td>html5-boilerplate</td><td class="warn">no change</td><td>degenerate (landing page only)</td><td>Says little: only one page was reachable.</td></tr>
+<tr><td>excalidraw</td><td class="ok">5 of 5 confirmed</td><td>thin (12 pages)</td><td>Canvas app, so the crawl reaches little of it.</td></tr>
+<tr><td>nextjs-blog</td><td class="ok">5 of 5 confirmed</td><td>good (20 pages)</td><td>1,223 facts had to be masked as noise.</td></tr>
+<tr><td>vitepress</td><td class="ok">1 of 1 confirmed</td><td>good (19 pages)</td><td>The version label: true but trivial. 40 facts masked.</td></tr>
+<tr><td>umami</td><td class="ok">3 of 3 confirmed</td><td>thin (2 pages, login wall)</td><td>Button <code>data-slot</code> attributes and a React-generated id (<code>_r_1_</code> to <code>_r_2_</code>): reproducible, means little.</td></tr>
+<tr><td>todomvc</td><td class="ok">5 of 5 confirmed</td><td>good (35 pages)</td><td>66 facts masked; a rotating four-slot testimonial needed 5 extra recordings.</td></tr>
+</table>
+<div class="box"><b>Read this as:</b> "confirmed" means the test passes on the good version and fails on the candidate every time. It does <b>not</b> mean the change matters, and there is no ground truth for these repos. Each result is one run.</div>
+<h3>What it took</h3>
+<ul>
+<li>The first full run gave <b>1 confirmed, 1 no change, 4 failed</b>. Three failed because the good version compared with itself still differed (a rotating testimonial, a locale that flipped at one step, a dialog open in one recording). One was an install that hit the 15-minute limit.</li>
+<li>Fix: facts the control disagrees on now join the noise mask (an element noisy at three or more steps is masked at every step), and a fresh control must come back clean, up to 5 extra recordings. <b>Cost: a real change inside a masked fact cannot be seen.</b> This needs a second look.</li>
+<li>Also fixed: a 3 s navigation limit that left excalidraw with 0 pages (now 30 s, and the reason is logged); a crawl with nothing to click now loads <code>/</code>; text findings compare the element's own text exactly (<code>own_text</code>) because a substring check made text changes unconfirmable; a stalled-install watchdog (8 minutes without output, one retry on a fresh container, not yet seen to trigger on a real repo).</li>
+<li>Run times were 1 to 38 minutes per repo, mostly installs and builds.</li>
+</ul>
+<h3>Planted changes</h3>
+<p><code>bench/planted-bench.mjs</code> (a small generated app, 9 single changes plus a comment-only change): <b>8 of 8 visible changes found, 7 of 8 confirmed as a test, 0 false positives</b> on the comment-only change. The one found but not provable is an added <code>disabled</code> attribute (an added fact has no value to assert against); a background-colour change is left to the picture check.</p>
+
+<h2>8. What I would check for "tip top shape"</h2>
 <h3>Run these (all safe, nothing is installed from third-party repos)</h3>
 <pre>cd ~/dev/behique
-git status                      # new: src/release/sandbox/, docs/sandbox.md, specs 20 to 22, small edits to build.mjs and profile.mjs (not committed yet)
-git log --oneline | head -10    # the seven overnight commits are there
+git status                      # clean: everything is committed
+git log --oneline | head -12    # check bench, noise learning, watchdog and demo script commits are on top
 node --test src/release/*.test.mjs src/release/onboard/*.test.mjs \
   src/release/crawl/*.test.mjs src/release/ui/*.test.mjs \
-  src/release/sandbox/*.test.mjs   # expect 465 pass, 0 fail</pre>
+  src/release/sandbox/*.test.mjs   # expect 567 pass, 0 fail</pre>
 <h3>Look at by hand</h3>
 <ul>
+<li><code>out/check-bench/</code> (the saved tables of the six-repo runs; the last row of each repo is the final result) and <code>docs/STATUS.md</code>, section 'Checks on real repos'.</li>
 <li><code>docs/overnight-log.md</code> and <code>docs/onboarding-baseline.md</code>: the honest account of the overnight run and what is unmeasured.</li>
 <li><code>docs/STATUS.md</code>: the full list of what is built and the known limits.</li>
 <li><code>docs/specs/wave3/</code> (specs 13 to 22): what each Muse module was told to do, in plain English.</li>
@@ -132,19 +157,20 @@ node --test src/release/*.test.mjs src/release/onboard/*.test.mjs \
 </ul>
 <h3>Known weak spots</h3>
 <ul>
-<li>The crawler is tuned on one app. A second app is the real test.</li>
-<li>The repair results are one run per repo on six public repos we picked; not repeated, not a success rate.</li>
+<li>The crawler was tuned on one app and has now run on six more, once each, with thin or degenerate coverage on three of them (excalidraw, umami, html5-boilerplate). No login or seeded data, so apps behind a login are out of reach.</li>
+<li>The repair and check results are one run per repo on six public repos we picked; not repeated, not a success rate.</li>
+<li>Noise learning hides facts (nextjs-blog 1,223, todomvc 66, vitepress 40); a real change inside them would be missed.</li>
 <li><code>~/dev/behique-ui/behique-live.html</code> (the dashboard page) is <b>not under git</b>; backups exist only in a scratch folder.</li>
 <li>A Ship or Hold decision's name is typed in, so it is attribution by honour, not identity.</li>
-<li>The demo script is out of date: Share now has 2 findings, plus the Music Blocks segment, the set-up flow and the crawl.</li>
+<li>The demo script was updated on 2026-10-30 (new beat 10 shows the six-repo results as saved runs, not live); the live beats still use hand-written FreshRSS steps.</li>
 </ul>
 
-<h2>8. Open questions for you</h2>
+<h2>9. Open questions for you</h2>
 <ul>
 <li><b>Hackathon rules:</b> the deadline (8 or 9 PM ET), track, video length limit and whether Muse Code is expected are all unverified. Please paste them from the confirmation email or official page.</li>
-<li><b>Order after Phase 4:</b> Phase 3 seed data, or update the demo script and record? With five days left I would update the demo script next, then record.</li>
+<li><b>What next, with four days left:</b> the demo script is updated, so the options are rehearse and record, repeat the six-repo runs to see how stable they are, or build Phase 3 seed data and login so umami-type apps can be crawled.</li>
 <li><b>Credits:</b> Meta API about $146 left of $150; Baseten about $70 of $100 (estimates). Canvas work was allowed $10 and has used about $2. The Phase 4 Muse builds cost about $0.35 in all (three specs, one rebuilt).</li>
 </ul>
 
-<p class="small">Sources: docs/STATUS.md, docs/overnight-log.md, docs/onboarding-baseline.md, git log, the hardac2 read-only check on 2026-10-30. Numbers marked estimate come from those notes and were not re-measured today, except the test count and commit count.</p>
+<p class="small">Sources: docs/STATUS.md, docs/overnight-log.md, docs/onboarding-baseline.md, out/check-bench, git log. Numbers marked estimate come from those notes and were not re-measured today, except the test counts and commit count.</p>
 </body></html>
