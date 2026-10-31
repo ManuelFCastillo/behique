@@ -25,7 +25,13 @@ function startFeedServer({ dir, port }) {
 const active = new Set() // running builds, so a cancelled run can stop them all (a killed process would leave its servers behind)
 export async function stopAll() { await Promise.all([...active].map(b => b.stop())) }
 
-export async function startBuild({ adapter, ref, port, sandbox = sandboxConfigFromEnv(process.env) }) {
+let timing = null // set by the check that is running (confirm.mjs): every successful build is noted with its phase, time and whether it was cached
+export function setTiming(t) { timing = t }
+const noted = b => { try { timing?.note(b) } catch {} return b }
+
+export async function startBuild(opts) { return noted(await startBuildInner(opts)) }
+
+async function startBuildInner({ adapter, ref, port, sandbox = sandboxConfigFromEnv(process.env) }) {
   const t0 = Date.now()
   // an app set up from a repository we do not control runs in a sandbox when one is configured (BEHIQUE_SANDBOX), never as a process here
   if (sandbox && adapter.profile) return startSandboxedBuild({ adapter, ref, port, config: sandbox, register: active })

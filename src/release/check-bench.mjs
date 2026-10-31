@@ -1,6 +1,8 @@
 // Run a full release check on many apps and keep one table of what happened.
 // Pure logic: the runner that starts `node` and the cleanup are injected, so tests use fakes.
 //   node --test src/release/check-bench.test.mjs
+import { parseTimingLine } from './timing.mjs'
+
 const ID_RE = /^[A-Za-z0-9\-_.]{1,40}$/
 const APP_RE = /^[a-z0-9-]+$/
 const REF_RE = /^[A-Za-z0-9._/-]{1,100}$/
@@ -32,6 +34,7 @@ export function parseCheckOutput(lines) {
       controlDifferences: null,
       candidateDifferences: null,
       learnedFacts: null,
+      timing: null,
       findings: [],
       confirmed: 0,
       total: 0,
@@ -88,6 +91,9 @@ export function parseCheckOutput(lines) {
 
       m = line.match(/^noise learned from the control:\s*(\d+)\s+more facts/)
       if (m) { out.learnedFacts = toInt(m[1]); continue }
+
+      const tl = parseTimingLine(line)
+      if (tl) { out.timing = tl; continue }
 
       m = line.match(/^control run shows\s+(\d+)\s+differences/)
       if (m) { seenNoisy = toInt(m[1]); continue }
@@ -252,8 +258,8 @@ function cell(s) {
 /** Render results as one markdown table plus a totals line. */
 export function renderTable(results) {
   const list = Array.isArray(results) ? results : []
-  const header = '| App | Versions | Outcome | Crawl (states/steps) | Control diffs | Candidate diffs | Findings (confirmed/total) | Seconds | Note |'
-  const sep = '|---|---|---|---|---|---|---|---|---|'
+  const header = '| App | Versions | Outcome | Crawl (states/steps) | Control diffs | Candidate diffs | Findings (confirmed/total) | Seconds | Phases compare/tests/shots s (builds, cached) | Note |'
+  const sep = '|---|---|---|---|---|---|---|---|---|---|'
   const rows = list.map(r => {
     const app = r?.app ?? '-'
     const versions = r?.good != null && r?.cand != null ? `${r.good} to ${r.cand}` : '-'
@@ -264,9 +270,11 @@ export function renderTable(results) {
     const candidate = typeof r?.candidateDifferences === 'number' ? String(r.candidateDifferences) : '-'
     const findings = `${typeof r?.confirmed === 'number' ? r.confirmed : 0}/${typeof r?.total === 'number' ? r.total : 0}`
     const seconds = typeof r?.seconds === 'number' ? String(r.seconds) : '-'
+    const ph = r?.timing?.phases
+    const phases = ph ? ['compare', 'tests', 'shots'].map(k => `${Math.round(ph[k]?.seconds ?? 0)} (${ph[k]?.builds ?? 0}, ${ph[k]?.cached ?? 0})`).join(' / ') : '-'
     let note = r?.error == null ? '' : String(r.error)
     note = note.replace(/\|/g, '/').slice(0, 80)
-    return `| ${cell(app)} | ${cell(versions)} | ${cell(outcome)} | ${cell(crawl)} | ${cell(control)} | ${cell(candidate)} | ${cell(findings)} | ${cell(seconds)} | ${cell(note)} |`
+    return `| ${cell(app)} | ${cell(versions)} | ${cell(outcome)} | ${cell(crawl)} | ${cell(control)} | ${cell(candidate)} | ${cell(findings)} | ${cell(seconds)} | ${cell(phases)} | ${cell(note)} |`
   })
   const n = list.length
   const c = outcome => list.filter(r => r?.outcome === outcome).length
