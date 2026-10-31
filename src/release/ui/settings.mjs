@@ -5,12 +5,16 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname } from 'node:path'
 
 export const HOST_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/ // an ssh alias or host name: no user@, no port, no slashes, never a flag
-export const DEFAULTS = { sandbox: { mode: 'off', host: '', memoryMb: null, cpus: null } }
+export const DEFAULTS = { sandbox: { mode: 'off', host: '', memoryMb: null, cpus: null }, speed: { pool: 3, cache: true } }
+// speed: how many builds run at once in a sandbox (1 to 8; always 1 on this machine), and whether installed builds are kept per commit (BEHIQUE_CACHE)
 
 /** The settings that BEHIQUE_SANDBOX and its limits describe, or the defaults for an empty or unknown value. */
 export function settingsFromEnv(env = process.env) {
   const v = env.BEHIQUE_SANDBOX
-  const out = { sandbox: { ...DEFAULTS.sandbox } }
+  const out = { sandbox: { ...DEFAULTS.sandbox }, speed: { ...DEFAULTS.speed } }
+  const pool = Number(env.BEHIQUE_POOL)
+  if (Number.isInteger(pool) && pool >= 1 && pool <= 8) out.speed.pool = pool
+  if (env.BEHIQUE_CACHE === 'off') out.speed.cache = false
   if (v === 'docker') out.sandbox.mode = 'local'
   else if (typeof v === 'string' && v.startsWith('docker:ssh://') && HOST_RE.test(v.slice('docker:ssh://'.length))) { out.sandbox.mode = 'ssh'; out.sandbox.host = v.slice('docker:ssh://'.length) }
   const mem = Number(env.BEHIQUE_SANDBOX_MEMORY_MB), cpus = Number(env.BEHIQUE_SANDBOX_CPUS)
@@ -34,7 +38,10 @@ export function validateSettings(input) {
   }
   const mem = num(s.memoryMb, 512, 16384, 'Memory (MB)', true); if (mem.error) return { ok: false, error: mem.error }
   const cpus = num(s.cpus, 0.5, 16, 'CPUs', false); if (cpus.error) return { ok: false, error: cpus.error }
-  return { ok: true, settings: { sandbox: { mode: s.mode, host, memoryMb: mem.v, cpus: cpus.v } } }
+  const sp = input.speed && typeof input.speed === 'object' ? input.speed : {}
+  const pool = num(sp.pool, 1, 8, 'Builds at once', true); if (pool.error) return { ok: false, error: pool.error }
+  const cache = sp.cache === undefined || sp.cache === null || sp.cache === '' ? true : sp.cache === true || sp.cache === 'true' || sp.cache === 'on'
+  return { ok: true, settings: { sandbox: { mode: s.mode, host, memoryMb: mem.v, cpus: cpus.v }, speed: { pool: pool.v ?? DEFAULTS.speed.pool, cache } } }
 }
 
 /** Put the settings into an environment object (process.env on the server). Every value was validated, so none can become a flag. */
@@ -44,6 +51,9 @@ export function applySettings(settings, env = process.env) {
   else env.BEHIQUE_SANDBOX = s.mode === 'local' ? 'docker' : `docker:ssh://${s.host}`
   if (s.memoryMb) env.BEHIQUE_SANDBOX_MEMORY_MB = String(s.memoryMb); else delete env.BEHIQUE_SANDBOX_MEMORY_MB
   if (s.cpus) env.BEHIQUE_SANDBOX_CPUS = String(s.cpus); else delete env.BEHIQUE_SANDBOX_CPUS
+  const sp = settings.speed ?? DEFAULTS.speed
+  env.BEHIQUE_POOL = String(sp.pool ?? DEFAULTS.speed.pool)
+  if (sp.cache === false) env.BEHIQUE_CACHE = 'off'; else delete env.BEHIQUE_CACHE
   return env
 }
 

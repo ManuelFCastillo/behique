@@ -556,6 +556,8 @@ img,svg{max-width:100%}
 <div class="set-row"><label for="setMode">Run checks</label><select id="setMode"><option value="off">On this machine (static apps only)</option><option value="local">In local Docker (OrbStack)</option><option value="ssh">In Docker on another machine (ssh)</option></select></div>
 <div class="set-row" id="setHostRow"><label for="setHost">ssh host</label><input id="setHost" type="text" placeholder="hardac2" autocomplete="off" spellcheck="false"><span class="hint">An alias from your ssh config. Keys only, no password prompt.</span></div>
 <div class="set-row" id="setLimitRow"><label for="setMem">Memory per app (MB)</label><input id="setMem" type="number" min="512" max="16384" step="512" placeholder="4096 (default)"><label for="setCpus" style="min-width:auto">CPUs</label><input id="setCpus" type="number" min="0.5" max="16" step="0.5" placeholder="4 (default)"><span class="hint">Big builds such as Next.js need about 10240.</span></div>
+<div class="set-row" id="setSpeedRow"><label for="setPool">Builds at once</label><input id="setPool" type="number" min="1" max="8" step="1" placeholder="3"><span class="hint">Test runs and screenshots in a sandbox run this many at a time (always 1 on this machine).</span></div>
+<div class="set-row"><label for="setCache">Keep installed builds</label><input id="setCache" type="checkbox" checked><span class="hint">The first build of a commit is kept as an image, so later runs of it start in seconds. Untick for a fully fresh check.</span></div>
 <div class="set-row"><button class="mini-btn" id="setSave" type="button">Save</button><button class="mini-btn" id="setTest" type="button">Test connection</button><span class="set-msg" id="setMsg" role="status"></span></div>
 <dl class="set-facts" id="setFacts"></dl>
 </section>
@@ -585,6 +587,7 @@ img,svg{max-width:100%}
 <div><label class="f" for="runCand">New version</label><input type="text" id="runCand" list="runTags" autocomplete="off" spellcheck="false"></div></div>
 <datalist id="runTags"></datalist>
 <label class="chk"><input type="checkbox" id="runBisect" checked> Search for the exact change if the behaviour differs</label>
+<label class="chk" id="runRecrawlWrap"><input type="checkbox" id="runRecrawl"> Crawl the old version again, even if a crawl of this commit is saved</label>
 <div class="about" id="runTime"></div>
 <div class="err" id="runErr" role="alert"></div>
 <div class="btns"><button class="mini-btn" id="runCancelDlg" type="button">Cancel</button><button class="mini-btn" id="runStart" type="button">Start run</button></div>
@@ -1187,7 +1190,7 @@ async function openRunDialog(){
 function fillRunApp(){
   const a=RUN.apps.find(x=>x.name===$("runApp").value)||RUN.apps[0]; if(!a) return;
   const types=a.kind==="visual"?["visual","crawl"]:["case","crawl"], sel=$("runType"); sel.textContent=""; types.forEach(t=>{ const o=document.createElement("option"); o.value=t; o.textContent=RUN_TYPES[t][0]; sel.appendChild(o); });
-  $("runTypeAbout").textContent=RUN_TYPES[types[0]][1]; $("runCaseWrap").hidden = types[0]!=="case";
+  $("runTypeAbout").textContent=RUN_TYPES[types[0]][1]; $("runCaseWrap").hidden = types[0]!=="case"; $("runRecrawlWrap").hidden = types[0]!=="crawl";
   const cs=$("runCase"); cs.textContent=""; a.scenarios.forEach(sc=>{ const o=document.createElement("option"); o.value=sc.name; o.textContent=sc.label; cs.appendChild(o); });
   const dl=$("runTags"); dl.textContent=""; a.tags.forEach(t=>{ const o=document.createElement("option"); o.value=t; dl.appendChild(o); });
   $("runGood").value=(a.defaults&&a.defaults.good)||""; $("runCand").value=(a.defaults&&a.defaults.cand)||""; showRunAbout(); updateRunTime();
@@ -1206,7 +1209,7 @@ async function startRun(){
   const btn=$("runStart"); if(btn.disabled) return; $("runErr").textContent=""; btn.disabled=true;
   try{
     const visual=runIsVisual(), crawl=runType()==="crawl";
-    const body=crawl ? { kind:"crawl", app:$("runApp").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked } : visual ? { kind:"visual", app:$("runApp").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked } : { app:$("runApp").value, scenario:$("runCase").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked };
+    const body=crawl ? { kind:"crawl", app:$("runApp").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked, recrawl:$("runRecrawl").checked } : visual ? { kind:"visual", app:$("runApp").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked } : { app:$("runApp").value, scenario:$("runCase").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked };
     const r=await fetch("/api/ui/runs",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }), j=await r.json();
     if(!r.ok){ $("runErr").textContent=j.error||"Could not start the run."; btn.disabled=false; return; }
     $("runOverlay").classList.remove("open"); btn.disabled=false; showToast(j.note||"Run started","green");
@@ -1312,7 +1315,7 @@ function initRunUi(){
   $("setupOpen").addEventListener("click",openSetup); $("setupClose").addEventListener("click",()=>$("setupOverlay").classList.remove("open"));
   $("setupReview").addEventListener("click",reviewSetup); $("setupSend").addEventListener("click",sendSetup); $("setupVerify").addEventListener("click",verifySetup);
   $("replayBtn").addEventListener("click",()=>{ RUN.running?cancelRun():openRunDialog(); });
-  $("runApp").addEventListener("change",fillRunApp); $("runType").addEventListener("change",()=>{ $("runTypeAbout").textContent=RUN_TYPES[runType()][1]; $("runCaseWrap").hidden=runType()!=="case"; updateRunTime(); }); $("runCase").addEventListener("change",showRunAbout);
+  $("runApp").addEventListener("change",fillRunApp); $("runType").addEventListener("change",()=>{ $("runTypeAbout").textContent=RUN_TYPES[runType()][1]; $("runCaseWrap").hidden=runType()!=="case"; $("runRecrawlWrap").hidden=runType()!=="crawl"; updateRunTime(); }); $("runCase").addEventListener("change",showRunAbout);
   ["runGood","runCand"].forEach(i=>$(i).addEventListener("input",updateRunTime)); $("runBisect").addEventListener("change",updateRunTime);
   $("runCancelDlg").addEventListener("click",()=>$("runOverlay").classList.remove("open"));
   $("runStart").addEventListener("click",startRun);
@@ -1479,7 +1482,7 @@ async function openReport(c){
 }
 // ---- settings ----
 let SET=null;
-function syncSettingsForm(){ const m=$("setMode").value; $("setHostRow").hidden=m!=="ssh"; $("setLimitRow").hidden=m==="off"; }
+function syncSettingsForm(){ const m=$("setMode").value; $("setHostRow").hidden=m!=="ssh"; $("setLimitRow").hidden=m==="off"; $("setSpeedRow").hidden=m==="off"; }
 function setMsg(text,kind){ const m=$("setMsg"); m.textContent=text||""; m.className="set-msg"+(kind?" "+kind:""); }
 function renderFacts(){
   const f=$("setFacts"); f.textContent=""; if(!SET) return;
@@ -1489,10 +1492,11 @@ function renderFacts(){
 async function loadSettingsUi(){
   try{ SET=await fetch("/api/ui/settings").then(r=>r.json()); }catch(e){ setMsg("Could not load settings: "+e.message,"bad"); return; }
   const s=SET.settings.sandbox; $("setMode").value=s.mode; $("setHost").value=s.host||""; $("setMem").value=s.memoryMb||""; $("setCpus").value=s.cpus||"";
+  const sp=SET.settings.speed||{pool:3,cache:true}; $("setPool").value=sp.pool||3; $("setCache").checked=sp.cache!==false;
   syncSettingsForm(); renderFacts(); setMsg(SET.running?"A check is running: settings can be changed when it finishes.":"");
   $("setSave").disabled=Boolean(SET.running);
 }
-function settingsForm(){ return {sandbox:{mode:$("setMode").value,host:$("setHost").value,memoryMb:$("setMem").value,cpus:$("setCpus").value}}; }
+function settingsForm(){ return {sandbox:{mode:$("setMode").value,host:$("setHost").value,memoryMb:$("setMem").value,cpus:$("setCpus").value},speed:{pool:$("setPool").value||3,cache:$("setCache").checked}}; }
 async function saveSettingsUi(){
   setMsg("Saving...");
   const body=settingsForm();
