@@ -140,6 +140,31 @@ describe('selectFindings', () => {
     assert.ok(skipped.every(s => s.why === 'over the limit of 1 findings'))
   })
 
+  it('ranks what a person would notice first, so ids and the cap follow the class', () => {
+    const changed = [
+      fact('body/div[1]/label[1]@for', 1, '_r_1_', '_r_2_'), // churn
+      fact('body/div[1]/button[1]@data-slot', 1, '', 'button'), // churn
+      fact('body/div[1]/p[1]#text', 2, 'for the last decade', 'for over a decade'), // visible
+      fact('body/div[1]/a[1]@href', 3, '/docs/a', '/docs/b'), // visible
+    ]
+    const { findings, skipped } = selectFindings(changed, actions, start, emptyBaseline, { max: 3 })
+    assert.deepEqual(findings.map(f => [f.id, f.fact.key, f.notice.cls]), [
+      ['R1', 'body/div[1]/p[1]#text', 'visible'], ['R2', 'body/div[1]/a[1]@href', 'visible'], ['R3', 'body/div[1]/label[1]@for', 'churn'],
+    ])
+    assert.deepEqual(skipped, [{ key: 'body/div[1]/button[1]@data-slot', i: 1, why: 'over the limit of 3 findings' }])
+    assert.equal(findings[0].notice.why, 'text a person reads')
+  })
+
+  it('never turns third-party content into a finding, and says so', () => {
+    const changed = [
+      fact('body/div[1]/span[1]/a[1]/img[1]@src', 1, 'https://srv.carbonads.net/static/1/aaaaaaaaaaaa', 'https://srv.carbonads.net/static/1/bbbbbbbbbbbb'),
+      fact('body/div[1]/img[1]@src', 1, 'http://127.0.0.1:8300/a.png', 'http://127.0.0.1:8300/b.png'),
+    ]
+    const { findings, skipped } = selectFindings(changed, actions, start, emptyBaseline, { origin: 'http://127.0.0.1:8300' })
+    assert.deepEqual(findings.map(f => [f.id, f.fact.key]), [['R1', 'body/div[1]/img[1]@src']])
+    assert.deepEqual(skipped, [{ key: 'body/div[1]/span[1]/a[1]/img[1]@src', i: 1, why: "third-party content (content loaded from srv.carbonads.net, not the app's own)" }])
+  })
+
   it('ignores added, removed and moved facts', () => {
     const changed = [
       { i: 1, step: 's', key: 'body/div[1]/a[1]@href', kind: 'added', was: null, now: 'x' },

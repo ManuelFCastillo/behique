@@ -1,6 +1,7 @@
 // Pure logic for turning changed facts into findings and judging them.
 // Run offline: node --test src/release/findings.test.mjs
 // A person wires this into confirm.mjs afterwards.
+import { noticeOf, rankFindings } from './notice.mjs'
 
 /**
  * A changed fact as a finding the exporter understands, or null if it cannot be turned into a test.
@@ -47,9 +48,13 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
 
 /**
  * Turn the ranked changed facts into at most max findings, earliest step per key first.
+ * Each finding carries `notice` ({ cls, why }: would a person notice it, see notice.mjs). Findings are ordered by that class,
+ * visible before churn, so the cap keeps what a person would notice and R1 is the most noticeable; the given order holds inside a
+ * class. Third-party content (an ad, a widget loaded from another host) never becomes a finding: it is skipped and listed as such.
+ * `origin` is where the facts were recorded, so its host counts as the app's own.
  * Returns { findings, skipped } where skipped entries look like { key, i, why }.
  */
-export function selectFindings(changed, actions, start, baseline, { max = 5 } = {}) {
+export function selectFindings(changed, actions, start, baseline, { max = 5, origin = null } = {}) {
   if (!Array.isArray(changed)) return { findings: [], skipped: [] }
   const list = changed.filter(d => d && d.kind === 'changed' && typeof d.key === 'string')
   if (list.length === 0) return { findings: [], skipped: [] }
@@ -76,12 +81,16 @@ export function selectFindings(changed, actions, start, baseline, { max = 5 } = 
   for (const d of list) {
     if (earliest.get(d.key) === d && !kept.includes(d)) kept.push(d)
   }
-  const findings = []
-  let n = 0
+  const testable = []
   for (const d of kept) {
+    const notice = noticeOf(d, { origin })
+    if (notice.cls === 'third_party') {
+      skipped.push({ key: d.key, i: d.i, why: `third-party content (${notice.why})` })
+      continue
+    }
     let finding = null
     try {
-      finding = factToFinding(d, actions, start, baseline, `R${n + 1}`)
+      finding = factToFinding(d, actions, start, baseline, 'R0')
     } catch {
       finding = null
     }
@@ -89,12 +98,15 @@ export function selectFindings(changed, actions, start, baseline, { max = 5 } = 
       skipped.push({ key: d.key, i: d.i, why: 'cannot be written as a test' })
       continue
     }
-    n += 1
+    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now } })
+  }
+  const findings = []
+  for (const f of rankFindings(testable)) {
     if (findings.length >= cap) {
-      skipped.push({ key: d.key, i: d.i, why: `over the limit of ${cap} findings` })
+      skipped.push({ key: f.fact.key, i: f.fact.i, why: `over the limit of ${cap} findings` })
       continue
     }
-    findings.push({ ...finding, fact: { key: d.key, i: d.i, was: d.was, now: d.now } })
+    findings.push({ ...f, id: `R${findings.length + 1}` })
   }
   return { findings, skipped }
 }

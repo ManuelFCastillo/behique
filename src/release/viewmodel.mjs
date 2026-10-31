@@ -3,14 +3,17 @@
 //
 // Verdict is Behique's RECOMMENDATION from the record, never a decision (a person decides):
 //   running       no case.closed event yet (or none and the last event is under 15 minutes old)
-//   hold          a replayable test proved the behaviour differs (a reproduced_failure claim exists)
-//   ship          the run closed with no changed facts: nothing differed in the recorded steps
+//   hold          a replayable test proved the behaviour differs (a reproduced_failure claim exists) and at least one proven change
+//                 is something a person would notice (or the report predates the classes)
+//   ship          the run closed with no changed facts: nothing differed in the recorded steps; or every proven change is markup
+//                 churn (generated ids, framework attributes), which the sub line says plainly
 //   inconclusive  changes were seen but not proven by a stable, repeatable test
 //   fail          evidence is incomplete: the noise filter could not be trusted, the build failed, or the run died
 import { readFileSync } from 'node:fs'
 import { appOfOpened } from './appregistry.mjs'
 import { visualView } from './ui/visual-view.mjs'
 import { sha, summarize } from './evidence.mjs'
+import { LABEL, RANK, maskedSentence, noticeSummary } from './notice.mjs'
 
 const STALE_MS = 15 * 60 * 1000
 const APP_NAMES = { freshrss: 'FreshRSS' }
@@ -27,12 +30,44 @@ const sha7 = s => String(s ?? '').slice(0, 7)
 export function verdictOf(events, s, now = Date.now()) {
   const closed = events.find(e => e.type === 'case.closed')
   if (!closed) return now - Date.parse(events.at(-1).ts) > STALE_MS ? 'fail' : 'running'
-  if (s.claims.some(c => c.label === 'reproduced_failure')) return 'hold'
+  if (s.claims.some(c => c.label === 'reproduced_failure')) return churnOnly(events) ? 'ship' : 'hold'
   switch (closed.data.outcome) {
     case 'no changed facts': case 'no candidate defects': return 'ship'
     case 'masking not trustworthy': case 'build failed': case 'cancelled': return 'fail'
     default: return 'inconclusive'
   }
+}
+
+const whereOf = key => key.replace(/(@[^/]+|#text)$/, '').split('/').slice(-2).join('/')
+const whatOf = key => key.match(/@([^/]+)$/)?.[1] ?? (key === 'window@scrollY' ? 'scrollY' : 'text')
+const unquote = v => { try { return JSON.parse(v) } catch { return v } }
+
+/** The exported findings, most noticeable first: id, class, why, where, what, both values, step and verdict. Empty for older reports. */
+export function findingsView(events) {
+  const verdicts = new Map(events.filter(e => e.type === 'test.judged').map(e => [e.data.id, e.data.verdict]))
+  const list = events.filter(e => e.type === 'test.exported' && typeof e.data.fact === 'string').map(e => {
+    const d = e.data, cls = d.notice?.cls ?? null
+    return { id: d.id, cls, label: cls ? LABEL[cls] : null, why: d.notice?.why ?? null, where: whereOf(d.fact), what: whatOf(d.fact), was: unquote(d.good), now: unquote(d.candidate), step: d.i ?? null, verdict: verdicts.get(d.id) ?? 'pending' }
+  })
+  return list.map((f, i) => [f, i]).sort((a, b) => (RANK[a[0].cls] ?? 9) - (RANK[b[0].cls] ?? 9) || a[1] - b[1]).map(([f]) => f)
+}
+
+/** The build panes' rows: the findings when the report has them (ranked, with their class), else the first changed facts as before. */
+function factsView(events, changed) {
+  const findings = findingsView(events)
+  if (findings.length) return findings.slice(0, 5).map(f => ({ where: f.where, what: f.what, was: f.was, now: f.now, step: f.step ?? '', id: f.id, cls: f.cls, label: f.label, why: f.why, verdict: f.verdict }))
+  return changed.slice(0, 4).map(d => ({ where: whereOf(d.key), what: whatOf(d.key), was: d.was, now: d.now, step: d.step }))
+}
+
+/** What the check could not see: the masked facts and where they sit, as one sentence, or null for an older report. */
+function maskedView(events) {
+  const m = events.find(e => e.type === 'masking.summary')?.data
+  return m ? { masked: m.masked, total: m.total, areas: m.areas ?? [], text: maskedSentence({ masked: m.masked, total: m.total, areas: m.areas ?? [] }) } : null
+}
+
+/** True when every confirmed finding is classed as markup churn (needs the classes, so never true for an older report). */
+export function churnOnly(events) {
+  return noticeSummary(events.filter(e => e.type === 'test.judged').map(e => e.data)).churnOnly
 }
 
 /** The tested steps plus evenly spaced inferred commits, at most 15 nodes, each good / culprit / bad by position. */
@@ -136,9 +171,12 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const nProven = o.kind === 'canvas' || o.kind === 'visual' ? s.claims.filter(k => k.label === 'reproduced_failure').length : judged.length ? judged.filter(e => e.data.verdict === 'confirmed').length : events.filter(e => e.type === 'test.exported').length // a canvas case proves a change with a reproduced failure, not an exported test
   const last = s.decision
   const progress = progressOf(events, s, steps.length ? stepEv : [])
+  const ns = noticeSummary(judged.map(e => e.data)) // how many proven changes a person would notice, and how many are markup churn
+  const classed = judged.some(e => e.data.notice?.cls)
+  const bisectNote = bisect ? (bisect.partial ? `, search ${events.find(e => e.type === 'case.closed')?.data.outcome === 'cancelled' ? 'cancelled' : 'not finished'} after ${bisect.steps} step${bisect.steps === 1 ? '' : 's'}` : `, ${bisect.changes} commits bisected in ${bisect.steps} steps`) : ''
   const sub = {
-    hold: `${nProven} reproduced behaviour change${nProven === 1 ? '' : 's'}${bisect ? (bisect.partial ? `, search ${events.find(e => e.type === 'case.closed')?.data.outcome === 'cancelled' ? 'cancelled' : 'not finished'} after ${bisect.steps} step${bisect.steps === 1 ? '' : 's'}` : `, ${bisect.changes} commits bisected in ${bisect.steps} steps`) : ''}`,
-    ship: 'No behaviour changes found in the recorded steps',
+    hold: `${nProven} reproduced behaviour change${nProven === 1 ? '' : 's'}${classed ? ` (${ns.visible} a person would notice, ${ns.churn} markup churn)` : ''}${bisectNote}`,
+    ship: ns.churnOnly ? `Only markup churn changed: ${ns.churn} proven change${ns.churn === 1 ? '' : 's'} (generated ids, framework attributes), nothing a person would notice${bisectNote}` : 'No behaviour changes found in the recorded steps',
     inconclusive: 'Changes seen, but not proven by a repeatable test',
     fail: events.find(e => e.type === 'case.closed')?.data.outcome === 'cancelled' ? 'Run cancelled, evidence incomplete' : 'Evidence incomplete',
     running: progress?.text ?? 'Running verification, please wait',
@@ -155,7 +193,9 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
     id: caseId, appId: appOfOpened(o), title: o.kind === 'canvas' ? `Canvas test app: ${o.candRef} (candidate) vs ${o.goodRef} (good)` : `${app} ${o.goodRef} (good) vs ${o.candRef} (candidate)`, app, goodRef: o.goodRef, candRef: o.candRef,
     scenario: o.scenario ?? null, verdict, sub, failReason, progress, claims, bisect, pictures, visual: visualView(c, { caseId }),
     culpritClaimId: claims.find(k => k.isCulprit)?.id ?? null,
-    facts: changed.slice(0, 4).map(d => ({ where: d.key.replace(/(@[^/]+|#text)$/, '').split('/').slice(-2).join('/'), what: d.key.match(/@([^/]+)$/)?.[1] ?? (d.key === 'window@scrollY' ? 'scrollY' : 'text'), was: d.was, now: d.now, step: d.step })),
+    facts: factsView(events, changed),
+    findings: findingsView(events),
+    masked: maskedView(events),
     recommendation: verdict, // Behique's advice; the person's decision below is a separate thing
     decision: last ? decisionView(last) : null,
     decisionHistory: s.decisions.map(decisionView).reverse(), // newest first; earlier decisions are superseded, never removed

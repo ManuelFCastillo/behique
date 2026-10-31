@@ -8,6 +8,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runExportedAsync, writeExport } from '../export.mjs'
 import { firstConfirmed, judgeFindings, selectFindings, summarize } from './findings.mjs'
+import { LABEL, maskedAreas, noticePhrase, noticeSummary } from './notice.mjs'
 import { captureShots, recordShots } from './shots.mjs'
 import { setTiming, startBuild, stopAll } from './build.mjs'
 import { poolSize, runPool, slotPort } from './pool.mjs'
@@ -57,7 +58,12 @@ ev.event('builds.compared', { good: { ref: goodRef, sha: cmp.baseSha }, candidat
 const nVolAll = Object.keys(baseline.volatile).length, nLearned = cmp.learned?.added ?? 0, nVol = nVolAll - nLearned, nAll = nVolAll + Object.keys(baseline.stable).length
 const baseH = ev.artifact('baseline.json', { labels: baseline.labels, stable: Object.keys(baseline.stable).length, volatile: baseline.volatile }, 'application/json')
 const diffH = ev.artifact('facts-diff.json', { control, candidate: cand }, 'application/json')
-ev.claim('statistical', `${nVol} of ${nAll} recorded facts (${(100 * nVol / nAll).toFixed(1)}%) differed between two identical installs of ${goodRef}, so they are ignored when comparing.${nLearned ? ` A control recording then disagreed on ${nLearned} more, so those are ignored too (found over ${cmp.learned.rounds} extra recording${cmp.learned.rounds === 1 ? '' : 's'}).` : ''}`, { evidence: [baseH] })
+// What this check cannot see: every masked fact, and where on the page they sit. Recorded as an event for the report and said in the claim.
+const { areas } = maskedAreas(baseline.volatile)
+ev.event('masking.summary', { masked: nVolAll, total: nAll, learned: nLearned, areas })
+const areaNote = nVolAll ? `${areas.length ? ` The masked facts sit mostly under ${areas.map(a => `${a.area} (${a.count})`).join(', ')}.` : ''} A change inside a masked fact cannot be seen by this check.` : ''
+ev.claim('statistical', `${nVol} of ${nAll} recorded facts (${(100 * nVol / nAll).toFixed(1)}%) differed between two identical installs of ${goodRef}, so they are ignored when comparing.${nLearned ? ` A control recording then disagreed on ${nLearned} more, so those are ignored too (found over ${cmp.learned.rounds} extra recording${cmp.learned.rounds === 1 ? '' : 's'}).` : ''}${areaNote}`, { evidence: [baseH] })
+if (nVolAll) console.log(`masked as noise: ${nVolAll} of ${nAll} facts${areas.length ? `, mostly under ${areas.map(a => `${a.area} (${a.count})`).join(', ')}` : ''}`)
 if (control.length) {
   console.log(`control run shows ${control.length} differences: masking is not trustworthy, stopping`)
   close({ outcome: 'masking not trustworthy' }); process.exit(1)
@@ -83,7 +89,7 @@ ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${changed.lengt
 const probe = await startBuild({ adapter, ref: goodRef, port })
 const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pathname
 await probe.stop()
-const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings })
+const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings, origin }) // ordered: what a person would notice first; third-party content skipped
 for (const f of findings) { f.origin = origin; if (readOnly) f.readOnly = true } // origin: so a test can swap it for the address of the build it runs against
 if (!findings.length) { console.log('none of the changed facts can be written as a test'); close({ outcome: 'no testable change' }); process.exit(0) }
 const dir = join('out', 'regression', `${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_'))
@@ -92,8 +98,8 @@ writeExport(dir, findings)
 const specH = {}
 for (const f of findings) {
   specH[f.id] = ev.artifact(`${f.id}.spec.js`, readFileSync(join(dir, f.id + '.spec.js'), 'utf8'), 'text/javascript')
-  ev.event('test.exported', { id: f.id, fact: f.fact.key, good: f.expected, candidate: f.actual })
-  console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}`)
+  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice })
+  console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}\n  class: ${LABEL[f.notice?.cls] ?? 'unknown'} (${f.notice?.why ?? ''})`)
 }
 if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.length === 1 ? '' : 's'} not tested separately (${[...new Set(skipped.map(k => k.why.replace(/ \d+/, ' N')))].join('; ')})`)
 
@@ -123,18 +129,20 @@ for (let i = 0; i < jobs.length; i++) { // recorded in job order, so the log rea
   ev.event('test.run', { id: f.id, ref, sha, n: n + 1, outcome })
   console.log(`  run ${f.id} ${ref} ${n + 1}/${runs}: ${outcome}`)
 }
-const judged = findings.map(f => judgeFindings([f], runsOf[goodRef][f.id], runsOf[candRef][f.id])[0])
+const judged = findings.map(f => ({ ...judgeFindings([f], runsOf[goodRef][f.id], runsOf[candRef][f.id])[0], notice: f.notice }))
 const runsH = ev.artifact('test-runs.json', runLog, 'application/json')
 for (const j of judged) {
-  ev.event('test.judged', { id: j.id, verdict: j.verdict, goodPassed: j.goodPassed, candFailed: j.candFailed, runs })
+  ev.event('test.judged', { id: j.id, verdict: j.verdict, goodPassed: j.goodPassed, candFailed: j.candFailed, runs, notice: j.notice })
   console.log(`\n${j.id}: ${goodRef} (good) passed ${j.goodPassed}/${runs}, ${candRef} (candidate) failed ${j.candFailed}/${runs}: ${j.verdict}`)
-  if (j.verdict === 'confirmed') ev.claim('reproduced_failure', `The test ${j.id} passed ${runs} of ${runs} runs on ${goodRef} and failed ${runs} of ${runs} runs on ${candRef}, each run on a freshly seeded build.`, { evidence: [specH[j.id], runsH] })
+  if (j.verdict === 'confirmed') ev.claim('reproduced_failure', `The test ${j.id} passed ${runs} of ${runs} runs on ${goodRef} and failed ${runs} of ${runs} runs on ${candRef}, each run on a freshly seeded build. ${noticePhrase(j.notice)}`.trim(), { evidence: [specH[j.id], runsH] })
   else ev.claim('statistical', `The test ${j.id} passed ${j.goodPassed} of ${runs} runs on ${goodRef} and failed ${j.candFailed} of ${runs} on ${candRef}. That is not consistent enough to call a regression.`, { evidence: [runsH] })
 }
-console.log(`\n${summarize(judged, skipped)}`)
-const first = firstConfirmed(judged)
+const ns = noticeSummary(judged)
+console.log(`\n${summarize(judged, skipped)}${ns.confirmed ? `; ${ns.visible} a person would notice, ${ns.churn} markup churn` : ''}`)
+const first = firstConfirmed(judged) // the most noticeable confirmed finding, since findings are ranked
 const confirmed = Boolean(first)
 console.log(confirmed ? '\nCONFIRMED: reproducible behaviour change, test passes on good and fails on candidate every time' : `\nNOT CONFIRMED: ${JSON.stringify(judged)}`)
+if (ns.churnOnly) console.log(`only markup churn was proven (${ns.churn} finding${ns.churn === 1 ? '' : 's'}): nothing a person would notice changed, so the recommendation is SHIP with a note, not HOLD`)
 
 // Pictures for a person: the page at the step where each confirmed change shows up, on the good version (twice, so the
 // difference between two runs of the SAME version is the noise floor) and on the candidate. They are a lead for the eye, never the proof:

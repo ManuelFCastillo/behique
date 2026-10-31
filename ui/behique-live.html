@@ -326,6 +326,7 @@ img,svg{max-width:100%}
 .measured .m-row{margin:8px 0}.measured .m-w{color:var(--muted);font-size:12px}
 .measured code{display:block;font:12px/1.4 ui-monospace,monospace;word-break:break-all;margin-top:2px}
 .measured.good code{color:var(--emerald)}.measured.cand code{color:var(--ruby)}
+.measured .notice{margin-top:2px;font-size:11px}.measured .notice-visible{color:var(--amber)}.measured .notice-churn{color:var(--muted)}.measured .masked-note{margin-top:10px;padding-top:8px;border-top:1px dashed var(--line);font-size:11px}
 .claim-details a{color:var(--blue)}
 /* apps: FreshRSS built in, plus the GitHub account's repos */
 .carve{display:none}
@@ -1101,7 +1102,10 @@ function renderBuilds(){
     const box=document.createElement("div"); box.className="measured "+sides[i].cls;
     const h=document.createElement("div"); h.className="m-h"; h.textContent="Measured on "+sides[i].ref; box.appendChild(h);
     if(!vm.facts.length){ const p=document.createElement("div"); p.className="m-w"; p.textContent=vm.verdict==="running"?"Waiting for the comparison...":"No differing facts were recorded."; box.appendChild(p); }
-    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; w.textContent=f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"; const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c); box.appendChild(r); });
+    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; w.textContent=(f.id?f.id+": ":"")+f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"; const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c);
+      if(f.label){ const k=document.createElement("div"); k.className="m-w notice notice-"+f.cls; k.textContent=f.label+(f.why?" ("+f.why+")":"")+(f.verdict&&f.verdict!=="confirmed"?" . "+f.verdict.replace(/_/g," "):""); r.appendChild(k); } // the class: would a person notice this change, and why
+      box.appendChild(r); });
+    if(i===0 && vm.masked && vm.masked.text){ const p=document.createElement("div"); p.className="m-w masked-note"; p.textContent="Not seen by this check: "+vm.masked.text; box.appendChild(p); } // what masking hides, said once under the good build
     (vm.pictures||[]).slice(0,3).forEach(pic=>{ // screenshots of the step where the change shows: a lead for the eye, not the proof
       const url=i===0?pic.good:pic.candidate; if(!url) return;
       const fig=document.createElement("figure"); fig.className="shot";

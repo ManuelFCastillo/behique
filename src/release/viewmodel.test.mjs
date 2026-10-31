@@ -40,6 +40,44 @@ test('verdict is a recommendation read from the record', () => {
   assert.equal(v(report({ proven: false, close: false })), 'running')
 })
 
+test('proven changes that are all markup churn are recommended SHIP with a note; one noticeable change keeps HOLD; findings are ranked', () => {
+  const classed = (notices) => {
+    const c = openCase(mkdtempSync(join(tmpdir(), 'vm-')))
+    c.event('case.opened', { goodRef: '1.0', candRef: '2.0', adapter: 'x', steps: [], scenario: null })
+    c.event('builds.compared', { good: { ref: '1.0', sha: 'aaaaaaa111' }, candidate: { ref: '2.0', sha: 'bbbbbbb222' } })
+    c.event('masking.summary', { masked: 40, total: 1000, learned: 0, areas: [{ area: 'body/div[1]/nav[1]', count: 30 }] })
+    const facts = c.artifact('facts-diff.json', { control: [], candidate: [] })
+    c.claim('verified_fact', 'values changed', { evidence: [facts] })
+    notices.forEach((n, k) => {
+      const id = `R${k + 1}`
+      c.event('test.exported', { id, fact: n.fact, i: 2, good: '"a"', candidate: '"b"', notice: { cls: n.cls, why: n.why } })
+      const spec = c.artifact(`${id}.spec.js`, 'x')
+      c.event('test.judged', { id, verdict: 'confirmed', goodPassed: 3, candFailed: 3, runs: 3, notice: { cls: n.cls, why: n.why } })
+      c.claim('reproduced_failure', `test ${id} passes on old and fails on new`, { evidence: [spec] })
+    })
+    c.event('case.closed', { outcome: 'regression proven' })
+    return c
+  }
+  const churn = classed([{ fact: 'body/div[1]/label[1]@for', cls: 'churn', why: 'a generated id (for)' }, { fact: 'body/div[1]/button[1]@data-slot', cls: 'churn', why: 'a framework attribute (data-slot)' }])
+  assert.equal(verdictOf(churn.read(), summarize(churn.read())), 'ship')
+  const vmChurn = buildViewModel(churn, { caseId: 'churn' })
+  assert.equal(vmChurn.verdict, 'ship'); assert.equal(vmChurn.recommendation, 'ship')
+  assert.equal(vmChurn.sub, 'Only markup churn changed: 2 proven changes (generated ids, framework attributes), nothing a person would notice')
+  assert.equal(vmChurn.masked.text, '40 of 1000 recorded facts (4.0%) were masked as noise, mostly under body/div[1]/nav[1] (30). A change inside a masked fact cannot be seen by this check.')
+  const mixed = classed([{ fact: 'body/div[1]/label[1]@for', cls: 'churn', why: 'a generated id (for)' }, { fact: 'body/div[1]/p[1]#text', cls: 'visible', why: 'text a person reads' }])
+  assert.equal(verdictOf(mixed.read(), summarize(mixed.read())), 'hold')
+  const vmMixed = buildViewModel(mixed, { caseId: 'mixed' })
+  assert.equal(vmMixed.sub, '2 reproduced behaviour changes (1 a person would notice, 1 markup churn)')
+  assert.deepEqual(vmMixed.findings.map(f => [f.id, f.cls, f.label, f.verdict]), [['R2', 'visible', 'a person would notice', 'confirmed'], ['R1', 'churn', 'markup churn', 'confirmed']])
+  assert.deepEqual(vmMixed.facts.map(f => [f.id, f.what, f.where, f.was, f.now, f.step]), [['R2', 'text', 'div[1]/p[1]', 'a', 'b', 2], ['R1', 'for', 'div[1]/label[1]', 'a', 'b', 2]])
+  // an older report has no classes: it stays HOLD and its facts come from the diff as before
+  const old = report()
+  assert.equal(verdictOf(old.read(), summarize(old.read())), 'hold')
+  const vmOld = buildViewModel(old, { caseId: 'old' })
+  assert.equal(vmOld.sub, '1 reproduced behaviour change, 100 commits bisected in 4 steps'); assert.equal(vmOld.masked, null); assert.deepEqual(vmOld.findings, [])
+  assert.equal(vmOld.facts[0].where, 'div[1]/a[1]')
+})
+
 test('a run that never closed becomes "fail" once it is stale, not "running" forever', () => {
   const c = report({ proven: false, close: false })
   assert.equal(verdictOf(c.read(), summarize(c.read()), Date.now() + 16 * 60 * 1000), 'fail')
