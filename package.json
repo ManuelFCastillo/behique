@@ -2,6 +2,9 @@
   "name": "behique",
   "private": true,
   "type": "module",
+  "bin": {
+    "behique": "bin/behique.mjs"
+  },
   "scripts": {
     "start": "node demo/server.mjs --open",
     "bench": "node bench.mjs"
