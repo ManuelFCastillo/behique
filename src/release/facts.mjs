@@ -27,7 +27,7 @@ const EXTRACT = () => {
 /** Open the build, record facts, perform each action and record again. Returns [{ label, facts }]. */
 /** readOnly: no request but GET or HEAD gets through, so every step sees the app exactly as it was seeded (a click that would mark something read, or save, changes nothing). */
 export async function recordRun(base, actions, { viewport = { width: 1280, height: 900 }, readOnly = false } = {}) {
-  const s = new Session(base, { viewport })
+  const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
   const steps = []
   try {
     await s.open()
@@ -83,6 +83,39 @@ export function diffFacts(baseline, run) {
     diffs.push({ i, step: baseline.labels[i], key: id.slice(id.indexOf('|') + 1), kind: 'removed', was, now: null })
   }
   return diffs
+}
+
+/**
+ * Widen the mask with what a control recording showed. A fact the control disagrees on (a rotating quote, a dialog that opens late)
+ * is noise the two baseline recordings missed, so it joins the volatile set. Takes the raw diffFacts output.
+ * Returns a new baseline and how many facts were added. The caller must record a fresh control afterwards:
+ * the widened mask is only trusted once that one comes back clean.
+ */
+export function widenMask(baseline, diffs, { siteWideSteps = 3 } = {}) {
+  const stable = { ...baseline.stable }, volatile = { ...baseline.volatile }
+  let added = 0
+  const mask = (i, key, d, count = true) => {
+    const id = `${i}|${key}`
+    if (id in volatile) return
+    volatile[id] = { a: d?.was ?? null, b: d?.now ?? null }
+    delete stable[id]
+    if (count) added++
+  }
+  for (const d of diffs) mask(d.i, d.key, d)
+  // An element the control disagreed on at several different steps is a widget that sits on every page (a rotating quote, a clock, a banner),
+  // so it is masked at every step, including the steps where this one recording happened to show the same value as the baseline.
+  const stepsByKey = new Map()
+  for (const d of diffs) {
+    if (!stepsByKey.has(d.key)) stepsByKey.set(d.key, new Set())
+    stepsByKey.get(d.key).add(d.i)
+  }
+  const n = baseline.labels.length
+  for (const [key, steps] of stepsByKey) {
+    if (steps.size < siteWideSteps) continue
+    // Also steps where the baseline never showed the element: a widget that picks one of several slots at random shows up in a fresh one each time.
+    for (let i = 0; i < n; i++) mask(i, key, null, `${i}|${key}` in stable)
+  }
+  return { baseline: { ...baseline, stable, volatile }, added }
 }
 
 const suffixOf = key => key.match(/(@[^/]+|#text)$/)[0]

@@ -11,10 +11,10 @@ const [baseRef, candRef] = args.filter(a => !a.startsWith('--') && !args[args.in
 if (!baseRef || !candRef) { console.error('usage: node src/release/diff-builds.mjs <baseRef> <candidateRef> [--port N] [--steps file] [--adapter name]'); process.exit(2) }
 const adapter = (await import(`./adapters/${opt('adapter', 'freshrss')}.mjs`)).default
 const actions = JSON.parse(readFileSync(opt('steps', 'bench/fixtures/freshrss/steps.json'), 'utf8'))
-const { baseline, cand, control } = await compareBuilds({ adapter, baseRef, candRef, port: +opt('port', 8300), actions })
+const { baseline, cand, control, learned } = await compareBuilds({ adapter, baseRef, candRef, port: +opt('port', 8300), actions })
 
 console.log(`steps recorded: ${baseline.labels.join(' | ')}`)
-summaryLines({ baseline, cand, control }, baseRef, candRef).forEach(l => console.log(l))
+summaryLines({ baseline, cand, control, learned }, baseRef, candRef).forEach(l => console.log(l))
 console.log('\nvolatile sample:'); Object.entries(baseline.volatile).slice(0, 5).forEach(([id, v]) => console.log(' ', id.slice(0, 90), JSON.stringify(v.a)?.slice(0, 30), '|', JSON.stringify(v.b)?.slice(0, 30)))
 console.log('\nchanged facts (candidate):'); cand.filter(d => d.kind === 'changed').slice(0, 25).forEach(d => console.log(`  [${d.step.slice(0, 12)}] ${d.key.slice(-60)}\n      was ${JSON.stringify(d.was)?.slice(0, 90)}\n      now ${JSON.stringify(d.now)?.slice(0, 90)}`))
 for (const k of ['added', 'removed']) {

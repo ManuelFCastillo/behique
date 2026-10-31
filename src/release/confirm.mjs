@@ -49,15 +49,15 @@ try { cmp = await compareBuilds({ adapter, baseRef: goodRef, candRef, port, acti
 const { baseline, cand, control } = cmp
 summaryLines(cmp, goodRef, candRef).forEach(l => console.log(l))
 ev.event('builds.compared', { good: { ref: goodRef, sha: cmp.baseSha }, candidate: { ref: candRef, sha: cmp.candSha } })
-const nVol = Object.keys(baseline.volatile).length, nAll = nVol + Object.keys(baseline.stable).length
+const nVolAll = Object.keys(baseline.volatile).length, nLearned = cmp.learned?.added ?? 0, nVol = nVolAll - nLearned, nAll = nVolAll + Object.keys(baseline.stable).length
 const baseH = ev.artifact('baseline.json', { labels: baseline.labels, stable: Object.keys(baseline.stable).length, volatile: baseline.volatile }, 'application/json')
 const diffH = ev.artifact('facts-diff.json', { control, candidate: cand }, 'application/json')
-ev.claim('statistical', `${nVol} of ${nAll} recorded facts (${(100 * nVol / nAll).toFixed(1)}%) differed between two identical installs of ${goodRef}, so they are ignored when comparing.`, { evidence: [baseH] })
+ev.claim('statistical', `${nVol} of ${nAll} recorded facts (${(100 * nVol / nAll).toFixed(1)}%) differed between two identical installs of ${goodRef}, so they are ignored when comparing.${nLearned ? ` A control recording then disagreed on ${nLearned} more, so those are ignored too (found over ${cmp.learned.rounds} extra recording${cmp.learned.rounds === 1 ? '' : 's'}).` : ''}`, { evidence: [baseH] })
 if (control.length) {
   console.log(`control run shows ${control.length} differences: masking is not trustworthy, stopping`)
   ev.event('case.closed', { outcome: 'masking not trustworthy' }); process.exit(1)
 }
-ev.claim('verified_fact', `A third recording of ${goodRef} showed 0 differences from the baseline, so the noise filter holds.`, { evidence: [diffH] })
+ev.claim('verified_fact', `${nLearned ? 'A further recording' : 'A third recording'} of ${goodRef} showed 0 differences from the baseline, so the noise filter holds.`, { evidence: [diffH] })
 if (!cand.some(d => d.kind === 'changed')) {
   const gone = cand.filter(d => d.kind === 'removed'), n = k => cand.filter(d => d.kind === k).length
   if (gone.length) { // nothing changed value, but things that existed before are missing now: never recommend shipping on that
