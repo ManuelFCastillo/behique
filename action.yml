@@ -1,0 +1,110 @@
+name: Behique check
+description: Compare a pull request's app with its base, prove every behaviour change with a test, and post the verdict as a comment.
+author: Manny Castillo
+
+inputs:
+  profile:
+    description: Path, inside the checked-out repository, of the app profile Behique should run (the file "Set up an app" saves, or one written by hand).
+    required: false
+    default: .behique/profile.json
+  app:
+    description: A short name for the app (lower-case letters, digits, dashes). Used in the evidence case and the report.
+    required: false
+    default: app
+  good:
+    description: The known-good version (tag, branch or commit). Defaults to the pull request's base commit.
+    required: false
+    default: ${{ github.event.pull_request.base.sha }}
+  cand:
+    description: The candidate version. Defaults to the pull request's head commit.
+    required: false
+    default: ${{ github.event.pull_request.head.sha }}
+  bisect:
+    description: Also find the first commit that makes the test fail (true or false).
+    required: false
+    default: "false"
+  max-findings:
+    description: How many changed facts become tests, most noticeable first.
+    required: false
+    default: "5"
+  sandbox:
+    description: Where the app runs. "docker" uses the runner's Docker engine; "off" runs it on the runner itself (static profiles only).
+    required: false
+    default: docker
+  comment:
+    description: Post (or update) the verdict as a comment on the pull request (true or false).
+    required: false
+    default: "true"
+  fail-on-hold:
+    description: Fail the job when Behique recommends HOLD (true or false). REVIEW and incomplete evidence always fail.
+    required: false
+    default: "true"
+  github-token:
+    description: Token used to post the comment. Needs pull-requests write permission.
+    required: false
+    default: ${{ github.token }}
+
+outputs:
+  recommendation:
+    description: ship, hold, inconclusive or fail
+    value: ${{ steps.check.outputs.recommendation }}
+  result:
+    description: Path of the result JSON
+    value: ${{ steps.check.outputs.result }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: "22"
+
+    - name: Install Behique
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      run: |
+        npm ci --ignore-scripts
+        npx playwright install --with-deps chromium
+
+    - name: Run the check
+      id: check
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        BEHIQUE_SANDBOX: ${{ inputs.sandbox == 'docker' && 'docker' || '' }}
+        PROFILE: ${{ github.workspace }}/${{ inputs.profile }}
+        REPO: ${{ github.workspace }}
+        APP: ${{ inputs.app }}
+        GOOD: ${{ inputs.good }}
+        CAND: ${{ inputs.cand }}
+        BISECT: ${{ inputs.bisect }}
+        MAX: ${{ inputs.max-findings }}
+        FAIL_ON_HOLD: ${{ inputs.fail-on-hold }}
+      run: |
+        set +e
+        args=(check "$APP" "$GOOD" "$CAND" --profile "$PROFILE" --repo "$REPO" --max-findings "$MAX" --no-dashboard --out "$RUNNER_TEMP/behique-result.json")
+        if [ "$BISECT" = "true" ]; then args+=(--bisect); fi
+        node bin/behique.mjs "${args[@]}"
+        code=$?
+        echo "result=$RUNNER_TEMP/behique-result.json" >> "$GITHUB_OUTPUT"
+        if [ -f "$RUNNER_TEMP/behique-result.json" ]; then
+          rec=$(node -e 'console.log(JSON.parse(require("fs").readFileSync(process.argv[1],"utf8")).recommendation)' "$RUNNER_TEMP/behique-result.json")
+          echo "recommendation=$rec" >> "$GITHUB_OUTPUT"
+          cat "$RUNNER_TEMP/behique-result.md" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "recommendation=fail" >> "$GITHUB_OUTPUT"
+        fi
+        if [ "$code" = "1" ] && [ "$FAIL_ON_HOLD" != "true" ]; then code=0; fi
+        exit $code
+
+    - name: Comment on the pull request
+      if: always() && inputs.comment == 'true' && github.event_name == 'pull_request' && steps.check.outputs.result != ''
+      shell: bash
+      working-directory: ${{ github.action_path }}
+      env:
+        GH_TOKEN: ${{ inputs.github-token }}
+        RESULT: ${{ steps.check.outputs.result }}
+        REPO: ${{ github.repository }}
+        PR: ${{ github.event.pull_request.number }}
+      run: |
+        if [ -f "$RESULT" ]; then node bin/behique.mjs comment --result "$RESULT" --repo "$REPO" --pr "$PR"; else echo "no result to post"; fi
