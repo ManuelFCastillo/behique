@@ -160,7 +160,7 @@ node --test src/release/*.test.mjs src/release/onboard/*.test.mjs \
 <li>The crawler was tuned on one app and has now run on six more, once each, with thin or degenerate coverage on three of them (excalidraw, umami, html5-boilerplate). No login or seeded data, so apps behind a login are out of reach.</li>
 <li>The repair and check results are one run per repo on six public repos we picked; not repeated, not a success rate.</li>
 <li>Noise learning hides facts (nextjs-blog 1,223, todomvc 66, vitepress 40); a real change inside them would be missed.</li>
-<li><code>~/dev/behique-ui/behique-live.html</code> (the dashboard page) is <b>not under git</b>; backups exist only in a scratch folder.</li>
+<li>The dashboard page now lives in the repo (<code>ui/behique-live.html</code>, started with <code>npm start</code>). It was in a separate folder, <code>~/dev/behique-ui</code>, which is its own git repo with one old commit; this document earlier said it was not under git, which was wrong.</li>
 <li>A Ship or Hold decision's name is typed in, so it is attribution by honour, not identity.</li>
 <li>The demo script was updated on 2026-10-30 (new beat 10 shows the six-repo results as saved runs, not live); the live beats still use hand-written FreshRSS steps.</li>
 </ul>

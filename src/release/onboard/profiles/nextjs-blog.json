@@ -1,0 +1,40 @@
+{
+  "name": "nextjs-blog",
+  "repo": "/Users/mcastillo/dev/behique-apps/tailwind-nextjs-starter-blog",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v2.3.0",
+    "cand": "v2.4.0"
+  },
+  "serve": {
+    "kind": "command",
+    "cmd": "yarn",
+    "args": [
+      "run",
+      "dev",
+      "-p",
+      "{port}"
+    ],
+    "install": [
+      {
+        "cmd": "yarn",
+        "args": [
+          "install"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "Next.js app with yarn 3.6.1 and yarn.lock. Using dev server with Next -p port flag without -- separator for Yarn Berry. No env copied because .env.example only lists optional third-party comment/newsletter integrations. Could not confirm readiness path or viewport from facts."
+}

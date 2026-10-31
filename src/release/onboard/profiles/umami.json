@@ -1,0 +1,56 @@
+{
+  "name": "umami",
+  "repo": "/Users/mcastillo/dev/behique-apps/umami",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v3.3.1",
+    "cand": "v3.4.1"
+  },
+  "serve": {
+    "kind": "command",
+    "cmd": "pnpm",
+    "args": [
+      "run",
+      "start",
+      "-p",
+      "{port}"
+    ],
+    "install": [
+      {
+        "cmd": "pnpm",
+        "args": [
+          "install"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "run",
+          "build"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "services": [
+    {
+      "kind": "postgres",
+      "name": "db",
+      "inject": {
+        "DATABASE_URL": "url"
+      }
+    }
+  ],
+  "notes": "Needs PostgreSQL database to build and run: build runs check-env which requires DATABASE_URL and readme requires PostgreSQL 12.14+ with build creating tables and admin user. Added postgres service injecting DATABASE_URL. No env example was found so no other env vars could be copied. Next.js framework seen so -p {port} is used for the start script, but port handling and readiness path could not be confirmed from facts."
+}

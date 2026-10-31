@@ -1,0 +1,25 @@
+{
+  "name": "todomvc",
+  "repo": "/Users/mcastillo/dev/behique-apps/todomvc",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v1.4",
+    "cand": "master"
+  },
+  "serve": {
+    "kind": "static"
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "Top-level index.html exists so using static serve with no build or install. The site is a landing page linking to many examples in examples/, so the meaningful comparison surface may be an example sub-page rather than /. Could not tell the right viewport, readiness path, regions or setup from the facts."
+}

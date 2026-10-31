@@ -1,0 +1,48 @@
+{
+  "name": "excalidraw",
+  "repo": "/Users/mcastillo/dev/behique-apps/excalidraw",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v0.17.6",
+    "cand": "v0.18.0"
+  },
+  "serve": {
+    "kind": "command",
+    "cmd": "yarn",
+    "args": [
+      "--cwd",
+      "./excalidraw-app",
+      "vite",
+      "--port",
+      "{port}",
+      "--host",
+      "0.0.0.0",
+      "--no-open"
+    ],
+    "install": [
+      {
+        "cmd": "yarn",
+        "args": [
+          "install"
+        ]
+      }
+    ],
+    "env": {
+      "BROWSER": "none",
+      "CI": "true"
+    }
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "Dev server auto-opened a browser via xdg-open and crashed with ENOENT. Keeping the same vite command but disabling auto-open with --no-open plus BROWSER=none and CI=true. Could not confirm readiness path from facts."
+}

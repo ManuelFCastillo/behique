@@ -1,0 +1,52 @@
+{
+  "name": "vitepress",
+  "repo": "/Users/mcastillo/dev/behique-apps/vitepress",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v2.0.0-alpha.20",
+    "cand": "v2.0.0-alpha.21"
+  },
+  "serve": {
+    "kind": "command",
+    "cmd": "pnpm",
+    "args": [
+      "--filter",
+      "docs",
+      "exec",
+      "vitepress",
+      "dev",
+      "--port",
+      "{port}",
+      "--host",
+      "0.0.0.0"
+    ],
+    "install": [
+      {
+        "cmd": "pnpm",
+        "args": [
+          "install"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "run",
+          "build"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "VitePress is a static site generator; serving the docs workspace site with the local build. Previous attempt used dev -- --port which vitepress received literally as '-- --port' and stayed on 5173, so switched to pnpm exec to pass --port and --host directly."
+}

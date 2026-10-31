@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "start": "node demo/server.mjs --open",
     "bench": "node bench.mjs"
   },
   "dependencies": {

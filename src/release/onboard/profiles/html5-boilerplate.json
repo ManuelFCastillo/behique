@@ -1,0 +1,41 @@
+{
+  "name": "html5-boilerplate",
+  "repo": "/Users/mcastillo/dev/behique-apps/html5-boilerplate",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v9.0.0",
+    "cand": "v9.0.1"
+  },
+  "serve": {
+    "kind": "static",
+    "root": "dist",
+    "install": [
+      {
+        "cmd": "npm",
+        "args": [
+          "ci"
+        ]
+      },
+      {
+        "cmd": "npm",
+        "args": [
+          "run",
+          "build"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "Readme says the published project is the contents of /dist/, and both dist and src contain index.html. Serving dist as static and rebuilding with npm run build is a best guess. No dev/start server script was seen, no env example, and no readme guidance for viewport, readiness path, setup steps, or stable regions."
+}
