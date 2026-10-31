@@ -23,6 +23,8 @@ import { validateVisualRun, visualArgv, visualProgress, caseIdOf } from '../src/
 import { listCandidates, onboardPreview, onboardPropose, onboardVerify } from '../src/release/ui/onboard-flow.mjs'
 import { crawlProgress } from '../src/release/ui/crawl-run.mjs'
 import { cloneRun, clonePreview } from '../src/release/ui/clone-flow.mjs'
+import { applySettings, loadSettings, needsSandbox, saveSettings, validateSettings, SANDBOX_REQUIRED } from '../src/release/ui/settings.mjs'
+import { makeDocker } from '../src/release/sandbox/docker-exec.mjs'
 import { loadProfile, profilePath, validateProfile, describeCommands, saveProfile } from '../src/release/onboard/profile.mjs'
 import { inspectRepo } from '../src/release/onboard/inspect.mjs'
 import { buildMessages, projectCost, proposeProfile } from '../src/release/onboard/propose.mjs'
@@ -30,11 +32,14 @@ import { verifyProfile } from '../src/release/onboard/verify.mjs'
 import { defaultAsk, defaultSkillText } from '../src/release/onboard/onboard.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const PORT = +(process.argv[2] ?? 8790)
+const PORT = +(process.argv.slice(2).find(a => /^\d+$/.test(a)) ?? 8790)
 const GOOD = '1.29.1', BAD = '1.30.0'
 const JOBS = { diff: ['src/release/diff-builds.mjs', GOOD, BAD], confirm: ['src/release/confirm.mjs', GOOD, BAD, '--bisect'] }
 const EVIDENCE = join(ROOT, 'out/evidence')
-const UI_DIR = process.env.BEHIQUE_UI_DIR ?? join(homedir(), 'dev/behique-ui') // the dashboard project; served read-only
+const UI_DIR = process.env.BEHIQUE_UI_DIR ?? join(ROOT, 'ui') // the dashboard (ui/behique-live.html); served read-only
+const SETTINGS_PATH = join(ROOT, 'out/settings.json')
+let SETTINGS = loadSettings(SETTINGS_PATH)
+if (SETTINGS.source === 'saved') applySettings(SETTINGS.settings) // what a person chose in Settings wins over the shell's environment
 const SPEC = join(ROOT, 'out/regression', `${GOOD}-vs-${BAD}`, 'R1.spec.js')
 
 let job = null // the running pipeline process
@@ -137,6 +142,29 @@ createServer(async (req, res) => {
       return
     }
 
+    if (u.pathname === '/dashboard' || u.pathname === '/app') return send(res, 200, readFileSync(join(UI_DIR, 'behique-live.html'), 'utf8'), 'text/html; charset=utf-8')
+    if (u.pathname === '/api/ui/settings' && req.method === 'GET') {
+      return send(res, 200, { ...SETTINGS, sandboxActive: process.env.BEHIQUE_SANDBOX ?? null, modelKeySet: Boolean(ENV[PROVIDERS.meta.keyEnv]), running: Boolean(job), paths: { evidence: 'out/evidence', apps: APPS_ROOT.replace(homedir(), '~'), profiles: profileDir().replace(ROOT + '/', '') }, port: PORT })
+    }
+    if (u.pathname === '/api/ui/settings' && req.method === 'POST') {
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      if (job || uiRun?.status === 'running') return send(res, 409, { error: 'A check is running. Change settings when it has finished.' })
+      const v = validateSettings(JSON.parse(await readBody(req) || '{}'))
+      if (!v.ok) return send(res, 400, { error: v.error })
+      saveSettings(SETTINGS_PATH, v.settings); applySettings(v.settings); SETTINGS = { settings: v.settings, source: 'saved' }
+      return send(res, 200, { ...SETTINGS, sandboxActive: process.env.BEHIQUE_SANDBOX ?? null })
+    }
+    if (u.pathname === '/api/ui/settings/test' && req.method === 'POST') { // asks the Docker engine for its version: nothing is started
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      const t = validateSettings(JSON.parse(await readBody(req) || '{}')) // test what is in the form, saved or not
+      if (!t.ok) return send(res, 200, { ok: false, text: t.error })
+      const sb = t.settings.sandbox
+      if (sb.mode === 'off') return send(res, 200, { ok: true, text: 'Checks run on this machine. Apps that run their own code will be refused until a sandbox is chosen.' })
+      try {
+        const r = await makeDocker({ target: sb.mode === 'ssh' ? `ssh://${sb.host}` : '' })(['version', '--format', '{{.Server.Version}} on {{.Server.Os}}/{{.Server.Arch}}'], { timeoutMs: 20_000 })
+        return send(res, 200, r.code === 0 ? { ok: true, text: `Docker ${r.stdout.trim()} is reachable.` } : { ok: false, text: `Docker answered with an error: ${(r.stderr || r.stdout).trim().split('\n')[0].slice(0, 200)}` })
+      } catch (e) { return send(res, 200, { ok: false, text: `Could not reach Docker: ${String(e.message ?? e).slice(0, 200)}` }) }
+    }
     if (u.pathname === '/api/busy') return send(res, 200, { reason: job ? 'A check is already running, wait for it to finish.' : live.size ? 'The hand-test versions are running. Stop them first, because the check reuses their folders.' : null })
 
     const ui = u.pathname.match(/^\/ui\/([\w.-]+\.(html|png))$/) // only plain html and png files by exact name; no paths, no dotfiles
@@ -275,11 +303,13 @@ createServer(async (req, res) => {
         const builtin = async n => ({ repo: (await adapterOf(n)).repo, defaults: APPS[n].defaults, regions: {} })
         const v = await validateVisualRun({ ...body, region: undefined }, { listProfiles: async () => [...profileNames(), ...Object.keys(APPS)], loadProfile: async n => (profileNames().includes(n) ? loadProfile(n) : builtin(n)), git: gitIn })
         if (!v.ok) return send(res, 400, { error: v.error })
+        if (!process.env.BEHIQUE_SANDBOX && profileNames().includes(v.params.app) && needsSandbox(loadProfile(v.params.app))) return send(res, 400, { error: SANDBOX_REQUIRED })
         return send(res, 200, { ...runView(startUiRun(v.params, 'crawl')), note: v.note })
       }
       if (body.kind === 'visual') { // a visual check of an app Behique set up itself
         const v = await validateVisualRun(body, { listProfiles: async () => profileNames(), loadProfile: async n => loadProfile(n), git: gitIn })
         if (!v.ok) return send(res, 400, { error: v.error })
+        if (!process.env.BEHIQUE_SANDBOX && needsSandbox(loadProfile(v.params.app))) return send(res, 400, { error: SANDBOX_REQUIRED })
         return send(res, 200, { ...runView(startUiRun(v.params, 'visual')), note: v.note })
       }
       const sc = SCENARIOS[body.scenario]
@@ -355,7 +385,11 @@ createServer(async (req, res) => {
     }
     send(res, 404, { error: 'not found' })
   } catch (e) { send(res, 500, { error: String(e.message ?? e) }) }
-}).listen(PORT, '127.0.0.1', () => console.log(`demo on http://127.0.0.1:${PORT}`))
+}).listen(PORT, '127.0.0.1', () => {
+  const url = `http://127.0.0.1:${PORT}/dashboard`
+  console.log(`Behique on ${url}  (demo page: http://127.0.0.1:${PORT}/)`)
+  if (process.argv.includes('--open')) execFile('open', [url], () => {}) // macOS: opens the dashboard in the default browser
+})
 
 const bye = async () => { for (const b of live.values()) await b.stop(); job?.kill(); process.exit(0) }
 process.on('SIGINT', bye); process.on('SIGTERM', bye)
