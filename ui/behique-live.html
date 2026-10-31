@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Behique Release Verification (live)</title>
+<style>
+:root{
+--bg:#07090c; --panel:#0d1117; --panel-2:#121821;
+--line:#1f2733; --text:#e8edf3; --muted:#8b97a6;
+--emerald:#2fd98a; --ruby:#ff4d57; --blue:#3aa0ff; --purple:#b388ff;
+--amber:#ffa63d; --amber-glow:#ff7a1a; --clay:#c46a2b;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;font-size:14px;line-height:1.45;min-height:100vh}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+.page{max-width:1672px;margin:0 auto;padding:16px;display:grid;grid-template-columns:240px minmax(0,1fr) 410px;gap:16px;align-items:stretch}
+.card{background:linear-gradient(180deg,var(--panel-2) 0%,var(--panel) 55%);border:1px solid var(--line);border-radius:14px}
+.label{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);font-weight:600}
+/* SIDEBAR */
+.sidebar{grid-row:1/3;display:flex;flex-direction:column;padding:18px 14px;position:relative;overflow:hidden;min-height:860px}
+.logo-wrap{text-align:center;padding:4px 0 14px;border-bottom:1px solid var(--line)}
+.logo-wrap img{width:150px;height:110px;object-fit:contain;display:block;margin:0 auto}
+.nav{list-style:none;margin-top:14px;display:flex;flex-direction:column;gap:6px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;color:var(--muted);text-decoration:none;font-size:14px;font-weight:600}
+.nav a svg{width:20px;height:20px;flex:none}
+.nav a.active{background:rgba(255,166,61,.14);color:var(--amber);border:1px solid rgba(255,166,61,.35)}
+.carve{margin-top:auto;margin-bottom:auto;padding:28px 0;opacity:.14;display:flex;flex-direction:column;align-items:center;gap:10px}
+.side-foot{font-size:12px;color:var(--muted);text-align:center;border-top:1px solid var(--line);padding-top:12px}
+/* CENTER */
+.center{grid-column:2;display:flex;flex-direction:column;gap:16px;min-width:0}
+.verdict{display:flex;align-items:center;gap:22px;padding:18px 22px;min-height:180px;position:relative;overflow:hidden}
+@property --gem-c{syntax:"<color>";inherits:true;initial-value:#ffa63d}
+@property --gem-glow{syntax:"<color>";inherits:true;initial-value:#ff7a1a}
+.gem{width:120px;height:120px;flex:none;border-radius:50%;position:relative;
+--gem-c:var(--amber);
+--gem-glow:var(--amber-glow);
+background:radial-gradient(circle at 50% 38%,#ffe6b8 0%,var(--gem-c) 22%,#7a2e00 52%,#0a0602 72%);
+box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(255,166,61,.28),inset 0 0 22px rgba(255,255,255,.25);
+transition:--gem-c .4s ease,--gem-glow .4s ease,box-shadow .4s ease,filter .4s ease,transform .2s ease;
+animation:gemBreathe 3.2s ease-in-out infinite}
+.gem:hover{transform:scale(1.03)}
+.gem::before{content:"";position:absolute;inset:10px;border-radius:50%;background:conic-gradient(from 0deg,rgba(255,255,255,.7),rgba(255,122,26,.1) 20%,rgba(255,255,255,.15) 35%,rgba(0,0,0,.2) 50%,rgba(255,255,255,.55) 65%,rgba(255,122,26,.2) 80%,rgba(255,255,255,.7));mask:radial-gradient(circle,transparent 38%,#000 39%,#000 56%,transparent 57%);-webkit-mask:radial-gradient(circle,transparent 38%,#000 39%,#000 56%,transparent 57%);animation:gemRingSpin 60s linear infinite}
+.gem::after{content:"";position:absolute;inset:-10px;border-radius:50%;border:2px solid var(--gem-c);opacity:.35;pointer-events:none}
+.gem.shock::after{animation:gemShock .7s ease-out 1}
+@keyframes gemBreathe{0%,100%{box-shadow:0 0 18px var(--gem-glow),0 0 50px rgba(255,166,61,.2);filter:brightness(1)}50%{box-shadow:0 0 30px var(--gem-glow),0 0 78px rgba(255,166,61,.35);filter:brightness(1.12)}}
+@keyframes gemRingSpin{to{transform:rotate(360deg)}}
+@keyframes gemShock{from{transform:scale(.85);opacity:.9}to{transform:scale(1.35);opacity:0}}
+@media (prefers-reduced-motion: reduce){.gem,.gem::before,.gem.shock::after{animation:none}.gem{transition:none}}
+.verdict-text h1{font-size:54px;line-height:1;color:var(--amber);font-weight:800;letter-spacing:.02em}
+.v-div{width:1px;align-self:stretch;background:var(--line)}
+.v-title{font-size:15px;font-weight:600}
+.v-sub{font-size:13px;color:var(--muted);margin-top:4px}
+.petro{position:absolute;right:18px;top:50%;transform:translateY(-50%);opacity:.12;display:flex;gap:18px;align-items:center}
+.bisect{padding:16px 18px}
+.bisect-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.bisect-head h2,.builds h2{font-size:15px;font-weight:700}
+.legend{display:flex;gap:12px;align-items:center;font-size:12px;color:var(--muted)}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px;vertical-align:middle}
+.timeline{position:relative;padding:28px 70px 38px}
+.t-line{position:absolute;left:77px;right:77px;top:40px;height:2px;background:#2a3442}
+.t-nodes{position:relative;display:flex;justify-content:space-between;align-items:center;min-height:26px}
+.node{width:14px;height:14px;border-radius:50%;border:2px solid #000;z-index:1}
+.node.g{background:var(--emerald);box-shadow:0 0 10px rgba(47,217,138,.6)}
+.node.r{background:var(--ruby);box-shadow:0 0 10px rgba(255,77,87,.5)}
+.node.c{width:26px;height:26px;background:radial-gradient(circle,#ffd9a0,var(--amber-glow));border:3px solid var(--amber);box-shadow:0 0 18px rgba(255,122,26,.9)}
+.end-label{position:absolute;top:58px;font-size:12px;color:var(--muted)}
+.end-label.left{left:70px}.end-label.right{right:70px}
+.culprit-tag{position:absolute;left:50%;transform:translateX(-50%);top:64px;background:#0f141b;border:1px solid var(--line);border-radius:10px;padding:6px 10px;text-align:center;white-space:nowrap}
+.culprit-tag .mono{font-size:13px;font-weight:700}
+.chip{display:inline-block;font-size:12px;font-weight:700;padding:2px 8px;border-radius:20px;margin-top:4px}
+.chip.green{background:rgba(47,217,138,.15);color:var(--emerald);border:1px solid rgba(47,217,138,.5)}
+.claim.purple .chip.green{background:rgba(179,136,255,.15);color:var(--purple);border:1px solid rgba(179,136,255,.5)}
+.builds{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.build{padding:14px}
+.build-head{display:flex;align-items:center;gap:8px}
+.status{width:10px;height:10px;border-radius:50%}
+.status.g{background:var(--emerald);box-shadow:0 0 8px var(--emerald)} .status.r{background:var(--ruby);box-shadow:0 0 8px var(--ruby)}
+.build-sub{font-size:12px;color:var(--muted);margin:2px 0 10px 18px}
+.mock{background:#f2f4f7;color:#1a222d;border-radius:10px;overflow:hidden;font-size:12px}
+.mock-top{background:#fff;border-bottom:1px solid #d7dde5;display:flex;align-items:center;gap:8px;padding:8px 10px}
+.mock-logo{font-weight:800;font-size:13px}
+.mock-search{flex:1;background:#eef1f5;border:1px solid #d7dde5;border-radius:6px;padding:4px 8px;color:#7a8695}
+.mock-body{display:grid;grid-template-columns:120px 1fr;min-height:220px}
+.mock-feeds{background:#e9edf2;padding:8px;font-size:12px}
+.mock-feeds div{padding:4px 6px;border-radius:6px}.mock-feeds .sel{background:#d3dbe5;font-weight:700}
+.mock-art{padding:10px 12px;background:#fff}
+.mock-art h4{font-size:13px;margin-bottom:2px}
+.mock-meta{color:#6b7888;font-size:12px;margin-bottom:8px}
+.btn-row{display:flex;gap:6px;margin-bottom:8px}
+.mbtn{border:1px solid #c6cfda;border-radius:6px;padding:4px 8px;background:#fff;font-size:12px;font-weight:600}
+.mbtn.share-g{border-color:var(--emerald);color:#0a7a48;outline:1px solid var(--emerald)}
+.mbtn.share-r{border-color:var(--ruby);color:#b81e28;outline:1px solid var(--ruby)}
+.pop{border:1px solid #d0d7e1;border-radius:8px;padding:8px;background:#fbfcfd}
+.url{border:1px solid #cbd3de;border-radius:6px;padding:5px 8px;background:#fff;font-family:ui-monospace,monospace;font-size:12px;color:#333;min-height:26px}
+.msg{margin-top:6px;font-size:12px;font-weight:700}.msg.g{color:#0a7a48}.msg.r{color:#b81e28}
+/* RIGHT */
+.rightcol{grid-column:3;display:flex;flex-direction:column}
+.evidence{padding:16px;display:flex;flex-direction:column;gap:2px;flex:1}
+.evidence h2{font-size:15px;margin-bottom:10px}
+.claim{border:1px solid var(--line);border-radius:12px;padding:12px;background:rgba(255,255,255,.01)}
+.claim.green{border-color:rgba(47,217,138,.7);box-shadow:0 0 24px rgba(47,217,138,.2)}
+.claim.red{border-color:rgba(255,77,87,.7);box-shadow:0 0 24px rgba(255,77,87,.2)}
+.claim.blue{border-color:rgba(58,160,255,.7);box-shadow:0 0 24px rgba(58,160,255,.2)}
+.claim.purple{border:1px dashed rgba(179,136,255,.8);box-shadow:0 0 24px rgba(179,136,255,.2)}
+.claim-top{display:flex;align-items:center;gap:8px;justify-content:space-between}
+.ct{font-size:12px;letter-spacing:.14em;font-weight:800}
+.hash{font-family:ui-monospace,monospace;font-size:12px;color:var(--muted)}
+.claim p{font-size:13px;margin:8px 0}
+.claim-foot{font-size:12px;color:var(--muted)}
+.link{display:flex;justify-content:center;padding:2px 0;color:#5b6a7d}
+.link svg{width:20px;height:20px}
+/* BOTTOM */
+.bottombar{grid-column:2/4;height:80px;display:flex;align-items:center;gap:18px;padding:0 18px}
+.sbtn{flex:none;display:flex;align-items:center;gap:10px;font-weight:800;letter-spacing:.08em;font-size:15px;padding:12px 28px;border-radius:12px;background:transparent;cursor:pointer}
+.sbtn svg{width:20px;height:20px}
+.ship{border:1px solid var(--emerald);color:var(--emerald)}
+.hold{border:1px solid var(--amber);color:var(--amber);box-shadow:0 0 24px rgba(255,122,26,.35)}
+.info{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}
+.divider{width:1px;height:36px;background:var(--line)}
+@media(max-width:1300px){.page{grid-template-columns:210px minmax(0,1fr) 360px}.verdict-text h1{font-size:44px}}
+.reveal{opacity:0;animation:riseIn 450ms ease-out forwards;animation-delay:var(--d,0ms)}
+.claim-enter{opacity:0;animation:riseIn 450ms ease-out forwards;animation-delay:var(--cd,0ms)}
+@keyframes riseIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@media (prefers-reduced-motion: reduce){.reveal,.claim-enter{animation:none;opacity:1;transform:none}}
+</style>
+<style>
+.gem.gem-emerald{--gem-c:var(--emerald);--gem-glow:rgba(47,217,138,.6);background:radial-gradient(circle at 50% 38%,#d6ffe9 0%,var(--gem-c) 24%,#063d24 55%,#020a06 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(47,217,138,.3),inset 0 0 22px rgba(255,255,255,.25)}
+.gem.gem-ruby{--gem-c:var(--ruby);--gem-glow:rgba(255,77,87,.6);background:radial-gradient(circle at 50% 38%,#ffd6d9 0%,var(--gem-c) 24%,#5a0a0f 55%,#0a0203 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(255,77,87,.3),inset 0 0 22px rgba(255,255,255,.2)}
+.gem.gem-gray{--gem-c:#8b97a6;--gem-glow:rgba(139,151,166,.5);background:radial-gradient(circle at 50% 38%,#e8edf3 0%,var(--gem-c) 26%,#2a3442 58%,#07090c 75%);box-shadow:0 0 24px var(--gem-glow),0 0 60px rgba(139,151,166,.25)}
+.claim.gold{border:1px solid #d4a017;box-shadow:0 0 24px rgba(212,160,23,.35);background:rgba(212,160,23,.06)}
+.chip.gold{background:rgba(212,160,23,.16);color:#e8c24a;border:1px solid rgba(212,160,23,.6)}
+.claim.tampered{outline:2px solid var(--ruby);outline-offset:2px}
+.claim.pulse-red{animation:cred 1s ease-in-out 3}
+@keyframes cred{0%,100%{box-shadow:0 0 24px rgba(255,77,87,.2)}50%{box-shadow:0 0 44px rgba(255,77,87,.7)}}
+.claim-details{margin-top:8px;padding-top:8px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);display:none}
+.claim-details.open{display:block}
+.claim-details div{margin:2px 0;word-break:break-all}
+.ev-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.ev-head h2{margin:0}
+.mini-btn{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.mini-btn:disabled{opacity:.45;cursor:not-allowed}
+.tiny-link{background:none;border:none;color:var(--muted);font-size:12px;text-decoration:underline;cursor:pointer;padding:0}
+.verify-ok{color:var(--emerald);font-size:12px;font-weight:700}
+.verify-bad{color:var(--ruby);font-size:12px;font-weight:700}
+.ask-panel{background:#0f141b;border:1px solid var(--line);border-radius:8px;padding:8px;margin-top:8px;font-size:12px;color:var(--muted)}
+.fail-banner{background:rgba(255,77,87,.12);border:1px solid var(--ruby);color:var(--ruby);border-radius:10px;padding:8px 10px;font-size:13px;font-weight:700;margin-bottom:10px}
+#reasonWrap{grid-column:2/4}
+#reasonRow{display:flex;gap:8px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+#reasonRow input{flex:1;background:#0f141b;border:1px solid var(--line);border-radius:8px;color:var(--text);padding:9px 10px;font-size:13px}
+#toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);background:#0f141b;border:1px solid var(--line);color:var(--text);padding:10px 16px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;pointer-events:none;transition:all .25s;z-index:200;max-width:80vw}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+#toast.red{border-color:var(--ruby);color:#ffb3b8}
+#toast.green{border-color:var(--emerald)}
+#modalOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:300}
+#modalOverlay.open{display:flex}
+#modal{background:#121821;border:1px solid var(--line);border-radius:14px;padding:18px;max-width:420px;width:90%}
+#modal h3{font-size:15px;margin-bottom:8px}
+#modal p{font-size:13px;color:var(--muted);margin-bottom:12px}
+#modal .mrow{display:flex;gap:8px;justify-content:flex-end}
+#bisectTip{position:fixed;background:#0f141b;border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12px;color:var(--text);display:none;z-index:250;pointer-events:none}
+.node{cursor:pointer}
+.node:focus{outline:2px solid var(--blue);outline-offset:2px}
+.node.lit{opacity:1}
+.node.dim{opacity:.18}
+#decisionSummary{display:flex;align-items:center;gap:10px;font-size:13px}
+#decisionSummary[hidden]{display:none}
+#demoTab{position:fixed;left:0;bottom:18px;background:#121821;border:1px solid var(--line);border-left:none;border-radius:0 10px 10px 0;padding:8px 12px;font-size:12px;font-weight:800;cursor:pointer;z-index:150;color:var(--muted)}
+#demoDrawer{position:fixed;left:0;bottom:58px;background:#121821;border:1px solid var(--line);border-radius:0 12px 12px 0;padding:12px;width:260px;display:none;z-index:150}
+#demoDrawer label{display:flex;gap:8px;align-items:center;font-size:13px;margin:8px 0;cursor:pointer}
+.ev-foot{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);text-align:center}
+#replayBtn{margin-top:8px}
+.lock{font-size:34px;vertical-align:middle;margin-left:8px}
+/* Bisect timeline animation */
+.t-line{overflow:visible}
+.t-pulse{position:absolute;left:0;top:50%;width:64px;height:6px;margin-top:-3px;border-radius:999px;background:linear-gradient(90deg,rgba(255,166,61,0),var(--amber) 45%,#fff2d6 50%,var(--amber) 55%,rgba(255,166,61,0));box-shadow:0 0 12px rgba(255,166,61,.9);opacity:0;pointer-events:none;transform:translateX(-68px);will-change:transform}
+.timeline.replaying .t-pulse{opacity:1}
+#bisectNodes .node{transition:transform 150ms ease,opacity 300ms ease,box-shadow 300ms ease;will-change:transform}
+#bisectNodes .node:hover{transform:scale(1.25)}
+#bisectNodes .node.c{position:relative;transform-origin:center;animation:culpritIdle 2.4s ease-in-out infinite}
+#bisectNodes .node.c:hover{animation:none;transform:scale(1.25)}
+.timeline.replaying #bisectNodes .node.c{animation:none}
+#bisectNodes .node.c.ripple::before,#bisectNodes .node.c.ripple::after{content:"";position:absolute;inset:-6px;border-radius:50%;border:2px solid var(--amber);opacity:0;pointer-events:none;animation:culpritRipple 900ms ease-out 1 forwards}
+#bisectNodes .node.c.ripple::after{animation-delay:150ms}
+@keyframes culpritIdle{0%,100%{transform:scale(1)}50%{transform:scale(1.12)}}
+@keyframes culpritRipple{from{transform:scale(.6);opacity:.9}to{transform:scale(2.1);opacity:0}}
+@media (prefers-reduced-motion: reduce){.t-pulse{display:none;opacity:0}#bisectNodes .node{transition:none}#bisectNodes .node.c{animation:none}#bisectNodes .node.c.ripple::before,#bisectNodes .node.c.ripple::after{animation:none;display:none}#bisectNodes .node:hover{transform:none}}
+#bisectNodes .node.tested{opacity:1}
+#bisectNodes .node.inferred{opacity:.55;outline:1px solid rgba(232,237,243,.7);outline-offset:2px}
+#bisectNodes .node.inferred.g{outline-color:rgba(47,217,138,.8)}
+#bisectNodes .node.inferred.r{outline-color:rgba(255,77,87,.8)}
+#bisectNodes .node.inferred.c{outline-color:rgba(255,166,61,.9)}
+@media (prefers-reduced-motion: reduce){#bisectNodes .node.tested,#bisectNodes .node.inferred{transition:none}}
+/* Evidence chain motion */
+#claimsList .claim{position:relative;overflow:hidden;transition:opacity 300ms ease,transform 350ms ease;--flash-c:#8b97a6}
+#claimsList .claim.green{--flash-c:#2fd98a}
+#claimsList .claim.red{--flash-c:#ff4d57}
+#claimsList .claim.blue{--flash-c:#3aa0ff}
+#claimsList .claim.purple{--flash-c:#b388ff}
+#claimsList .claim.gold{--flash-c:#d4a017}
+#claimsList .claim.claim-new{animation:evSlideIn 350ms ease-out 1}
+#claimsList .claim.claim-new::before{content:"";position:absolute;inset:0;border-radius:12px;border:2px solid var(--flash-c);opacity:0;pointer-events:none;animation:evFlash 900ms ease-out 1}
+@keyframes evSlideIn{from{opacity:0;transform:translateY(-18px)}to{opacity:1;transform:translateY(0)}}
+@keyframes evFlash{0%{opacity:1}100%{opacity:0}}
+#claimsList .link.link-new{animation:evLinkIn 350ms ease-out 1}
+#claimsList .link.link-new svg{animation:evLinkDraw 350ms ease-out 1;transform-origin:center}
+@keyframes evLinkIn{from{opacity:0}to{opacity:1}}
+@keyframes evLinkDraw{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+#claimsList .claim.scanning::after{content:"";position:absolute;left:8px;right:8px;top:0;height:2px;background:var(--emerald);opacity:0;pointer-events:none;animation:evScan 300ms linear 1}
+@keyframes evScan{0%{opacity:0;transform:translateY(0)}15%{opacity:1}100%{opacity:1;transform:translateY(110px)}}
+#claimsList .claim .check-pop{position:absolute;top:8px;right:10px;width:22px;height:22px;border-radius:50%;background:rgba(47,217,138,.16);border:1px solid var(--emerald);color:var(--emerald);font-size:14px;font-weight:800;line-height:20px;text-align:center;opacity:0;transform:scale(.4);pointer-events:none}
+#claimsList .claim.show-check .check-pop{animation:evCheckPop 400ms ease-out 1 forwards}
+@keyframes evCheckPop{0%{opacity:0;transform:scale(.4)}40%{opacity:1;transform:scale(1.2)}100%{opacity:1;transform:scale(1)}}
+#claimsList .claim.tamper-shake{border-color:var(--ruby);animation:evShake 400ms ease-in-out 1}
+@keyframes evShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-5px)}80%{transform:translateX(5px)}}
+#claimsList .claim.dimmed{opacity:.6}
+@media (prefers-reduced-motion: reduce){
+#claimsList .claim{transition:none}
+#claimsList .claim.claim-new,#claimsList .claim.claim-new::before,#claimsList .link.link-new,#claimsList .link.link-new svg,#claimsList .claim.scanning::after,#claimsList .claim.show-check .check-pop,#claimsList .claim.tamper-shake{animation:none;opacity:1;transform:none}
+#claimsList .claim.claim-new::before,#claimsList .claim.scanning::after,#claimsList .claim .check-pop{display:none}
+#claimsList .claim.dimmed{opacity:.6}
+}
+/* SHIP HOLD micro interactions */
+.sbtn{transition:transform 150ms ease,box-shadow 200ms ease;will-change:transform}
+.sbtn.ship:hover{transform:translateY(-2px);box-shadow:0 4px 18px rgba(47,217,138,.45)}
+.sbtn.hold:hover{transform:translateY(-2px);box-shadow:0 4px 22px rgba(255,166,61,.6)}
+.sbtn:active{transform:scale(.97)}
+.sbtn:disabled:hover{transform:none}
+#reasonWrap{display:grid;grid-template-rows:0fr;opacity:0;overflow:hidden;transition:grid-template-rows 250ms ease,opacity 250ms ease}
+#reasonWrap.open{grid-template-rows:1fr;opacity:1}
+#reasonWrap[hidden]{display:none}
+#reasonRow{overflow:hidden;min-height:0}
+#reasonConfirm{transition:transform 180ms ease,opacity 180ms ease}
+#reasonConfirm.morph{transform:scale(1.08);opacity:.9}
+#decisionSummary{transition:opacity 200ms ease,transform 200ms ease}
+#decisionSummary.fade-in{animation:sumFade 300ms ease-out 1}
+@keyframes sumFade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+#toast{left:auto;right:24px;bottom:24px;transform:translateX(24px);transition:transform 250ms ease,opacity 250ms ease;overflow:hidden;padding-bottom:14px}
+#toast.show{transform:translateX(0)}
+#toast::after{content:"";position:absolute;left:0;bottom:0;height:3px;width:100%;background:var(--emerald);transform:scaleX(1);transform-origin:left center}
+#toast.red::after{background:var(--ruby)}
+#toast.show::after{animation:toastDrain 3s linear 1 forwards}
+@keyframes toastDrain{from{transform:scaleX(1)}to{transform:scaleX(0)}}
+@media (prefers-reduced-motion: reduce){
+.sbtn{transition:none}
+.sbtn.ship:hover,.sbtn.hold:hover{transform:none;box-shadow:none}
+.sbtn:active{transform:none}
+#reasonWrap{transition:none}
+#reasonConfirm{transition:none}
+#decisionSummary,#decisionSummary.fade-in{animation:none;transition:none}
+#toast{transition:none;transform:none}
+#toast.show::after{animation:none;display:none}
+}
+</style>
+<style>
+html,body{overflow-x:hidden;max-width:100%}
+body{overflow-x:hidden}
+.page,.center,.rightcol,.verdict,.bisect,.build,.builds,.evidence,.bottombar,.timeline,.mock,.mock-body,.mock-art{max-width:100%}
+.center,.rightcol,.verdict-text,.build,.mock,.mock-art,.mock-body,.claim,.evidence{min-width:0}
+img,svg{max-width:100%}
+.rail-fade{transition:opacity 200ms ease,transform 200ms ease}
+@media(max-width:1500px){
+.page{grid-template-columns:240px minmax(0,1fr) 340px}
+.verdict{flex-wrap:wrap;row-gap:12px}
+.gem{flex:none}
+.verdict-text{flex:1 1 220px;min-width:0}
+.verdict-text h1{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+.verdict>div:nth-of-type(2){flex:1 1 100%;min-width:0}
+.v-div{display:none}
+.v-title,.v-sub{white-space:normal;overflow-wrap:anywhere}
+.petro{display:none}
+.mock{overflow:hidden}
+.mock-body{grid-template-columns:110px minmax(0,1fr)}
+.mock-feeds{overflow:hidden}
+.mock-art{min-width:0;overflow:hidden}
+.btn-row{flex-wrap:wrap}
+.url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pop{min-width:0;overflow:hidden}
+.bisect-head{flex-wrap:wrap;gap:8px}
+.culprit-tag{max-width:calc(100% - 16px);white-space:normal}
+}
+@media(max-width:1100px){
+.page{grid-template-columns:64px minmax(0,1fr) 340px}
+.sidebar{padding:14px 8px;min-height:600px;align-items:center}
+.logo-wrap{border-bottom:none;padding:4px 0 10px}
+.logo-wrap img{width:44px;height:auto}
+.nav{align-items:center;width:100%}
+.nav li{width:100%;display:flex;justify-content:center}
+.nav a{justify-content:center;gap:0;font-size:0;line-height:0;padding:10px 0;width:48px}
+.nav a svg{width:22px;height:22px}
+.carve{display:none}
+.side-foot{display:none}
+}
+@media(max-width:900px){
+.page{grid-template-columns:minmax(0,1fr);padding:12px}
+.sidebar{grid-column:1;grid-row:auto;min-height:0;flex-direction:row;align-items:center;gap:10px;padding:10px 12px}
+.logo-wrap{border-bottom:none;padding:0}
+.nav{margin-top:0;flex-direction:row;flex:1;justify-content:space-around;gap:4px}
+.center{grid-column:1}
+.rightcol{grid-column:1}
+.bottombar{grid-column:1;height:auto;flex-wrap:wrap;padding:12px;row-gap:12px}
+#reasonWrap{grid-column:1}
+.builds{grid-template-columns:1fr}
+.mock-body{grid-template-columns:minmax(0,1fr)}
+.mock-feeds{display:flex;flex-wrap:wrap;gap:4px}
+.timeline{padding:28px 16px 78px}
+.t-line{left:23px;right:23px}
+.end-label.left{left:16px}
+.end-label.right{right:16px}
+.culprit-tag{top:78px}
+.verdict{padding:16px}
+.verdict-text h1{font-size:40px}
+}
+@media (prefers-reduced-motion: reduce){
+.rail-fade{transition:none}
+}
+</style>
+<style>
+.runpick{margin:10px 0 12px;font-size:12px;color:var(--muted)}   /* in the normal flow, between the apps and the footer: no fixed offsets to collide */
+.runpick label{display:block;letter-spacing:.08em;text-transform:uppercase;font-size:10px;margin-bottom:4px}
+.runpick select{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:12px ui-monospace,monospace}
+.v-about{margin-top:6px;font-size:12px;line-height:1.4;color:var(--muted);max-width:620px}
+.shot{margin:10px 0 0}.shot img{display:block;max-width:100%;border:1px solid var(--line);border-radius:8px;background:#fff}.shot figcaption{font-size:11px;color:var(--muted);margin-top:4px}
+.measured{border:1px solid var(--line);border-radius:10px;background:var(--panel-2);padding:12px 14px;min-height:150px;font-size:13px}
+.measured .m-h{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.measured .m-row{margin:8px 0}.measured .m-w{color:var(--muted);font-size:12px}
+.measured code{display:block;font:12px/1.4 ui-monospace,monospace;word-break:break-all;margin-top:2px}
+.measured.good code{color:var(--emerald)}.measured.cand code{color:var(--ruby)}
+.claim-details a{color:var(--blue)}
+/* apps: FreshRSS built in, plus the GitHub account's repos */
+.carve{display:none}
+.apps{display:flex;flex-direction:column;flex:1 1 0;min-height:160px;margin:14px 0 0;overflow:hidden}
+.apps-h{display:flex;justify-content:space-between;align-items:center;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+.apps-h button{background:none;border:0;color:var(--muted);font-size:11px;cursor:pointer;text-decoration:underline;letter-spacing:0;text-transform:none;padding:0}
+.apps-gh{font-size:11px;line-height:1.35;color:var(--muted);margin:0 0 6px}.apps-gh.bad{color:var(--amber)}
+.apps input[type=search]{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:6px 8px;font:12px system-ui;margin-bottom:6px}
+.apps-list{flex:1 1 0;min-height:0;overflow:auto;display:flex;flex-direction:column;gap:3px;padding-right:2px}
+.apps-grp{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:8px 0 2px}
+.app-row{display:flex;flex-direction:column;align-items:flex-start;gap:1px;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:9px;padding:6px 9px;color:var(--text);cursor:pointer;font:inherit}
+.app-row:hover{background:rgba(255,255,255,.04)}.app-row:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+.app-row[aria-current="true"]{background:rgba(255,166,61,.14);border-color:rgba(255,166,61,.35)}
+.app-row .n{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.app-row .s{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.app-row .c{font-size:10px;font-weight:700;letter-spacing:.04em;border:1px solid var(--line);border-radius:99px;padding:0 7px;color:var(--muted);margin-top:2px}
+.app-row .c.ready{color:var(--emerald);border-color:rgba(47,217,138,.45)}.app-row .c.setup{color:var(--amber);border-color:rgba(255,166,61,.4)}
+.repo-panel{grid-column:2/4;grid-row:1/3;padding:26px;display:none;flex-direction:column;gap:14px;align-self:start;min-width:0}
+.page.repo-mode .repo-panel{display:flex}
+.page.repo-mode .center,.page.repo-mode .rightcol,.page.repo-mode .bottombar,.page.repo-mode #reasonWrap,.page.repo-mode .runpick{display:none}
+.rp-title{font-size:26px;margin:0;word-break:break-word}.rp-title a{color:var(--text);text-decoration:none;border-bottom:1px dashed var(--muted)}.rp-title a:hover{color:var(--amber)}
+.rp-chips{display:flex;flex-wrap:wrap;gap:6px}.rp-chip{font-size:12px;border:1px solid var(--line);border-radius:99px;padding:2px 10px;color:var(--muted)}
+.rp-desc{margin:0;color:var(--text);line-height:1.5;max-width:70ch}
+.rp-status{border:1px solid rgba(255,166,61,.4);border-radius:12px;padding:16px 18px;background:rgba(255,166,61,.06);max-width:70ch}
+.rp-status p{margin:6px 0}.rp-status ul{margin:6px 0 6px 20px;color:var(--muted)}.rp-status li{margin:3px 0}
+.rp-badge{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;color:var(--amber);border:1px solid rgba(255,166,61,.5);border-radius:99px;padding:2px 10px}
+.rp-note{color:var(--muted);font-size:13px}
+@media(max-width:1100px) and (min-width:901px){   /* keep the full sidebar here: the apps list needs the room */
+.page{grid-template-columns:200px minmax(0,1fr) 320px}
+.sidebar{padding:18px 14px;min-height:860px;align-items:stretch}
+.logo-wrap{padding:4px 0 14px;border-bottom:1px solid var(--line)}.logo-wrap img{width:150px;height:110px}
+.nav{align-items:stretch}.nav li{display:block;width:auto}
+.nav a{justify-content:flex-start;gap:10px;font-size:14px;line-height:normal;padding:9px 12px;width:auto}.nav a svg{width:20px;height:20px}
+.side-foot{display:block}
+}
+@media(max-width:900px){
+.sidebar{flex-wrap:wrap}
+.apps{flex:0 0 100%;margin:8px 0 0;max-height:340px;min-height:0}
+.apps-list{flex:0 1 auto;max-height:240px}
+.runpick{flex:0 0 100%;margin:6px 0 0}
+.repo-panel{grid-column:1;grid-row:auto;padding:18px}
+}
+#reasonRow #reasonWho{flex:0 0 170px}
+#decisionSummary{flex-wrap:wrap;row-gap:6px}
+.dec-badge{font-weight:800;letter-spacing:.06em;font-size:12px;padding:5px 10px;border-radius:8px;border:1px solid;white-space:nowrap}
+.dec-badge.hold{color:var(--amber);border-color:var(--amber)}.dec-badge.ship{color:var(--emerald);border-color:var(--emerald)}
+.dec-rec{color:var(--muted);font-size:12px}.dec-rec.against{color:var(--ruby)}
+.dec-why{max-width:320px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+/* ask the model: nothing is sent until the person has seen the exact text and the projected cost */
+.askcard{padding:14px 16px;margin-top:12px;font-size:13px}
+.askcard h2{font-size:15px;margin:0}
+.askcard .ask-count{font-size:12px;color:var(--muted)}
+.askcard p{margin:0 0 8px;color:var(--muted);line-height:1.45}
+.askcard .ask-cost{color:var(--text)}
+.askcard .ask-cost b{color:var(--amber)}
+.askcard details{margin:8px 0}
+.askcard summary{cursor:pointer;color:var(--text);font-weight:700;font-size:12px}
+.askcard pre{background:#0f141b;border:1px solid var(--line);border-radius:8px;padding:8px;margin:6px 0 0;max-height:240px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-size:11px;line-height:1.4;color:var(--text)}
+.askcard .ask-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+.askcard .ask-err{color:var(--ruby);margin-top:8px}
+.askcard .ask-busy{color:var(--amber);margin-top:8px}
+.dec-none{color:var(--muted);font-size:13px}
+.runbar{margin-top:8px;height:5px;max-width:420px;border-radius:3px;background:var(--line);overflow:hidden}
+.runbar i{display:block;height:100%;width:0;background:var(--amber);transition:width .8s ease}
+#runOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:310}
+#runOverlay.open{display:flex}
+#runDlg{width:min(540px,92vw);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 0 40px rgba(0,0,0,.6)}
+#runDlg h3{margin:0 0 4px;font-size:18px}#runDlg .sub{color:var(--muted);font-size:13px;margin-bottom:6px}
+#runDlg label.f{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+#runDlg select,#runDlg input[type=text]{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px system-ui}
+#runDlg .about{font-size:12px;color:var(--muted);line-height:1.4;margin-top:6px}
+#runDlg .two{display:flex;gap:12px}#runDlg .two>div{flex:1}
+#runDlg .chk{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13px;color:var(--text)}
+#runDlg .err{color:var(--ruby);font-size:13px;min-height:18px;margin-top:10px}
+#runDlg .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+#setupOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:310}
+#setupOverlay.open{display:flex}
+#setupDlg{width:min(540px,92vw);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 0 40px rgba(0,0,0,.6)}
+#setupDlg h3{margin:0 0 4px;font-size:18px}#setupDlg .sub{color:var(--muted);font-size:13px;margin-bottom:6px}
+#setupDlg label.f{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
+#setupDlg select,#setupDlg input[type=text]{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px system-ui}
+#setupDlg .about{font-size:12px;color:var(--muted);line-height:1.4;margin-top:6px}
+#setupDlg .two{display:flex;gap:12px}#setupDlg .two>div{flex:1}
+#setupDlg .chk{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13px;color:var(--text)}
+#setupDlg .err{color:var(--ruby);font-size:13px;min-height:18px;margin-top:10px}
+#setupDlg .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+#setupDlg{width:min(680px,94vw)}
+#setupDlg .pre{background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:11px/1.45 ui-monospace,monospace;white-space:pre-wrap;word-break:break-word;max-height:220px;overflow:auto;margin-top:6px}
+#setupDlg .stepbox{border-top:1px solid var(--line);margin-top:14px;padding-top:4px}
+#setupDlg .stepbox[hidden]{display:none}
+#setupDlg .chk-ok{color:#3ddc97}#setupDlg .chk-bad{color:var(--ruby)}
+#setupDlg .warn{border:1px solid var(--ruby);border-radius:8px;padding:8px 10px;margin-top:10px;font-size:13px}
+.vrun{padding:14px;margin-bottom:16px}.vrun[hidden]{display:none}
+.vrun-t{font-size:13px;margin-bottom:8px}
+.vrun-bar{height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}.vrun-bar>div{height:100%;width:0;background:#4aa3ff;transition:width .6s ease}
+.reg-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-top:8px}.reg-row .nm{font-weight:600}
+.setup-link{margin-top:8px;width:100%}
+@media (prefers-reduced-motion: reduce){.runpick select{transition:none}}
+
+/* Views: the sidebar switches what the main area shows. Runs is the default page. */
+.page.v-evidence .center{display:none}
+.page.v-evidence .rightcol{grid-column:2/4}
+.page.v-bisect .rightcol,.page.v-bisect .builds{display:none}
+.page.v-bisect .center{grid-column:2/4}
+.page.v-reports .center,.page.v-reports .rightcol,.page.v-reports .bottombar,.page.v-reports #reasonWrap,.page.v-reports .runpick,.page.v-reports .repo-panel,
+.page.v-settings .center,.page.v-settings .rightcol,.page.v-settings .bottombar,.page.v-settings #reasonWrap,.page.v-settings .runpick,.page.v-settings .repo-panel{display:none}
+.view-panel{display:none;grid-column:2/4;flex-direction:column;gap:12px;padding:18px;align-self:start}
+.page.v-reports #reportsPanel,.page.v-settings #settingsPanel{display:flex}
+.view-panel h2{font-size:17px;font-weight:700}
+.view-panel .hint{font-size:13px;color:var(--muted);max-width:760px}
+.nav a[aria-current="page"]{color:var(--text)}
+.rep-tools{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.rep-tools select,.set-row input,.set-row select{background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:7px 10px;font:inherit}
+.rep-table{width:100%;border-collapse:collapse;font-size:13px}
+.rep-table th{text-align:left;color:var(--muted);font-weight:600;font-size:12px;padding:6px 8px;border-bottom:1px solid var(--line)}
+.rep-table td{padding:8px;border-bottom:1px solid var(--line);vertical-align:top}
+.rep-table tr:hover td{background:rgba(255,255,255,.03)}
+.rep-table a{color:var(--blue);white-space:nowrap}
+.rep-table td:last-child{white-space:nowrap}
+.vchip{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.06em;padding:2px 8px;border-radius:20px;border:1px solid var(--line)}
+.vchip.pass,.vchip.ship{color:var(--emerald);border-color:rgba(47,217,138,.5)}
+.vchip.hold,.vchip.fail{color:var(--ruby);border-color:rgba(255,77,87,.5)}
+.vchip.running{color:var(--amber);border-color:rgba(255,166,61,.5)}
+.set-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.set-row[hidden],.empty-note[hidden]{display:none}
+.set-row label{min-width:150px;color:var(--muted);font-size:13px}
+.set-facts{display:grid;grid-template-columns:150px 1fr;gap:4px 10px;font-size:13px}
+.set-facts dt{color:var(--muted)}
+.set-msg{font-size:13px;min-height:18px}
+.set-msg.ok{color:var(--emerald)}.set-msg.bad{color:var(--ruby)}
+.empty-note{color:var(--muted);padding:18px 8px}
+</style>
+</head>
+<body>
+<div class="page">
+<aside class="sidebar card reveal" style="--d:0ms">
+<div class="logo-wrap"><img src="/ui/Red.png" alt="Behique CI logo"></div>
+<ul class="nav">
+<li><a href="#runs" data-view="runs" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Runs</a></li>
+<li><a href="#evidence" data-view="evidence"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Evidence</a></li>
+<li><a href="#bisect" data-view="bisect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3v18M6 8h12l-3 4 3 4H6"/></svg>Bisect</a></li>
+<li><a href="#reports" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Reports</a></li>
+<li><a href="#settings" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>Settings</a></li>
+</ul>
+<section class="apps" aria-label="Apps">
+<div class="apps-h"><span>Apps</span><button id="appsRefresh" type="button" title="Ask GitHub for your repos again">refresh</button></div>
+<div class="apps-gh" id="ghState">GitHub: checking...</div>
+<input type="search" id="appSearch" placeholder="Search your repos" aria-label="Search your repos" autocomplete="off" hidden>
+<div class="apps-list" id="appsList" role="list"></div>
+<button class="mini-btn setup-link" id="setupOpen" type="button" title="Let Behique work out how to run a repository you already cloned">Set up an app</button>
+</section>
+<div class="carve" aria-hidden="true">
+<svg width="120" height="180" viewBox="0 0 120 180" fill="none" stroke="#8b97a6" stroke-width="1"><circle cx="60" cy="60" r="40"/><circle cx="60" cy="60" r="28"/><circle cx="60" cy="60" r="12"/><circle cx="60" cy="140" r="18"/><circle cx="30" cy="110" r="3"/><circle cx="90" cy="110" r="3"/><path d="M60 10v20M20 60H10M110 60h-10"/></svg>
+</div>
+<div class="runpick"><label for="runPick">Report</label><select id="runPick"></select></div>
+<div class="side-foot">Meta Global AI Developer Hackathon</div>
+</aside>
+<div class="center">
+<section class="verdict card reveal" id="heroCard" style="--d:70ms">
+<div class="gem" id="gem" aria-hidden="true"></div>
+<div class="verdict-text"><div class="label" id="verdictLabel">Behique recommends</div><h1 id="verdictWord">HOLD</h1><button class="mini-btn" id="replayBtn" type="button">New run</button></div>
+<div class="v-div"></div>
+<div><div class="v-title" id="verdictTitle">FreshRSS 1.29.1 (good) vs 1.30.0 (candidate)</div><div class="v-sub" id="verdictSub">1 reproduced regression, 227 commits bisected in 8 steps</div><div class="v-about" id="verdictAbout" hidden></div><div class="runbar" id="runbar" hidden><i id="runbarFill"></i></div></div>
+<div class="petro" aria-hidden="true">
+<svg width="140" height="80" viewBox="0 0 140 80" fill="none" stroke="#e8edf3" stroke-width="1"><circle cx="25" cy="30" r="12"/><path d="M25 10v-6M25 56v-6M5 30H-1M45 30h-6M11 16l-4-4M39 48l-4-4M39 12l4-4M11 44l4-4"/><path d="M70 20c8 0 8 12 0 12s-8 12 0 12 8 12 0 12"/><circle cx="115" cy="35" r="10"/><path d="M110 55c5-8 10-8 10 0s5 8 0 0"/></svg>
+</div>
+</section>
+<section class="bisect card reveal" id="bisectCard" style="--d:140ms">
+<div class="bisect-head"><h2>Bisect timeline</h2><div class="legend"><span id="bisectCount">227 commits . 8 steps</span><span><i class="dot" style="background:var(--emerald)"></i>good</span><span><i class="dot" style="background:var(--ruby)"></i>bad</span><span><i class="dot" style="background:var(--amber)"></i>culprit</span></div></div>
+<div class="hint" id="bisectNone" hidden style="margin-bottom:8px"></div>
+<div class="timeline">
+<div class="t-line"><div class="t-pulse" id="bisectPulse" aria-hidden="true"></div></div>
+<div class="t-nodes" id="bisectNodes"></div>
+<span class="end-label left mono" id="bisectLeft">1a2b3c4d (good)</span>
+<span class="end-label right mono" id="bisectRight">9f8e7d6c (bad)</span>
+<div class="culprit-tag" id="culpritTag"><div class="mono">1b7178a1 #9146</div><span class="chip green">verified 3/3 and 3/3</span></div>
+</div>
+</section>
+<div class="vrun card" id="vrun" hidden><div class="vrun-t" id="vrunText">Starting</div><div class="vrun-bar"><div id="vrunFill"></div></div></div>
+<div class="builds">
+<article class="build card reveal" style="--d:210ms"><div class="build-head"><span class="status g"></span><h2>Good build</h2></div><div class="build-sub">FreshRSS 1.29.1 (good)</div>
+<div class="mock"><div class="mock-top"><span class="mock-logo">FreshRSS</span><span class="mock-search">Search articles</span></div>
+<div class="mock-body"><div class="mock-feeds"><div>All articles 328</div><div>Starred 12</div><div>Unread 42</div><div class="sel">Tech 98</div><div>World 64</div><div>Programming 71</div><div>Design 28</div></div>
+<div class="mock-art"><h4>A more humane web</h4><div class="mock-meta">By Tantek . Mar 12, 2024</div>
+<div class="btn-row"><span class="mbtn">Read later</span><span class="mbtn">Star</span><span class="mbtn share-g">Share</span></div>
+<div class="pop"><div class="url">https://tantek.com/2024/03/12/a-more-hu...</div><div class="msg g">Link copied to clipboard</div></div>
+</div></div></div></article>
+<article class="build card reveal" style="--d:280ms"><div class="build-head"><span class="status r"></span><h2>Candidate build</h2></div><div class="build-sub">FreshRSS 1.30.0 (candidate)</div>
+<div class="mock"><div class="mock-top"><span class="mock-logo">FreshRSS</span><span class="mock-search">Search articles</span></div>
+<div class="mock-body"><div class="mock-feeds"><div>All articles 328</div><div>Starred 12</div><div>Unread 42</div><div class="sel">Tech 98</div><div>World 64</div><div>Programming 71</div><div>Design 28</div></div>
+<div class="mock-art"><h4>A more humane web</h4><div class="mock-meta">By Tantek . Mar 12, 2024</div>
+<div class="btn-row"><span class="mbtn">Read later</span><span class="mbtn">Star</span><span class="mbtn share-r">Share</span></div>
+<div class="pop"><div class="url">&nbsp;</div><div class="msg r">No link available</div></div>
+</div></div></div></article>
+</div>
+</div>
+<div class="rightcol">
+<section class="evidence card reveal" id="evidenceCard" style="--d:350ms"><div class="ev-head"><h2>Evidence chain</h2><div style="display:flex;gap:8px;align-items:center"><button class="mini-btn" id="verifyBtn" type="button">Verify chain</button><button class="tiny-link" id="tamperLink" type="button">Simulate tampering (this page only)</button></div></div>
+<div id="verifyStatus" style="font-size:12px;margin-bottom:6px"></div>
+<div id="failBanner" class="fail-banner" hidden>Candidate build failed, evidence incomplete</div>
+<div id="claimsList"></div>
+<div class="ev-foot"><button class="tiny-link" id="forbiddenLink" type="button">Try forbidden write</button></div>
+</section>
+<section class="askcard card" id="askCard" aria-live="polite" hidden>
+<div class="ev-head"><h2>Ask the model why</h2><span class="ask-count" id="askCount"></span></div>
+<p id="askNote"></p>
+<div class="ask-actions"><button class="mini-btn" id="askOpen" type="button">Review what would be sent</button></div>
+<div id="askReview" hidden>
+<p id="askMeta"></p>
+<details open><summary id="askSentSum">The exact text that would be sent</summary><pre id="askSent"></pre></details>
+<p class="ask-cost" id="askCost"></p>
+<div class="ask-actions"><button class="mini-btn" id="askSend" type="button">Send</button><button class="tiny-link" id="askCancel" type="button">Cancel</button></div>
+</div>
+<div class="ask-busy" id="askBusy" hidden></div>
+<div class="ask-err" id="askErr" role="alert" hidden></div>
+</section>
+</div>
+<section class="repo-panel card" id="repoPanel" aria-live="polite"></section>
+<section class="view-panel card" id="reportsPanel" aria-label="Reports">
+<h2>Reports</h2><div class="hint">Every check Behique has recorded, newest first. Open one to see its evidence, bisect and decision.</div>
+<div class="rep-tools"><label for="repApp" class="label">App</label><select id="repApp"></select><label for="repVerdict" class="label">Result</label><select id="repVerdict"><option value="">All</option><option value="hold">Hold</option><option value="pass">Pass</option><option value="fail">Failed</option><option value="running">Running</option></select><span id="repCount" class="hint"></span></div>
+<table class="rep-table"><thead><tr><th>When</th><th>App</th><th>Check</th><th>Result</th><th>Decision</th><th></th></tr></thead><tbody id="repRows"></tbody></table>
+<div class="empty-note" id="repEmpty" hidden>No reports match.</div>
+</section>
+<section class="view-panel card" id="settingsPanel" aria-label="Settings">
+<h2>Settings</h2>
+<div class="hint">Where checks run. Apps that run their own code (install, build, a server) are only started in a sandbox, so none of it runs on this machine.</div>
+<div class="set-row"><label for="setMode">Run checks</label><select id="setMode"><option value="off">On this machine (static apps only)</option><option value="local">In local Docker (OrbStack)</option><option value="ssh">In Docker on another machine (ssh)</option></select></div>
+<div class="set-row" id="setHostRow"><label for="setHost">ssh host</label><input id="setHost" type="text" placeholder="hardac2" autocomplete="off" spellcheck="false"><span class="hint">An alias from your ssh config. Keys only, no password prompt.</span></div>
+<div class="set-row" id="setLimitRow"><label for="setMem">Memory per app (MB)</label><input id="setMem" type="number" min="512" max="16384" step="512" placeholder="4096 (default)"><label for="setCpus" style="min-width:auto">CPUs</label><input id="setCpus" type="number" min="0.5" max="16" step="0.5" placeholder="4 (default)"><span class="hint">Big builds such as Next.js need about 10240.</span></div>
+<div class="set-row"><button class="mini-btn" id="setSave" type="button">Save</button><button class="mini-btn" id="setTest" type="button">Test connection</button><span class="set-msg" id="setMsg" role="status"></span></div>
+<dl class="set-facts" id="setFacts"></dl>
+</section>
+<div id="reasonWrap" hidden><div id="reasonRow"><input id="reasonInput" type="text" placeholder="One line reason, required" maxlength="200"><input id="reasonWho" type="text" placeholder="Your name (optional)" maxlength="80" autocomplete="name"><button class="mini-btn" id="reasonConfirm" type="button" disabled>Confirm</button><button class="tiny-link" id="reasonCancel" type="button">Cancel</button></div></div>
+<div class="bottombar card reveal" id="bottomBar" style="--d:420ms">
+<span id="shipHoldWrap" style="display:flex;gap:18px;align-items:center">
+<button class="sbtn ship" id="shipBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 13l4 4L19 7"/></svg>SHIP</button>
+<button class="sbtn hold" id="holdBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5v14M15 5v14"/></svg>HOLD</button>
+</span>
+<span id="decisionSummary" hidden></span>
+<div class="divider"></div>
+<div class="info"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3"/><path d="M5 20c1-4 4-6 7-6s6 2 7 6"/></svg>Decision belongs to a human</div>
+<div class="divider"></div>
+<div class="info"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 17l6-6-6-6M13 17l6-6-6-6"/></svg><span id="testExported">Replayable Playwright test exported</span></div>
+<div class="divider"></div>
+<div class="info"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2 2"/></svg><span id="modelCost">model cost $0.006</span></div>
+</div>
+</div>
+<div id="bisectTip" role="tooltip"></div>
+<div id="toast" role="status"></div>
+<div id="runOverlay"><div id="runDlg" role="dialog" aria-modal="true" aria-label="New run">
+<h3>New run</h3><div class="sub">Compare two versions of an app and find out what changed.</div>
+<label class="f" for="runApp">App</label><select id="runApp"></select>
+<div id="runTypeWrap"><label class="f" for="runType">Check</label><select id="runType"></select><div class="about" id="runTypeAbout"></div></div>
+<div id="runCaseWrap"><label class="f" for="runCase">Known case</label><select id="runCase"></select><div class="about" id="runAbout"></div></div>
+<div class="two"><div><label class="f" for="runGood">Old version</label><input type="text" id="runGood" list="runTags" autocomplete="off" spellcheck="false"></div>
+<div><label class="f" for="runCand">New version</label><input type="text" id="runCand" list="runTags" autocomplete="off" spellcheck="false"></div></div>
+<datalist id="runTags"></datalist>
+<label class="chk"><input type="checkbox" id="runBisect" checked> Search for the exact change if the behaviour differs</label>
+<div class="about" id="runTime"></div>
+<div class="err" id="runErr" role="alert"></div>
+<div class="btns"><button class="mini-btn" id="runCancelDlg" type="button">Cancel</button><button class="mini-btn" id="runStart" type="button">Start run</button></div>
+</div></div>
+<div id="setupOverlay"><div id="setupDlg" role="dialog" aria-modal="true" aria-label="Set up an app">
+<h3>Set up an app</h3><div class="sub">Behique inspects a repository you already cloned, a model proposes how to run it, and Behique checks the proposal by building and taking pictures. You approve each step. Nothing is cloned.</div>
+<label class="f" for="setupRepo">Repository (in the apps folder)</label><select id="setupRepo"></select>
+<div class="two"><div><label class="f" for="setupName">App name (letters, digits, dashes)</label><input type="text" id="setupName" autocomplete="off" spellcheck="false"></div><div></div></div>
+<div class="two"><div><label class="f" for="setupGood">Old version (tag or branch)</label><input type="text" id="setupGood" autocomplete="off" spellcheck="false"></div>
+<div><label class="f" for="setupCand">New version (tag or branch)</label><input type="text" id="setupCand" autocomplete="off" spellcheck="false"></div></div>
+<div class="btns"><button class="mini-btn" id="setupReview" type="button">Review what would be sent</button></div>
+<div class="stepbox" id="setupPreview" hidden><div class="about" id="setupFacts"></div><div class="about">This is the exact text that would be sent to the model, word for word:</div><div class="pre" id="setupSent"></div><div class="about" id="setupCost"></div>
+<div class="btns"><button class="mini-btn" id="setupSend" type="button">Send</button></div></div>
+<div class="stepbox" id="setupProposal" hidden><div class="about">The model proposed this profile. It is a proposal, not a result:</div><div class="pre" id="setupProfile"></div><div class="about" id="setupProblems"></div>
+<div class="warn" id="setupCmdBox" hidden><div id="setupCmds" class="pre"></div><label class="chk"><input type="checkbox" id="setupApprove"> I approve running these commands on this machine</label></div>
+<div class="btns"><button class="mini-btn" id="setupVerify" type="button">Verify and save</button></div></div>
+<div class="stepbox" id="setupResult" hidden><div id="setupChecks" class="about"></div></div>
+<div class="err" id="setupErr" role="alert"></div>
+<div class="btns"><button class="mini-btn" id="setupClose" type="button">Close</button></div>
+</div></div>
+<div id="modalOverlay"><div id="modal" role="dialog" aria-modal="true" aria-label="Confirm ship"><h3>A reproduced failure exists. Ship anyway?</h3><p id="modalHint">A reproduced failure is on record. Add a reason of at least 10 characters to override.</p><div class="mrow"><button class="mini-btn" id="modalCancel" type="button">Cancel</button><button class="mini-btn" id="modalShip" type="button">Ship anyway</button></div></div></div>
+<div id="demoTab" tabindex="0" role="button" aria-expanded="false">Demo controls</div>
+<div id="demoDrawer" aria-label="Demo controls">
+<div class="label">Demo controls</div>
+<label><input type="checkbox" id="toggleClean"> Clean run (no regression)</label>
+<label><input type="checkbox" id="toggleFail"> Simulate build failure</label>
+<label><input type="checkbox" id="toggleTamper"> Simulate tampering</label>
+</div>
+<script>
+/*
+DATA SHAPE:
+{
+ title: string, hero title line,
+ subs: { hold, ship, running, fail, clean }: hero sub lines,
+ claims: [{ id, kind (snake_case), label, cls (color class), text, actor (code|model|human), timestamp, foot, chips[], links[] }],
+ cleanClaims: same shape for clean run scenario,
+ bisect: [{ step, hash, verdict (good|bad|culprit) }],
+ bisectClean: all good variant,
+ timelineNodes: [{ hash, verdict (good|bad|culprit), tested (true|false), step (number or null) }],
+ timelineNodesClean: all good variant with same tested rule,
+ ends: { left, right, culprit },
+ model: { priceLabel, costBefore, costAfter, askPrice, panelSee, panelLimits, thinking, answer, nothingText }
+}
+STATE: { verdict: hold|ship|running|fail, decision: null|{choice,reason,override,time}, claims: [...with hash,prevHash], chainOk: null|true|false }
+Rendering: renderHero, renderBisect, renderClaims. Crypto: hashClaim, refreshHashes, verifyChain. Writes: addClaim. Decisions: openReasonRow, confirmDecision. Demo: replayDemo, setScenario.
+*/
+// LIVE MODE. Nothing here is mock data: DATA is built from the application's view model (GET /api/ui/case).
+// The view model carries, per claim: id, kind, label, cls, color, text, actor, timestamp, foot, chips, links (names),
+// linkUrls, hash and prevHash (the REAL event hashes), seq. It also carries bisect.nodes, bisect.ends, facts, model, chain.
+let DATA = { title: "", subs: {}, claims: [], cleanClaims: [], bisect: [], bisectClean: [], timelineNodes: [], timelineNodesClean: [], ends: { left: "", right: "", culprit: "" }, model: { costBefore: "model cost $0.000", costAfter: "model cost $0.000", panelSee: "", panelLimits: "", thinking: "", answer: "" }, culpritClaimId: null };
+let LIVE = { vm: null, rawLines: [], tamperAt: null, rawBackup: null };
+function dataFromVM(vm){
+  const sub = vm.sub, cost = "model cost $" + vm.model.costUsd.toFixed(3);
+  return { title: vm.title, subs: { hold: sub, ship: sub, running: vm.verdict==="running" ? sub+" . "+mmss(Math.max(0,Math.round((Date.now()-Date.parse(vm.startedAt))/1000))) : sub, fail: sub, clean: sub, inconclusive: sub },
+    claims: vm.claims, cleanClaims: vm.claims, bisect: [], bisectClean: [],
+    timelineNodes: vm.bisect ? vm.bisect.nodes : [], timelineNodesClean: vm.bisect ? vm.bisect.nodes : [],
+    ends: vm.bisect ? vm.bisect.ends : { left: "", right: "", culprit: "" },
+    model: { costBefore: cost, costAfter: cost, panelSee: "", panelLimits: "", thinking: "", answer: "" }, culpritClaimId: vm.culpritClaimId };
+}
+let state = { verdict: "hold", decision: null, claims: [], chainOk: null };
+let pendingChoice = null;
+let prevVerdictBeforeDecision = null;
+let prevHelperHTML = null;
+let openClaimId = null;
+let tampered = false;
+let tamperBackup = null;
+let modelUsed = false;
+let bisectData = DATA.timelineNodes.slice();
+let scenario = "default";
+let replaying = false;
+let entrancePlayed = false;
+let newClaimId = null;
+let verifying = false;
+const $ = (id) => document.getElementById(id);
+function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function shortHash(h){ if(!h) return "...."; return h.slice(0,4) + "..." + h.slice(-3); }
+function nowTime(){ const d=new Date(); const h=String(d.getHours()).padStart(2,"0"); const m=String(d.getMinutes()).padStart(2,"0"); return h+":"+m; }
+function parseCost(s){ const m=/\$([0-9.]+)/.exec(String(s)); return m?parseFloat(m[1]):0; }
+function animateCost(target){ const el=$("modelCost"); const from=parseCost(el.textContent); const to=parseCost(target); if(from===to){ el.textContent=target; return; } if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches){ el.textContent=target; return; } const dur=600; let start=null; function step(ts){ if(!start) start=ts; const p=Math.min((ts-start)/dur,1); const v=from+(to-from)*p; el.textContent="model cost $"+v.toFixed(3); if(p<1) requestAnimationFrame(step); else el.textContent=target; } requestAnimationFrame(step); }
+function showToast(msg, kind){ const t=$("toast"); t.textContent=msg; t.className=""; if(kind) t.classList.add(kind); void t.offsetWidth; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3000); }
+async function hashClaim(prev, kind, text){
+  const s = String(prev) + "|" + String(kind) + "|" + String(text);
+  try{
+    if(window.crypto && crypto.subtle && crypto.subtle.digest){
+      const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+  }catch(e){}
+  let h1=0x811c9dc5; for(let i=0;i<s.length;i++){ h1^=s.charCodeAt(i); h1=Math.imul(h1,0x01000193)>>>0; }
+  let hex=h1.toString(16).padStart(8,"0"); let out=""; while(out.length<64){ out+=hex+hex.split("").reverse().join(""); hex=(parseInt(hex.slice(0,8),16)>>>1).toString(16).padStart(8,"0"); } return out.slice(0,64);
+}
+async function refreshHashes(){
+  if(LIVE.vm) return; // the claims already carry the record's real hashes
+  let prev="GENESIS";
+  for(const c of state.claims){ const h=await hashClaim(prev,c.kind,c.text); c.prevHash=prev; c.hash=h; prev=h; }
+}
+function renderHero(){
+  const gem=$("gem"), word=$("verdictWord");
+  const prevV = gem.dataset.v || "";
+  gem.classList.remove("gem-emerald","gem-ruby","gem-gray");
+  word.style.color=""; word.textContent="";
+  const lock = "";   // the hero is Behique's recommendation only; the person's decision is shown in the bottom bar
+  if(state.verdict==="ship"){ gem.classList.add("gem-emerald"); word.style.color="var(--emerald)"; word.textContent="SHIP"+lock; $("verdictSub").textContent = scenario==="clean" ? DATA.subs.clean : DATA.subs.ship; }
+  else if(state.verdict==="fail"){ gem.classList.add("gem-ruby"); word.style.color="var(--ruby)"; word.textContent="FAIL"; $("verdictSub").textContent=DATA.subs.fail; }
+  else if(state.verdict==="running"){ gem.classList.add("gem-gray"); word.style.color="var(--muted)"; word.textContent="RUNNING"; $("verdictSub").textContent=DATA.subs.running; }
+  else if(state.verdict==="inconclusive"){ gem.classList.add("gem-gray"); word.style.color="var(--blue)"; word.textContent="REVIEW"; $("verdictSub").textContent=DATA.subs.inconclusive; }
+  else { word.style.color="var(--amber)"; word.textContent="HOLD"+lock; $("verdictSub").textContent=DATA.subs.hold; }
+  $("verdictTitle").textContent=DATA.title;
+  $("verdictLabel").textContent=({running:"Behique is checking",fail:"No recommendation"})[state.verdict]||"Behique recommends";
+  $("culpritTag").style.display = (scenario==="clean") ? "none" : "";
+  if(prevV && prevV!==state.verdict){ gem.classList.remove("shock"); void gem.offsetWidth; gem.classList.add("shock"); clearTimeout(gem._shockH); gem._shockH=setTimeout(()=>gem.classList.remove("shock"),750); }
+  gem.dataset.v=state.verdict;
+}
+function bisectTipText(n){
+  if(n.tested){ return "Step "+n.step+", "+n.hash+", "+n.verdict+", built and run"; }
+  return n.hash+", "+n.verdict+" (inferred from bisect order, not built)";
+}
+function renderBisect(){
+  const wrap=$("bisectNodes"); wrap.textContent="";
+  bisectData.forEach((n,i)=>{
+    const el=document.createElement("span");
+    let cls="node ";
+    if(n.verdict==="good") cls+="g";
+    else if(n.verdict==="bad") cls+="r";
+    else cls+="c";
+    cls += n.tested ? " tested" : " inferred";
+    el.className=cls;
+    el.tabIndex=0; el.setAttribute("role","button");
+    if(n.tested){ el.dataset.step=n.step; }
+    el.dataset.hash=n.hash; el.dataset.verdict=n.verdict; el.dataset.tested=n.tested ? "true" : "false";
+    el.setAttribute("aria-label",bisectTipText(n));
+    el.addEventListener("mouseenter",()=>showTip(el));
+    el.addEventListener("mousemove",(e)=>moveTip(e));
+    el.addEventListener("mouseleave",hideTip);
+    el.addEventListener("focus",()=>showTip(el));
+    el.addEventListener("blur",hideTip);
+    el.addEventListener("click",()=>onNodeClick(n,el));
+    el.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); onNodeClick(n,el); } });
+    wrap.appendChild(el);
+  });
+  $("bisectLeft").textContent=DATA.ends.left;
+  $("bisectRight").textContent=DATA.ends.right;
+}
+function showTip(el){
+  const tip=$("bisectTip");
+  const tested = el.dataset.tested==="true";
+  if(tested){ tip.textContent="Step "+el.dataset.step+", "+el.dataset.hash+", "+el.dataset.verdict+", built and run"; }
+  else { tip.textContent=el.dataset.hash+", "+el.dataset.verdict+" (inferred from bisect order, not built)"; }
+  tip.style.display="block";
+  const r=el.getBoundingClientRect();
+  tip.style.left=(r.left+window.scrollX-10)+"px";
+  tip.style.top=(r.bottom+window.scrollY+8)+"px";
+}
+function moveTip(e){ const tip=$("bisectTip"); tip.style.left=(e.clientX+12)+"px"; tip.style.top=(e.clientY+12)+"px"; }
+function hideTip(){ $("bisectTip").style.display="none"; }
+function onNodeClick(n,el){
+  hideTip();
+  if(n.verdict==="culprit"){
+    const target=DATA.culpritClaimId ? document.querySelector('[data-claim-id="'+DATA.culpritClaimId+'"]') : null;
+    if(target){ target.scrollIntoView({behavior:"smooth",block:"center"}); target.classList.remove("pulse-red"); void target.offsetWidth; target.classList.add("pulse-red"); setTimeout(()=>target.classList.remove("pulse-red"),3200); }
+  } else if(n.tested){
+    showToast("Step "+n.step+" is "+n.verdict);
+  } else {
+    showToast(n.hash+" is "+n.verdict+" (inferred)");
+  }
+}
+function linkIcon(){
+  const d=document.createElement("div"); d.className="link";
+  d.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M10 14a5 5 0 0 0 7 0l3-3a5 5 0 0 0-7-7l-1.5 1.5M14 10a5 5 0 0 0-7 0l-3 3a5 5 0 0 0 7 7L12.5 19"/></svg>';
+  return d;
+}
+function renderClaims(){
+  const list=$("claimsList"); list.textContent="";
+  const banner=$("failBanner");
+  if(state.verdict==="fail"){ banner.hidden=false; } else { banner.hidden=true; }
+  const playEntrance = !entrancePlayed;
+  const animateId = (!playEntrance) ? newClaimId : null;
+  state.claims.forEach((c,idx)=>{
+    if(idx>0){ const lk=linkIcon(); if(animateId && state.claims[idx-1] && state.claims[idx-1].id===animateId){ lk.classList.add("link-new"); } list.appendChild(lk); }
+    // the chain is chronological, so the ordinary link above each claim is enough (v13 added a second one for decisions placed at the top)
+    const card=document.createElement("div");
+    card.className="claim "+c.cls; card.dataset.claimId=c.id; card.tabIndex=0; card.setAttribute("role","button");
+    if(playEntrance && c.id!=="h-decision"){ card.classList.add("claim-enter"); card.style.setProperty("--cd", (350 + 90 * (idx + 1)) + "ms"); }
+    if(animateId===c.id){ card.classList.add("claim-new"); }
+    if(c.tampered) card.classList.add("tampered");
+    const top=document.createElement("div"); top.className="claim-top";
+    const ct=document.createElement("span"); ct.className="ct"; ct.style.color=c.color; ct.textContent=c.label;
+    const hs=document.createElement("span"); hs.className="hash mono"; hs.textContent=shortHash(c.hash);
+    top.appendChild(ct); top.appendChild(hs);
+    const p=document.createElement("p"); p.textContent=c.text;
+    const foot=document.createElement("div"); foot.className="claim-foot"; foot.textContent=c.foot+" ";
+    c.chips.forEach(ch=>{
+      const s=document.createElement("span"); s.className="chip "+(c.cls==="gold"?"gold":"green"); s.textContent=ch; foot.appendChild(s); foot.appendChild(document.createTextNode(" "));
+    });
+    card.appendChild(top); card.appendChild(p); card.appendChild(foot);
+    if(c.kind==="ai_hypothesis" && !LIVE.vm){
+      const btn=document.createElement("button"); btn.className="mini-btn"; btn.type="button"; btn.id="askBtn-"+c.id;
+      const isClean = c.text==="Nothing to explain";
+      if(modelUsed || isClean || scenario==="clean"){ btn.disabled=true; btn.textContent = isClean ? "Nothing to explain" : "Ask the model why (about $0.007)"; }
+      else { btn.textContent="Ask the model why (about $0.007)"; }
+      btn.addEventListener("click",(e)=>{ e.stopPropagation(); askModel(c.id); });
+      card.appendChild(document.createElement("br")); card.appendChild(btn);
+      const panel=document.createElement("div"); panel.className="ask-panel"; panel.id="askPanel-"+c.id; panel.hidden=true; card.appendChild(panel);
+    }
+    const det=document.createElement("div"); det.className="claim-details"+(openClaimId===c.id?" open":"");
+    const f1=document.createElement("div"); f1.textContent="full hash: "+(c.hash||"pending");
+    const f2=document.createElement("div"); f2.textContent="previous hash: "+(c.prevHash||"GENESIS");
+    const f3=document.createElement("div"); f3.textContent="timestamp: "+c.timestamp+" . actor: "+c.actor;
+    const f4=document.createElement("div"); f4.append("evidence: ");
+    if(c.links.length){ c.links.forEach((nm,k)=>{ const u=(c.linkUrls||[])[k]; if(u){ const a=document.createElement("a"); a.href=u; a.target="_blank"; a.rel="noopener"; a.textContent=nm; a.addEventListener("click",ev=>ev.stopPropagation()); f4.appendChild(a); } else { f4.append(nm); } if(k<c.links.length-1) f4.append(", "); }); } else { f4.append("none"); }
+    det.appendChild(f1); det.appendChild(f2); det.appendChild(f3); det.appendChild(f4);
+    if(c.kind==="ai_hypothesis"){
+      const ex=(label,val)=>{ if(!val) return; const d=document.createElement("div"); d.textContent=label+val; det.appendChild(d); };
+      ex("model: ", c.model); ex("line it points to: ", c.quote); ex("how to check it: ", c.howToCheck);
+      if(c.estUsd!==undefined) ex("cost: ", "about $"+Number(c.estUsd).toFixed(4)+" (estimated price)");
+    }
+    card.appendChild(det);
+    card.addEventListener("click",()=>toggleClaim(c.id));
+    card.addEventListener("keydown",(e)=>{ if(e.key==="Enter"&&e.target===card){ toggleClaim(c.id); } });
+    list.appendChild(card);
+  });
+  if(playEntrance) entrancePlayed = true;
+  if(newClaimId){ const nid=newClaimId; newClaimId=null; setTimeout(()=>{ const el=document.querySelector('[data-claim-id="'+nid+'"]'); if(el) el.classList.remove("claim-new"); },1300); }
+  updateShipHold();
+  renderAsk();
+}
+function toggleClaim(id){ openClaimId = (openClaimId===id)?null:id; document.querySelectorAll(".claim-details").forEach(d=>d.classList.remove("open")); const card=document.querySelector('[data-claim-id="'+id+'"] .claim-details'); if(card&&openClaimId) card.classList.add("open"); }
+async function sha256hex(str){
+  if(!(window.crypto && crypto.subtle && crypto.subtle.digest)) throw new Error("this browser cannot compute hashes on this page");
+  const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+async function verifyChain(){
+  if(verifying) return false;
+  verifying=true;
+  const status=$("verifyStatus"); status.textContent="";
+  document.querySelectorAll("#claimsList .claim").forEach(el=>{ el.classList.remove("tampered","tamper-shake","scanning","show-check","dimmed"); const cp=el.querySelector(".check-pop"); if(cp) cp.remove(); });
+  const lines=LIVE.rawLines;
+  const cardFor=(seq)=>document.querySelector('[data-claim-id="c'+seq+'"],[data-claim-id="h'+seq+'"]');
+  let prev="0".repeat(64), brokenAt=-1;
+  try{
+    for(let i=0;i<lines.length;i++){
+      let ev; try{ ev=JSON.parse(lines[i]); }catch(e){ brokenAt=Math.max(i-1,0); break; }
+      if(ev.seq!==i || ev.prev!==prev){ brokenAt=Math.max(i-1,0); break; }   // the link stored here no longer matches the line before it
+      prev=await sha256hex(lines[i]);
+      const el=cardFor(i);
+      if(el){
+        el.classList.remove("scanning"); void el.offsetWidth; el.classList.add("scanning"); await sleep(110); el.classList.remove("scanning");
+        let pop=el.querySelector(".check-pop");
+        if(!pop){ pop=document.createElement("span"); pop.className="check-pop"; pop.textContent="\u2714"; el.appendChild(pop); }
+        pop.style.opacity=""; pop.style.transform="";
+        el.classList.remove("show-check"); void el.offsetWidth; el.classList.add("show-check");
+      }
+    }
+  }catch(e){ status.textContent=e.message; verifying=false; return false; }
+  if(brokenAt>=0){
+    state.chainOk=false;
+    const claimAtOrBefore=[...state.claims].filter(c=>c.seq!==undefined && c.seq<=brokenAt).sort((a,b)=>b.seq-a.seq)[0];
+    status.textContent=""; const s1=document.createElement("span"); s1.className="verify-bad"; s1.textContent="\u2716 Altered at event "+brokenAt+(claimAtOrBefore?" (near "+claimAtOrBefore.label+")":""); status.appendChild(s1);
+    const bad=claimAtOrBefore && cardFor(claimAtOrBefore.seq);
+    document.querySelectorAll("#claimsList .claim").forEach(x=>x.classList.remove("show-check"));
+    if(bad){ bad.classList.add("tampered"); bad.classList.remove("tamper-shake"); void bad.offsetWidth; bad.classList.add("tamper-shake"); setTimeout(()=>bad.classList.remove("tamper-shake"),500); let after=false; document.querySelectorAll("#claimsList .claim").forEach(x=>{ if(after) x.classList.add("dimmed"); if(x===bad) after=true; }); }
+    verifying=false; return false;
+  }
+  state.chainOk=true; status.textContent=""; const ok=document.createElement("span"); ok.className="verify-ok"; ok.textContent="\u2714 Chain verified ("+lines.length+" events, checked in this browser)"; ok.title="Each event stores the SHA-256 of the one before it. The newest event has nothing after it, so it is protected only once another event follows."; status.appendChild(ok);
+  verifying=false; return true;
+}
+function toggleTamper(){
+  if(LIVE.tamperAt===null){
+    const target=state.claims.find(c=>c.id===DATA.culpritClaimId) || state.claims.find(c=>c.seq!==undefined && c.seq<LIVE.rawLines.length-1);
+    if(!target) return;
+    LIVE.tamperAt=target.seq; LIVE.rawBackup=LIVE.rawLines[target.seq];
+    LIVE.rawLines[target.seq]=LIVE.rawBackup.replace('"text":"','"text":"[edited] ');   // this page's copy only
+    verifyChain();
+  } else {
+    LIVE.rawLines[LIVE.tamperAt]=LIVE.rawBackup; LIVE.tamperAt=null; LIVE.rawBackup=null; state.chainOk=null; $("verifyStatus").textContent=""; renderClaims();
+  }
+}
+function addClaim(actor, kind, text){
+  const normA=String(actor).toLowerCase();
+  const normK=String(kind).toLowerCase();
+  const allowed={ code:["verified_fact","reproduced_failure","statistical"], model:["ai_hypothesis"], human:["human_decision"] };
+  if(!allowed[normA] || !allowed[normA].includes(normK)){ throw new Error("Authorship rule violated: "+actor+" cannot write "+kind); }
+  const labels={ verified_fact:"Verified Fact", reproduced_failure:"Reproduced Failure", statistical:"Statistical", ai_hypothesis:"AI Hypothesis", human_decision:"Human Decision" };
+  const colors={ verified_fact:"#d4a017", reproduced_failure:"#ff4d57", statistical:"#3aa0ff", ai_hypothesis:"#b388ff", human_decision:"#d4a017" };
+  const cls = normK==="human_decision" ? "gold" : (normK==="verified_fact"?"green":normK==="reproduced_failure"?"red":normK==="statistical"?"blue":"purple");
+  const label = normK==="human_decision" ? "Human Decision" : (labels[normK]||kind);
+  const claim={ id:"h"+Date.now(), kind:normK, label:label, cls:cls, color:colors[normK]||"#e8c24a", text:String(text), actor:normA, timestamp:new Date().toISOString().slice(0,19).replace("T"," "), foot:"actor: "+normA, chips:normK==="human_decision"?["decision"]:["manual"], links:[] };
+  return claim;
+}
+function openReasonRow(choice){
+  pendingChoice=choice;
+  const w=$("reasonWrap");
+  w.hidden=false;
+  void w.offsetWidth;
+  w.classList.add("open");
+  $("reasonInput").value="";
+  $("reasonInput").placeholder = (choice==="SHIP" && state.verdict==="hold") ? "Why ship against a proven change? At least 10 characters" : "One line reason, required (at least 3 characters)";
+  try{ $("reasonWho").value=localStorage.getItem("behique-who")||""; }catch(e){}
+  $("reasonConfirm").disabled=true;
+  $("reasonConfirm").classList.remove("morph");
+  $("reasonConfirm").textContent = choice==="SHIP" ? "Confirm SHIP" : "Confirm HOLD";
+  $("reasonInput").focus();
+}
+function closeReasonRow(){ const w=$("reasonWrap"); w.classList.remove("open"); clearTimeout(w._h); w._h=setTimeout(()=>{ if(!w.classList.contains("open")) w.hidden=true; },260); pendingChoice=null; }
+async function confirmDecision(){
+  if(!pendingChoice || LIVE.saving) return;
+  const reason=$("reasonInput").value.trim();
+  const against=pendingChoice==="SHIP" && state.verdict==="hold";   // shipping against a proven change is an override
+  const need=against?10:3;                                           // mirrored here for a quick answer; the server enforces them
+  if(reason.length<need){ showToast("Reason needs at least "+need+" characters","red"); return; }
+  if(against && !$("modalOverlay").classList.contains("open")){ $("modalHint").textContent="A reproduced failure is on record. Add a reason of at least 10 characters to override."; $("modalOverlay").classList.add("open"); return; }
+  LIVE.saving=true;
+  try{
+    const who=$("reasonWho").value.trim();
+    const r=await fetch("/api/ui/decision",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:LIVE.vm.id, decision:pendingChoice.toLowerCase(), note:reason, who:who, confirmOverride:against }) });
+    const j=await r.json();
+    if(!r.ok){ const msg=j.error||"The record refused the decision"; if($("modalOverlay").classList.contains("open")) $("modalHint").textContent=msg; showToast(msg,"red"); return; }
+    try{ localStorage.setItem("behique-who",who); }catch(e){}
+    $("modalOverlay").classList.remove("open"); closeReasonRow(); LIVE.changing=false;
+    refreshLive(j);                                                  // j is the fresh view model: the decision is now a claim in the chain
+    showToast("Decision recorded to the evidence chain","green");
+  }catch(e){ showToast("Could not record the decision: "+e.message,"red"); }
+  finally{ LIVE.saving=false; }
+}
+function decisionRecText(d){
+  if(d.override) return "Against Behique\u2019s recommendation ("+String(d.recommendation).toUpperCase()+")";
+  if(d.recommendation==="hold"||d.recommendation==="ship") return "Same as Behique\u2019s recommendation ("+d.recommendation.toUpperCase()+")";
+  if(d.recommendation==="inconclusive") return "Behique recommended REVIEW";
+  if(d.recommendation==="fail") return "Behique had no recommendation (evidence incomplete)";
+  return "";
+}
+// Behique recommends in the hero; what the person decided lives here, separately. A decision is never removed: changing it adds a new one.
+function updateShipHold(){
+  const wrap=$("shipHoldWrap"), sum=$("decisionSummary"), d=state.decision, ship=$("shipBtn"), hold=$("holdBtn");
+  const running=state.verdict==="running", cannotShip=state.verdict==="fail";
+  const showButtons=!d || LIVE.changing;
+  wrap.style.display=showButtons?"flex":"none";
+  hold.disabled=running; ship.disabled=running||cannotShip;
+  hold.removeAttribute("title"); ship.removeAttribute("title");
+  if(running){ ship.title="Nothing to decide until the run finishes"; hold.title=ship.title; }
+  else if(cannotShip){ ship.title="Cannot ship: the evidence is incomplete. You can still hold."; }
+  ship.style.opacity=ship.disabled?".45":""; hold.style.opacity=hold.disabled?".45":"";
+  sum.textContent=""; sum.hidden=false;
+  const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
+  if(LIVE.changing){
+    sum.appendChild(mk("span","dec-rec","Changing your decision. The earlier one stays on the record."));
+    const keep=mk("button","mini-btn","Keep current"); keep.type="button"; keep.addEventListener("click",()=>{ LIVE.changing=false; closeReasonRow(); updateShipHold(); }); sum.appendChild(keep);
+    return;
+  }
+  if(!d){ sum.appendChild(mk("span","dec-none",running?"Nothing to decide until the run finishes":"No decision yet")); return; }
+  sum.appendChild(mk("span","dec-badge "+(d.choice==="SHIP"?"ship":"hold"),"YOU DECIDED: "+d.choice));
+  const rec=decisionRecText(d); if(rec) sum.appendChild(mk("span","dec-rec"+(d.override?" against":""),rec));
+  const why=mk("span","dec-why",(d.who?d.who+", ":"")+d.time+": "+d.reason); why.title=d.reason; sum.appendChild(why);
+  const chg=mk("button","mini-btn","Change decision"); chg.type="button"; chg.addEventListener("click",()=>{ LIVE.changing=true; updateShipHold(); }); sum.appendChild(chg);
+  if(LIVE.vm && LIVE.vm.decisions>1){ const h=mk("button","tiny-link",LIVE.vm.decisions+" decisions on record"); h.type="button"; h.addEventListener("click",()=>{ const c=document.querySelector("#claimsList .claim.gold"); if(c){ c.scrollIntoView({behavior:"smooth",block:"center"}); c.classList.remove("pulse-red"); void c.offsetWidth; c.classList.add("pulse-red"); setTimeout(()=>c.classList.remove("pulse-red"),3200); } }); sum.appendChild(h); }
+}
+// ---- ask the model why: the paid step. The page shows the exact text and the projected cost first; the server refuses to send unless it is
+// given the fingerprint of that very text, so what leaves this machine is what was on screen.
+const ASK = { preview: null, busy: false };
+const usd = n => "$" + Number(n).toFixed(4);
+function hideAskReview(){ $("askReview").hidden = true; $("askErr").hidden = true; $("askBusy").hidden = true; ASK.preview = null; }
+function askError(msg){ const e = $("askErr"); e.textContent = msg; e.hidden = !msg; }
+function renderAsk(){
+  const card = $("askCard"), vm = LIVE.vm;
+  if(!vm){ card.hidden = true; return; }
+  card.hidden = false;
+  const m = vm.model, note = $("askNote"), open = $("askOpen");
+  $("askCount").textContent = m.guesses + " of " + m.limit + " guesses used" + (m.calls ? " . spent " + usd(m.costUsd) : "");
+  const reason = vm.verdict === "running" ? "Available once the run has finished."
+    : m.guesses >= m.limit ? "Limit reached: " + m.guesses + " of " + m.limit + " guesses. Nothing more can be asked of this report."
+    : !(vm.bisect && vm.bisect.commit) ? "Nothing to explain: this report has no first bad change on record, so there is no code change to show a model."
+    : null;
+  if(reason){ note.textContent = reason; open.hidden = true; if(vm.verdict === "running") hideAskReview(); return; }
+  open.hidden = !!ASK.preview || ASK.busy;
+  open.textContent = m.guesses ? "Ask again: review what would be sent" : "Review what would be sent";
+  note.textContent = m.guesses
+    ? "A guess is already on record. Asking again sends the same question and may get a different answer; it counts toward the limit."
+    : "A model can offer a guess about why this change broke the behaviour. It is a guess, never proof, and it costs money, so nothing is sent until you have seen the text and the price.";
+}
+async function reviewAsk(){
+  askError(""); $("askOpen").disabled = true;
+  try{
+    const r = await fetch("/api/ui/ask?id=" + encodeURIComponent(LIVE.vm.id)), p = await r.json();
+    if(!r.ok) throw new Error(p.error || "could not ask the server");
+    if(!p.ok){ hideAskReview(); $("askNote").textContent = p.reason; $("askOpen").hidden = true; return; }
+    ASK.preview = p; showAskReview(p);
+  }catch(e){ askError("Could not prepare the question: " + e.message); }
+  finally{ $("askOpen").disabled = false; }
+}
+function showAskReview(p){
+  const text = p.sent.map(x => "[" + x.role + "]\n" + x.content).join("\n\n");
+  $("askMeta").textContent = "To " + p.model + " (" + p.provider + "). It is sent only the observed difference (" + p.symptoms.length + " value" + (p.symptoms.length === 1 ? "" : "s") + ") and one code change" + (p.truncated ? " (cut short to fit)" : "") + ". Not the repository, not screenshots, nothing else.";
+  $("askSent").textContent = text;
+  $("askSentSum").textContent = "The exact text that would be sent (" + text.length + " characters)";
+  const e = p.est;
+  $("askCost").replaceChildren(document.createTextNode("Projected cost: about "), Object.assign(document.createElement("b"), { textContent: usd(e.expectedUsd) }),
+    document.createTextNode(", at most " + usd(e.worstUsd) + " if it uses its whole " + e.maxOutTokens + " token output limit. Input is about " + e.promptTokens + " tokens. The price ($" + e.pricePerMillion.in + " / $" + e.pricePerMillion.out + " per million tokens in / out) is an unverified third-party estimate. This uses guess " + (p.guesses + 1) + " of " + p.limit + "."));
+  const send = $("askSend"); send.disabled = !p.canSend; send.textContent = p.canSend ? "Send and spend about " + usd(e.expectedUsd) : "Cannot send";
+  if(!p.canSend) askError(p.reason);
+  $("askReview").hidden = false; $("askOpen").hidden = true;
+}
+async function sendAsk(){
+  const p = ASK.preview; if(!p || ASK.busy) return;
+  ASK.busy = true; askError(""); $("askSend").disabled = true; $("askCancel").disabled = true;
+  const busy = $("askBusy"); busy.textContent = "Waiting for the model. This can take a minute or two."; busy.hidden = false;
+  try{
+    const r = await fetch("/api/ui/ask", { method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ id:LIVE.vm.id, confirm:p.confirm }) }), j = await r.json();
+    if(!r.ok){
+      busy.hidden = true;
+      if(j.stale){ await reviewAsk(); askError(j.error); return; }       // the text changed under you: show the new text, say why, and ask again
+      askError(j.error || "The model call did not work.");
+      if(r.status >= 500){ const vm = await fetch("/api/ui/case?id=" + encodeURIComponent(LIVE.vm.id)).then(x => x.json()).catch(() => null); if(vm) refreshLive(vm); }   // it may still have cost something: show the record's figure
+      return;
+    }
+    hideAskReview(); refreshLive(j.vm);
+    const fresh = j.vm.claims.filter(c => c.kind === "ai_hypothesis").pop();
+    if(fresh){ const el = document.querySelector('[data-claim-id="' + fresh.id + '"]'); if(el) el.scrollIntoView({ behavior:"smooth", block:"center" }); }
+    showToast("Model guess recorded (about " + usd(j.asked.usd) + ")" + (j.asked.grounded ? "" : ", its quoted line was NOT found in the change"), j.asked.grounded ? "green" : "red");
+  }catch(e){ busy.hidden = true; askError("Could not reach the server: " + e.message); }
+  finally{ ASK.busy = false; $("askSend").disabled = false; $("askCancel").disabled = false; renderAsk(); }
+}
+async function askModel(cid){
+  if(modelUsed) return;
+  const claim=state.claims.find(c=>c.id===cid); if(!claim) return;
+  if(claim.text==="Nothing to explain") return;
+  const btn=$("askBtn-"+cid), panel=$("askPanel-"+cid);
+  if(btn) btn.disabled=true;
+  if(panel){ panel.hidden=false; panel.textContent=""; const a=document.createElement("div"); a.textContent="Model will see: "+DATA.model.panelSee; const b=document.createElement("div"); b.textContent="Limits: "+DATA.model.panelLimits; const c=document.createElement("div"); c.textContent=DATA.model.thinking; panel.appendChild(a); panel.appendChild(b); panel.appendChild(c); }
+  await sleep(1500);
+  claim.text=DATA.model.answer; modelUsed=true;
+  animateCost(DATA.model.costAfter);
+  await refreshHashes(); newClaimId=cid; renderClaims();
+  const nc=document.querySelector('[data-claim-id="'+cid+'"]'); if(nc){ openClaimId=null; }
+  showToast("Model hypothesis updated","green");
+}
+async function replayDemo(){
+  if(replaying) return;
+  replaying=true; $("replayBtn").disabled=true;
+  scenario="default"; modelUsed=false; tampered=false; tamperBackup=null; state.decision=null; prevVerdictBeforeDecision=null; openClaimId=null; state.chainOk=null;
+  $("verifyStatus").textContent=""; animateCost(DATA.model.costBefore);
+  $("toggleClean").checked=false; $("toggleFail").checked=false; $("toggleTamper").checked=false;
+  state.verdict="running"; state.claims=[]; bisectData=[]; renderHero(); renderBisect(); renderClaims();
+  const steps=DATA.timelineNodes.slice(); const baseClaims=JSON.parse(JSON.stringify(DATA.claims));
+  const timeline=document.querySelector(".timeline");
+  const line=document.querySelector(".t-line");
+  const pulse=$("bisectPulse");
+  timeline.classList.add("replaying");
+  const totalMs=steps.length*420;
+  if(pulse&&line){ pulse.style.transition="none"; pulse.style.transform="translateX(-68px)"; void pulse.offsetWidth; const w=line.clientWidth||line.offsetWidth||600; requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ pulse.style.transition="transform "+totalMs+"ms linear"; pulse.style.transform="translateX("+w+"px)"; }); }); }
+  for(let i=0;i<steps.length;i++){ bisectData.push(steps[i]); renderBisect(); const nodes=document.querySelectorAll("#bisectNodes .node"); nodes.forEach(n=>n.classList.add("dim")); if(nodes[i]){ nodes[i].classList.remove("dim"); nodes[i].classList.add("lit"); } await sleep(420); }
+  document.querySelectorAll("#bisectNodes .node").forEach(n=>n.classList.remove("dim"));
+  if(pulse){ pulse.style.transition="none"; pulse.style.opacity=""; }
+  timeline.classList.remove("replaying");
+  const culpritEl=document.querySelector('#bisectNodes .node.c');
+  if(culpritEl){ culpritEl.classList.add("ripple"); setTimeout(()=>{ culpritEl.classList.remove("ripple"); },1150); await sleep(900); }
+  for(let i=0;i<baseClaims.length;i++){ state.claims.push(baseClaims[i]); await refreshHashes(); newClaimId=baseClaims[i].id; renderClaims(); await sleep(800); }
+  state.verdict="hold"; bisectData=DATA.timelineNodes.slice(); renderHero(); renderBisect(); renderClaims();
+  replaying=false; $("replayBtn").disabled=false;
+}
+async function setScenario(name){
+  scenario=name; modelUsed=false; tampered=false; tamperBackup=null; openClaimId=null; state.decision=null; prevVerdictBeforeDecision=null; state.chainOk=null;
+  $("verifyStatus").textContent=""; closeReasonRow(); $("modalOverlay").classList.remove("open");
+  if(name==="clean"){
+    state.verdict="ship"; state.claims=JSON.parse(JSON.stringify(DATA.cleanClaims)); bisectData=DATA.timelineNodesClean.slice();
+    animateCost(DATA.model.costBefore); $("toggleClean").checked=true; $("toggleFail").checked=false;
+  } else if(name==="fail"){
+    state.verdict="fail"; state.claims=JSON.parse(JSON.stringify(DATA.claims)); bisectData=DATA.timelineNodes.slice();
+    animateCost(DATA.model.costBefore); $("toggleFail").checked=true; $("toggleClean").checked=false;
+  } else {
+    state.verdict="hold"; state.claims=JSON.parse(JSON.stringify(DATA.claims)); bisectData=DATA.timelineNodes.slice();
+    animateCost(DATA.model.costBefore); $("toggleClean").checked=false; $("toggleFail").checked=false;
+  }
+  await refreshHashes(); renderHero(); renderBisect(); renderClaims();
+}
+function initEvents(){
+  $("shipBtn").addEventListener("click",()=>openReasonRow("SHIP"));
+  $("holdBtn").addEventListener("click",()=>openReasonRow("HOLD"));
+  $("reasonInput").addEventListener("input",()=>{
+    const v=$("reasonInput").value.trim();
+    const need=(pendingChoice==="SHIP"&&state.verdict==="hold")?10:3;
+    $("reasonConfirm").disabled = v.length<need;
+  });
+  $("reasonInput").addEventListener("keydown",(e)=>{ if(e.key==="Enter"&&!$("reasonConfirm").disabled) confirmDecision(); });
+  $("reasonConfirm").addEventListener("click",confirmDecision);
+  $("reasonCancel").addEventListener("click",closeReasonRow);
+  $("modalCancel").addEventListener("click",()=>$("modalOverlay").classList.remove("open"));
+  $("modalShip").addEventListener("click",()=>{
+    const r=$("reasonInput").value.trim();
+    if(r.length<10){ $("modalHint").textContent="Reason must be at least 10 characters to override."; return; }
+    confirmDecision();
+  });
+  $("verifyBtn").addEventListener("click",verifyChain);
+  $("tamperLink").addEventListener("click",toggleTamper);
+  $("askOpen").addEventListener("click",reviewAsk); $("askSend").addEventListener("click",sendAsk); $("askCancel").addEventListener("click",()=>{ hideAskReview(); renderAsk(); });
+  $("forbiddenLink").addEventListener("click",async()=>{ try{ const r=await fetch("/api/ui/rules?actor=model&kind=verified_fact").then(x=>x.json()); showToast(r.allowed ? "Allowed" : "The record refuses: "+r.error,"red"); }catch(e){ showToast("Could not ask the record: "+e.message,"red"); } });
+  /* the mock replay is gone: the hero button now starts and cancels real runs (initRunUi) */
+  $("demoTab").addEventListener("click",()=>{ const d=$("demoDrawer"); d.classList.toggle("open"); $("demoTab").setAttribute("aria-expanded", d.classList.contains("open")?"true":"false"); });
+  $("demoTab").addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); $("demoTab").click(); } });
+  $("toggleClean").addEventListener("change",(e)=>{ if(e.target.checked) setScenario("clean"); else setScenario("default"); });
+  $("toggleFail").addEventListener("change",(e)=>{ if(e.target.checked) setScenario("fail"); else setScenario("default"); });
+  $("toggleTamper").addEventListener("change",(e)=>{ if(e.target.checked){ const c=state.claims.find(x=>x.id==="c2"); if(c&&!tampered) toggleTamper(); } else { if(tampered) toggleTamper(); } });
+}
+function renderBuilds(){
+  if(LIVE.vm && LIVE.vm.visual){ renderVisualBuilds(); return; }
+  const vm=LIVE.vm, subs=document.querySelectorAll(".build .build-sub"), mocks=document.querySelectorAll(".build .mock, .build .measured"), dots=document.querySelectorAll(".build .status");
+  const sides=[{ref:vm.goodRef,tag:"good",cls:"good",key:"was"},{ref:vm.candRef,tag:"candidate",cls:"cand",key:"now"}];
+  subs.forEach((el,i)=>{ el.textContent=vm.app+" "+sides[i].ref+" ("+sides[i].tag+")"; });
+  if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
+  mocks.forEach((m,i)=>{
+    const box=document.createElement("div"); box.className="measured "+sides[i].cls;
+    const h=document.createElement("div"); h.className="m-h"; h.textContent="Measured on "+sides[i].ref; box.appendChild(h);
+    if(!vm.facts.length){ const p=document.createElement("div"); p.className="m-w"; p.textContent=vm.verdict==="running"?"Waiting for the comparison...":"No differing facts were recorded."; box.appendChild(p); }
+    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; w.textContent=f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"; const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c); box.appendChild(r); });
+    (vm.pictures||[]).slice(0,3).forEach(pic=>{ // screenshots of the step where the change shows: a lead for the eye, not the proof
+      const url=i===0?pic.good:pic.candidate; if(!url) return;
+      const fig=document.createElement("figure"); fig.className="shot";
+      const img=document.createElement("img"); img.src=url; img.alt="Screenshot of "+sides[i].ref+" after step "+pic.step;
+      const cap=document.createElement("figcaption"); cap.textContent="Screenshot after step "+pic.step+(pic.label?" ("+String(pic.label).replace(/^\d+:/,"")+")":"");
+      fig.appendChild(img); fig.appendChild(cap); box.appendChild(fig);
+      if(i===1){ const t=document.createElement("div"); t.className="m-w"; t.textContent=pic.text; box.appendChild(t);
+        if(pic.differs&&pic.diff){ const d=document.createElement("figure"); d.className="shot"; const di=document.createElement("img"); di.src=pic.diff; di.alt="Where the two screenshots differ"; const dc=document.createElement("figcaption"); dc.textContent="Difference (changed pixels in red)"; d.appendChild(di); d.appendChild(dc); box.appendChild(d); } }
+    });
+    m.replaceWith(box);
+  });
+}
+function renderBisectChrome(){
+  const vm=LIVE.vm, b=vm.bisect, tag=$("culpritTag");
+  const none=$("bisectNone"); none.hidden=Boolean(b)||vm.verdict==="running"; none.textContent=vm.verdict==="pass" ? "Nothing changed between these versions, so there was nothing to search for." : "No search was run for this check. Start a new run with the search box ticked to find the exact change.";
+  $("bisectCount").textContent = b ? b.changes+" commits . "+b.steps+" steps" : (vm.verdict==="running" ? "the search starts after the test" : "no search was run");
+  if(!b || !b.ends.culprit){ tag.style.display="none"; return; }
+  tag.style.display=""; tag.querySelector(".mono").textContent=b.ends.culprit; tag.querySelector(".chip").textContent=b.verifiedText||"";
+  requestAnimationFrame(()=>{ const n=document.querySelector("#bisectNodes .node.c"), tl=document.querySelector(".timeline"); if(!n||!tl) return;
+    const nr=n.getBoundingClientRect(), tr=tl.getBoundingClientRect(); const x=Math.min(Math.max(nr.left+nr.width/2-tr.left,110),tr.width-110); tag.style.left=x+"px"; });
+}
+async function loadLive(id){
+  const vm=await fetch("/api/ui/case?id="+encodeURIComponent(id)).then(r=>{ if(!r.ok) throw new Error("no such report"); return r.json(); });
+  LIVE.vm=vm; LIVE.rawLines=vm.rawLines.slice(); LIVE.tamperAt=null; LIVE.changing=false; ASK.preview=null; ASK.busy=false; hideAskReview(); DATA=dataFromVM(vm);
+  scenario="default"; modelUsed=true; tampered=false; state.verdict=vm.verdict; state.decision=vm.decision; state.chainOk=null;
+  state.claims=JSON.parse(JSON.stringify(vm.claims)); bisectData=DATA.timelineNodes.slice();
+  const about=$("verdictAbout"); if(vm.scenario){ about.hidden=false; about.textContent=vm.scenario.about; } else { about.hidden=true; }
+  $("modelCost").textContent=DATA.model.costBefore;
+  const has=vm.claims.some(c=>c.links.includes("R1.spec.js")); const te=$("testExported"); if(te) te.parentElement.style.display=has?"":"none";
+  $("demoTab").hidden=true; $("demoDrawer").hidden=true;
+  renderHero(); renderBisect(); renderBuilds(); renderBisectChrome(); renderClaims();
+  const fb=$("failBanner"); if(fb && vm.verdict==="fail"){ const last=vm.claims[vm.claims.length-1]; fb.textContent="Evidence incomplete: "+(vm.failReason||"the run did not finish"); }   // the record's own reason, not a fixed sentence
+  await syncRunUi(); if(vm.verdict==="running") startPolling(id); else stopPolling();
+}
+// ---- runs: start, watch, cancel ----
+let RUN = { running: false, poll: null, apps: [] };
+function mmss(s){ return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+function fillPicker(list){
+  list=list.filter(c=>c.app===APPS_UI.selected);       // the reports of the selected app only
+  const pick=$("runPick"), keep=pick.value; pick.textContent="";
+  list.forEach(c=>{ const o=document.createElement("option"); o.value=c.id; o.textContent=c.id.slice(0,8)+" "+c.id.slice(9,15)+"  "+(c.scenario||"earlier run")+"  ["+c.verdict.toUpperCase()+(c.decision?", "+c.decision:"")+"]"; pick.appendChild(o); });
+  if(keep && list.some(c=>c.id===keep)) pick.value=keep;
+}
+async function syncRunUi(){   // the hero button and the progress bar follow the real state of the server and of the record
+  let cur=null; try{ cur=await fetch("/api/ui/runs/current").then(r=>r.json()); }catch(e){}
+  RUN.running=!!(cur && cur.running);
+  const b=$("replayBtn"); b.disabled=false; b.textContent=RUN.running?"Cancel run":"New run"; b.title=RUN.running?"Stop the run in progress":"Compare two versions of an app";
+  const vm=LIVE.vm, bar=$("runbar");
+  if(vm && vm.verdict==="running" && vm.progress){ bar.hidden=false; $("runbarFill").style.width=Math.round(vm.progress.fraction*100)+"%"; } else { bar.hidden=true; }
+}
+function stopPolling(){ if(RUN.poll){ clearInterval(RUN.poll); RUN.poll=null; } }
+function startPolling(id){
+  stopPolling();
+  RUN.poll=setInterval(async()=>{
+    try{
+      const vm=await fetch("/api/ui/case?id="+encodeURIComponent(id)).then(r=>{ if(!r.ok) throw new Error("gone"); return r.json(); });
+      if($("runPick").value!==id){ stopPolling(); return; }          // the person moved to another report
+      refreshLive(vm);
+      await syncRunUi();
+      if(vm.verdict!=="running"){
+        stopPolling();
+        fillPicker(await fetch("/api/ui/cases").then(r=>r.json())); $("runPick").value=id;
+        showToast("Run finished: "+({hold:"HOLD",ship:"SHIP",fail:"FAIL",inconclusive:"REVIEW"}[vm.verdict]||vm.verdict),"green");
+      }
+    }catch(e){ stopPolling(); }
+  },1000);
+}
+function refreshLive(vm){     // update in place while a run is in flight; new claims animate in
+  const known=new Set(state.claims.map(c=>c.id));
+  LIVE.vm=vm; LIVE.rawLines=vm.rawLines.slice(); DATA=dataFromVM(vm);
+  state.verdict=vm.verdict; state.decision=vm.decision; state.claims=JSON.parse(JSON.stringify(vm.claims)); bisectData=DATA.timelineNodes.slice();
+  const fresh=vm.claims.filter(c=>!known.has(c.id)); newClaimId=fresh.length?fresh[fresh.length-1].id:null;
+  $("modelCost").textContent=DATA.model.costBefore;
+  renderHero(); renderBisect(); renderBuilds(); renderBisectChrome(); renderClaims();
+  const about=$("verdictAbout"); if(vm.scenario){ about.hidden=false; about.textContent=vm.scenario.about; }
+  const te=$("testExported"); if(te) te.parentElement.style.display=vm.claims.some(c=>c.links.includes("R1.spec.js"))?"":"none";
+  const fb=$("failBanner"); if(fb && vm.verdict==="fail"){ const last=vm.claims[vm.claims.length-1]; fb.textContent="Evidence incomplete: "+(vm.failReason||"the run did not finish"); }
+}
+async function openRunDialog(){
+  $("runErr").textContent="";
+  if(!RUN.apps.length){ try{ RUN.apps=await fetch("/api/ui/apps").then(r=>r.json()); }catch(e){ showToast("Could not load the apps: "+e.message,"red"); return; } }
+  const app=$("runApp"); app.textContent=""; RUN.apps.forEach(a=>{ const o=document.createElement("option"); o.value=a.name; o.textContent=a.label; app.appendChild(o); });
+  if(RUN.apps.some(a=>a.name===APPS_UI.selected)) app.value=APPS_UI.selected;
+  fillRunApp(); $("runOverlay").classList.add("open"); $("runGood").focus();
+}
+function fillRunApp(){
+  const a=RUN.apps.find(x=>x.name===$("runApp").value)||RUN.apps[0]; if(!a) return;
+  const types=a.kind==="visual"?["visual","crawl"]:["case","crawl"], sel=$("runType"); sel.textContent=""; types.forEach(t=>{ const o=document.createElement("option"); o.value=t; o.textContent=RUN_TYPES[t][0]; sel.appendChild(o); });
+  $("runTypeAbout").textContent=RUN_TYPES[types[0]][1]; $("runCaseWrap").hidden = types[0]!=="case";
+  const cs=$("runCase"); cs.textContent=""; a.scenarios.forEach(sc=>{ const o=document.createElement("option"); o.value=sc.name; o.textContent=sc.label; cs.appendChild(o); });
+  const dl=$("runTags"); dl.textContent=""; a.tags.forEach(t=>{ const o=document.createElement("option"); o.value=t; dl.appendChild(o); });
+  $("runGood").value=(a.defaults&&a.defaults.good)||""; $("runCand").value=(a.defaults&&a.defaults.cand)||""; showRunAbout(); updateRunTime();
+}
+function showRunAbout(){ const a=RUN.apps.find(x=>x.name===$("runApp").value), sc=a&&a.scenarios.find(x=>x.name===$("runCase").value); $("runAbout").textContent=sc?sc.about:""; }
+const RUN_TYPES={ visual:["Pictures: compare what both versions look like","Behique takes settled pictures of both versions, region by region, and can search for the first commit that changes them."], crawl:["Behaviour: crawl the app and compare what it does","Behique finds the click paths itself (it never changes the app), records what the page holds along them on both versions, and turns a changed value into a test."], "case":["Known case (hand-written steps)","A case written by hand for this app: fixed steps and a description."] };
+function runType(){ return $("runType").value||"case"; }
+function runIsVisual(){ return runType()==="visual"; }
+function updateRunTime(){
+  const same=$("runGood").value.trim()===$("runCand").value.trim(); $("runBisect").disabled=same;
+  if(runType()==="crawl"){ $("runTime").textContent = same ? "The same version twice is a clean-run check: about 2 minutes (most of it is the crawl)." : "About 2 to 3 minutes to crawl, then 3 to 6 minutes to compare and test, and a few more if the search runs."; return; }
+  if(runIsVisual()){ $("runTime").textContent = same ? "The same version twice is a clean-run check: about 30 seconds." : $("runBisect").checked ? "About 3 minutes if the pictures differ (the search builds and photographs every commit it tests), about 30 seconds if nothing differs." : "About 30 seconds. Behique compares pictures of both versions, region by region."; return; }
+  $("runTime").textContent = same ? "The same version twice is a clean-run check: about 15 seconds." : $("runBisect").checked ? "About a minute and a half if the behaviour differs (the search is most of it), about 15 seconds if nothing differs." : "About 40 seconds if the behaviour differs, about 15 seconds if nothing differs.";
+}
+async function startRun(){
+  const btn=$("runStart"); if(btn.disabled) return; $("runErr").textContent=""; btn.disabled=true;
+  try{
+    const visual=runIsVisual(), crawl=runType()==="crawl";
+    const body=crawl ? { kind:"crawl", app:$("runApp").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked } : visual ? { kind:"visual", app:$("runApp").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked } : { app:$("runApp").value, scenario:$("runCase").value, goodRef:$("runGood").value.trim(), candRef:$("runCand").value.trim(), bisect:$("runBisect").checked };
+    const r=await fetch("/api/ui/runs",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }), j=await r.json();
+    if(!r.ok){ $("runErr").textContent=j.error||"Could not start the run."; btn.disabled=false; return; }
+    $("runOverlay").classList.remove("open"); btn.disabled=false; showToast(j.note||"Run started","green");
+    if(visual||crawl){ watchVisualRun(); return; }
+    let id=j.caseId; for(let i=0;i<40 && !id;i++){ await sleep(250); id=(await fetch("/api/ui/runs/current").then(x=>x.json())).caseId; }
+    if(!id){ showToast("The run started but its record did not appear","red"); return; }
+    fillPicker(await fetch("/api/ui/cases").then(x=>x.json())); $("runPick").value=id; history.replaceState(null,"","?case="+id);
+    await loadLive(id);
+  }catch(e){ $("runErr").textContent="Could not start the run: "+e.message; btn.disabled=false; }
+}
+// ---- a visual run has no report until it finishes, so its progress comes from the run itself ----
+let VPOLL=null;
+function watchVisualRun(){
+  if(VPOLL) clearInterval(VPOLL);
+  const tick=async()=>{
+    let cur=null; try{ cur=await fetch("/api/ui/runs/current").then(r=>r.json()); }catch(e){ return; }
+    if(!cur || (cur.kind!=="visual" && cur.kind!=="crawl")){ clearInterval(VPOLL); VPOLL=null; $("vrun").hidden=true; return; }
+    if(cur.kind==="crawl" && cur.caseId && cur.running){   // the comparison has started and writes its own record: follow that instead
+      clearInterval(VPOLL); VPOLL=null; $("vrun").hidden=true;
+      fillPicker(await fetch("/api/ui/cases").then(x=>x.json())); $("runPick").value=cur.caseId; history.replaceState(null,"","?case="+cur.caseId);
+      await loadLive(cur.caseId); if(LIVE.vm && LIVE.vm.verdict==="running") startPolling(cur.caseId); return;
+    }
+    await syncRunUi();
+    if(cur.running){ $("vrun").hidden=false; $("vrunText").textContent=(cur.progress&&cur.progress.text)||"Running"; $("vrunFill").style.width=Math.round(((cur.progress&&cur.progress.fraction)||0)*100)+"%"; return; }
+    clearInterval(VPOLL); VPOLL=null; $("vrun").hidden=true;
+    if(cur.caseId){ fillPicker(await fetch("/api/ui/cases").then(x=>x.json())); $("runPick").value=cur.caseId; history.replaceState(null,"","?case="+cur.caseId); await loadLive(cur.caseId); showToast("Run finished","green"); }
+    else showToast(cur.status==="cancelled"?"Run cancelled":"The run did not produce a report: "+(cur.lastLine||"no output"),"red");
+  };
+  tick(); VPOLL=setInterval(tick,1000);
+}
+function renderVisualBuilds(){
+  const vm=LIVE.vm, V=vm.visual, panes=document.querySelectorAll(".build .mock, .build .measured"), subs=document.querySelectorAll(".build .build-sub"), dots=document.querySelectorAll(".build .status");
+  const sides=[{ref:vm.goodRef,tag:"good",cls:"good"},{ref:vm.candRef,tag:"candidate",cls:"cand"}];
+  subs.forEach((el,i)=>{ el.textContent=vm.app+" "+sides[i].ref+" ("+sides[i].tag+")"; }); if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
+  const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
+  const fig=(url,cap)=>{ if(!url) return null; const f=mk("figure","shot"), im=document.createElement("img"); im.src=url; im.alt=cap; f.appendChild(im); f.appendChild(mk("figcaption",null,cap)); return f; };
+  const label=n=>{ const t=String(n).replace(/-/g," "); return t.charAt(0).toUpperCase()+t.slice(1); };
+  panes.forEach((m,i)=>{
+    const box=mk("div","measured "+sides[i].cls); box.appendChild(mk("div","m-h","Settled picture of "+sides[i].ref));
+    const main=fig(i===0?V.pictures.good:V.pictures.candidate,"Settled picture of "+sides[i].ref); if(main) box.appendChild(main); else box.appendChild(mk("div","m-w","No picture was recorded."));
+    const s=V.search;
+    if(s&&s.found&&i===0){ const f=fig(V.pictures.parent,"The change just before the first difference"); if(f) box.appendChild(f); }
+    if(i===1){
+      box.appendChild(mk("div","m-w",V.summary));
+      if(V.floor) box.appendChild(mk("div","m-w","The old version differs from itself by up to "+V.floor.changed.toLocaleString()+" pixels over "+V.floor.loads+" loads: that is the noise."));
+      V.regions.filter(r=>r.differs).slice(0,3).forEach(r=>{ const row=mk("div","reg-row"); row.appendChild(mk("span","nm",label(r.name))); row.appendChild(mk("span",null,r.changed.toLocaleString()+" pixels differ (noise "+r.floor+")")); box.appendChild(row); const f=fig(r.diff,"Where "+label(r.name).toLowerCase()+" differs (changed pixels in red)"); if(f) box.appendChild(f); });
+      if(s&&s.found){ const f=fig(V.pictures.first,"The first change: "+(s.subject||"")); if(f) box.appendChild(f); box.appendChild(mk("div","m-w",s.proven?"Found by search and verified: the change just before it matched the old picture, and it differed, every run.":"The search points here, but the runs were not clean, so treat it as a lead.")); }
+    }
+    m.replaceWith(box);
+  });
+}
+async function cancelRun(){
+  const r=await fetch("/api/ui/runs/cancel",{ method:"POST", headers:{"Content-Type":"application/json"}, body:"{}" }), j=await r.json();
+  showToast(r.ok?"Cancelling: stopping the builds":(j.error||"Could not cancel"), r.ok?"":"red");
+}
+// ---- set up an app: preview the exact text, send it only after review, approve commands, verify, then it is saved ----
+const SETUP={ preview:null, busy:false };
+const setupErr=m=>{ $("setupErr").textContent=m||""; };
+const postJson=(url,body)=>fetch(url,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }).then(async r=>({ ok:r.ok, status:r.status, j:await r.json() }));
+const setupInput=()=>({ repo:$("setupRepo").value, name:$("setupName").value.trim(), good:$("setupGood").value.trim(), cand:$("setupCand").value.trim() });
+async function openSetup(){
+  setupErr(""); ["setupPreview","setupProposal","setupResult"].forEach(i=>{ $(i).hidden=true; }); SETUP.preview=null;
+  let cands=[]; try{ cands=await fetch("/api/ui/onboard/candidates").then(r=>r.json()); }catch(e){ showToast("Could not list repositories: "+e.message,"red"); return; }
+  const sel=$("setupRepo"); sel.textContent=""; cands.forEach(c=>{ const o=document.createElement("option"); o.value=c.name; o.textContent=c.name+(c.hasProfile?" (already set up)":""); o.disabled=c.hasProfile; sel.appendChild(o); });
+  if(!cands.length) setupErr("No repositories found in the apps folder.");
+  $("setupOverlay").classList.add("open");
+}
+async function reviewSetup(){
+  setupErr(""); $("setupProposal").hidden=true; $("setupResult").hidden=true;
+  const {ok,j}=await postJson("/api/ui/onboard/preview",setupInput());
+  if(!ok){ setupErr(j.error||"Could not review."); $("setupPreview").hidden=true; return; }
+  SETUP.preview=j; $("setupPreview").hidden=false;
+  const f=j.facts; $("setupFacts").textContent=f.path+" . "+(f.hasIndexHtml?"has index.html":"no index.html")+" . tags: "+(f.tags.join(", ")||"none")+" . scripts: "+(f.scripts.join(", ")||"none");
+  $("setupSent").textContent=j.sent.map(m=>"["+m.role+"]\n"+m.content).join("\n\n");
+  const usd="$"+j.usdExpected.toFixed(4); $("setupCost").textContent="Model: "+j.model+" . Expected cost about "+usd+". "+(j.canSend?"Nothing is sent until you press the button.":j.reason);
+  const b=$("setupSend"); b.disabled=!j.canSend; b.textContent="Send and spend about "+usd;
+}
+async function sendSetup(){
+  if(!SETUP.preview||SETUP.busy) return; SETUP.busy=true; setupErr(""); const b=$("setupSend"); b.disabled=true; b.textContent="Waiting for the model...";
+  try{
+    const {ok,status,j}=await postJson("/api/ui/onboard/propose",{ ...setupInput(), confirm:SETUP.preview.confirm });
+    if(!ok){ setupErr(j.error||"The proposal failed."); if(j.stale){ SETUP.preview=null; $("setupPreview").hidden=true; } else { b.disabled=false; } return; }
+    $("setupProfile").textContent=JSON.stringify(j.profile,null,2);
+    $("setupProblems").textContent=j.problems.length?"Problems the checker found: "+j.problems.join("; "):"";
+    $("setupCmds").textContent=j.commands.join("\n"); $("setupCmdBox").hidden=!j.needsApproval; $("setupApprove").checked=false;
+    $("setupProposal").hidden=false; b.textContent="Sent. Cost about $"+j.usd.toFixed(4);
+  }catch(e){ setupErr("Could not reach the server: "+e.message); b.disabled=false; }
+  finally{ SETUP.busy=false; }
+}
+async function verifySetup(){
+  if(SETUP.busy) return; SETUP.busy=true; setupErr(""); const b=$("setupVerify"); b.disabled=true; b.textContent="Verifying (builds both versions)...";
+  try{
+    const i=setupInput(), {ok,j}=await postJson("/api/ui/onboard/verify",{ name:i.name, good:i.good, cand:i.cand, approveCommands:$("setupApprove").checked });
+    const box=$("setupChecks"); box.textContent=""; $("setupResult").hidden=false;
+    (j.checks||[]).forEach(c=>{ const d=document.createElement("div"); d.className=c.ok?"chk-ok":"chk-bad"; d.textContent=(c.ok?"ok  ":"FAILED  ")+c.name+": "+c.detail; box.appendChild(d); });
+    if(!ok){ setupErr(j.error||"Verification did not pass, so nothing was saved."); return; }
+    const d=document.createElement("div"); d.textContent="Verified and saved. "+i.name+" is now an app you can run."; box.appendChild(d);
+    RUN.apps=[]; loadApps(false); showToast("App set up: "+i.name,"green");
+  }catch(e){ setupErr("Could not reach the server: "+e.message); }
+  finally{ SETUP.busy=false; b.disabled=false; b.textContent="Verify and save"; }
+}
+function initRunUi(){
+  $("setupOpen").addEventListener("click",openSetup); $("setupClose").addEventListener("click",()=>$("setupOverlay").classList.remove("open"));
+  $("setupReview").addEventListener("click",reviewSetup); $("setupSend").addEventListener("click",sendSetup); $("setupVerify").addEventListener("click",verifySetup);
+  $("replayBtn").addEventListener("click",()=>{ RUN.running?cancelRun():openRunDialog(); });
+  $("runApp").addEventListener("change",fillRunApp); $("runType").addEventListener("change",()=>{ $("runTypeAbout").textContent=RUN_TYPES[runType()][1]; $("runCaseWrap").hidden=runType()!=="case"; updateRunTime(); }); $("runCase").addEventListener("change",showRunAbout);
+  ["runGood","runCand"].forEach(i=>$(i).addEventListener("input",updateRunTime)); $("runBisect").addEventListener("change",updateRunTime);
+  $("runCancelDlg").addEventListener("click",()=>$("runOverlay").classList.remove("open"));
+  $("runStart").addEventListener("click",startRun);
+  $("runOverlay").addEventListener("keydown",e=>{ if(e.key==="Escape") $("runOverlay").classList.remove("open"); if(e.key==="Enter" && e.target.tagName!=="SELECT") startRun(); });
+}
+// ---- apps: FreshRSS built in, plus the GitHub account's repos (read-only, nothing is cloned) ----
+let APPS_UI = { apps: [{ id: "freshrss", kind: "builtin", label: "FreshRSS", subtitle: "built in", runnable: true, status: "ready", statusText: "Ready" }], github: null, selected: "freshrss", query: "" };
+const APP_KEY = "behique-app";
+const appById = id => APPS_UI.apps.find(a => a.id === id);
+function ageText(iso){
+  if(!iso) return "never pushed"; const d=(Date.now()-Date.parse(iso))/864e5;
+  if(d<1) return "pushed today"; if(d<2) return "pushed yesterday"; if(d<60) return "pushed "+Math.floor(d)+" days ago";
+  if(d<730) return "pushed "+Math.floor(d/30)+" months ago"; return "pushed "+Math.floor(d/365)+" years ago";
+}
+function rememberApp(id){
+  try{ localStorage.setItem(APP_KEY,id); }catch(e){}
+  const u=new URLSearchParams(location.search); u.set("app",id); if(id!=="freshrss") u.delete("case"); history.replaceState(null,"","?"+u.toString()+location.hash);
+}
+function renderApps(){
+  const list=$("appsList"); list.textContent="";
+  const q=APPS_UI.query.trim().toLowerCase();
+  const builtin=APPS_UI.apps.filter(a=>a.kind==="builtin"||a.kind==="profile"), repos=APPS_UI.apps.filter(a=>a.kind==="github");
+  const match=a=>!q || (a.label+" "+(a.description||"")+" "+(a.language||"")+" "+(a.owner||"")).toLowerCase().includes(q);
+  const row=a=>{
+    const b=document.createElement("button"); b.type="button"; b.className="app-row"; b.dataset.app=a.id; b.setAttribute("role","listitem");
+    b.setAttribute("aria-current", a.id===APPS_UI.selected ? "true" : "false"); b.title=a.statusText||"";
+    const n=document.createElement("span"); n.className="n"; n.textContent=a.label;
+    const sub=document.createElement("span"); sub.className="s"; sub.textContent=a.subtitle||"";
+    const c=document.createElement("span"); c.className="c "+(a.runnable?"ready":"setup"); c.textContent=a.runnable?"ready":"needs setup";
+    b.append(n,sub,c); b.addEventListener("click",()=>selectApp(a.id)); return b;
+  };
+  builtin.forEach(a=>list.appendChild(row(a)));
+  const shown=repos.filter(match);
+  if(repos.length){ const g=document.createElement("div"); g.className="apps-grp"; g.textContent="Your GitHub repos ("+(q?shown.length+" of ":"")+repos.length+")"; list.appendChild(g); }
+  shown.forEach(a=>list.appendChild(row(a)));
+  if(repos.length && !shown.length){ const e=document.createElement("div"); e.className="apps-gh"; e.textContent='No repo matches "'+APPS_UI.query.trim().slice(0,40)+'".'; list.appendChild(e); }
+  $("appSearch").hidden = repos.length===0;
+  const g=APPS_UI.github, st=$("ghState");
+  if(!g){ st.textContent="GitHub: checking..."; st.className="apps-gh"; }
+  else if(g.connected && !g.error){ st.textContent="GitHub: connected as "+g.login+" . "+g.count+" repos . read-only"; st.className="apps-gh"; }
+  else if(g.connected){ st.textContent="GitHub: connected as "+g.login+", but the list failed: "+g.error; st.className="apps-gh bad"; }
+  else { st.textContent="GitHub: not connected. "+(g.error||""); st.className="apps-gh bad"; }
+  st.title="Behique reads your repo list through the GitHub CLI login on this machine. It never sees your token, and nothing is cloned.";
+  const cur=list.querySelector('[aria-current="true"]'); if(cur) cur.scrollIntoView({block:"nearest"});
+}
+function renderRepoPanel(a){
+  const p=$("repoPanel"); p.textContent="";
+  const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
+  const h=mk("h2","rp-title");
+  if(a.url){ const l=mk("a",null,a.fullName); l.href=a.url; l.target="_blank"; l.rel="noopener noreferrer"; h.appendChild(l); } else { h.textContent=a.fullName; }
+  p.appendChild(h);
+  const chips=mk("div","rp-chips");
+  [a.private?"private":"public", a.language, a.fork?"fork":null, a.archived?"archived":null, a.defaultBranch?"default branch "+a.defaultBranch:null, ageText(a.pushedAt)].filter(Boolean).forEach(t=>chips.appendChild(mk("span","rp-chip",t)));
+  p.appendChild(chips);
+  p.appendChild(mk("p","rp-desc",a.description||"No description on GitHub."));
+  const box=mk("div","rp-status");
+  box.appendChild(mk("div","rp-badge","NEEDS SETUP"));
+  box.appendChild(mk("p",null,"Behique cannot run a check on this repo yet. To compare two versions of an app it has to know:"));
+  const ul=mk("ul"); ["how to install it","how to start it, and on which port","seed data, so every run starts from the same state","the clicks to replay","which versions to compare (tags or branches)"].forEach(t=>ul.appendChild(mk("li",null,t)));
+  box.appendChild(ul);
+  box.appendChild(mk("p","rp-note","Nothing has been cloned or run. Behique has only read this repo's name and details from GitHub. To set it up, clone it first (Behique shows the exact command and asks before it runs), then use Set up an app."));
+  p.appendChild(box);
+  const act=mk("div","rp-clone"); p.appendChild(act);
+  const b=mk("button","mini-btn","Review cloning this repo"); b.type="button"; b.title="Shows the exact command and the size. Nothing is cloned until you confirm."; b.addEventListener("click",()=>reviewClone(a,act)); act.appendChild(b);
+}
+async function reviewClone(a,host){
+  host.textContent=""; const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
+  let r; try{ r=await fetch("/api/ui/clone/preview?repo="+encodeURIComponent(a.fullName)).then(async x=>({ ok:x.ok, j:await x.json() })); }catch(e){ host.appendChild(mk("p","rp-note","Could not reach the server: "+e.message)); return; }
+  if(!r.ok){ host.appendChild(mk("p","rp-note",r.j.error||"Could not prepare the clone.")); return; }
+  const pl=r.j.plan;
+  host.appendChild(mk("p","rp-note","This is the exact command that would run, and nothing else. It downloads the repository's history without file contents until needed, and runs none of its code:"));
+  const pre=mk("div","pre",r.j.commandLine); pre.style.cssText="background:var(--panel-2);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:12px ui-monospace,monospace;word-break:break-all;margin:6px 0"; host.appendChild(pre);
+  host.appendChild(mk("p","rp-note","Size on GitHub: "+(pl.sizeMb===null?"unknown":"about "+pl.sizeMb+" MB")+(pl.warnings.length?" . "+pl.warnings.join(" "):"")));
+  const go=mk("button","mini-btn","Clone into the apps folder"); go.type="button";
+  go.addEventListener("click",async()=>{ go.disabled=true; go.textContent="Cloning...";
+    try{ const x=await fetch("/api/ui/clone",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ repo:a.fullName, confirm:r.j.confirm }) }), j=await x.json();
+      if(!x.ok){ go.textContent="Clone into the apps folder"; go.disabled=!!j.stale; host.appendChild(mk("p","rp-note",j.error||"The clone failed.")); return; }
+      go.textContent="Cloned"; host.appendChild(mk("p","rp-note","Cloned to "+j.path+". Now press Set up an app in the sidebar, and Behique will work out how to run it.")); showToast("Cloned "+a.name,"green");
+    }catch(e){ go.disabled=false; go.textContent="Clone into the apps folder"; host.appendChild(mk("p","rp-note","Could not reach the server: "+e.message)); } });
+  host.appendChild(go);
+}
+async function loadApps(refresh){
+  try{
+    const d=await fetch("/api/ui/repos"+(refresh?"?refresh=1":"")).then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); });
+    APPS_UI.apps=d.apps; APPS_UI.github=d.github;
+  }catch(e){ APPS_UI.github={ connected:false, login:null, count:0, error:"could not ask the server ("+e.message+")" }; }
+  if(!appById(APPS_UI.selected)) selectApp("freshrss",{remember:false}); else renderApps();
+}
+function selectApp(id,opts){
+  const a=appById(id)||appById("freshrss"); APPS_UI.selected=a.id;
+  if(!opts || opts.remember!==false) rememberApp(a.id);
+  document.querySelector(".page").classList.toggle("repo-mode", !a.runnable);
+  renderApps();
+  if(!a.runnable){ stopPolling(); renderRepoPanel(a); return; }
+  ensureReport();
+}
+async function ensureReport(){   // back on a runnable app: show one of its reports
+  let list=[]; try{ list=await fetch("/api/ui/cases").then(r=>r.json()); }catch(e){ return; }
+  fillPicker(list);
+  const mine=list.filter(c=>c.app===APPS_UI.selected);
+  const keep=LIVE.vm && mine.some(c=>c.id===LIVE.vm.id) ? LIVE.vm.id : (mine[0] && mine[0].id);
+  if(!keep){ showToast("No reports yet for this app. Start a run.","red"); return; }
+  $("runPick").value=keep;
+  if(!LIVE.vm || LIVE.vm.id!==keep) await loadLive(keep); else if(LIVE.vm.verdict==="running") startPolling(keep);
+}
+function initAppsUi(){
+  $("appSearch").addEventListener("input",e=>{ APPS_UI.query=e.target.value; renderApps(); });
+  $("appsRefresh").addEventListener("click",()=>{ APPS_UI.github=null; renderApps(); loadApps(true); });
+  $("runPick").addEventListener("change",()=>{ stopPolling(); const u=new URLSearchParams(location.search); u.set("case",$("runPick").value); history.replaceState(null,"","?"+u.toString()+location.hash); loadLive($("runPick").value); });
+}
+// ---- views: the sidebar switches what the main area shows ----
+const VIEWS=["runs","evidence","bisect","reports","settings"];
+function setView(v){
+  if(!VIEWS.includes(v)) v="runs";
+  const pg=document.querySelector(".page");
+  VIEWS.forEach(x=>pg.classList.toggle("v-"+x,x===v));
+  document.querySelectorAll(".nav a[data-view]").forEach(a=>{ const on=a.dataset.view===v; a.classList.toggle("active",on); if(on) a.setAttribute("aria-current","page"); else a.removeAttribute("aria-current"); });
+  try{ history.replaceState(null,"",location.pathname+location.search+(v==="runs"?"":"#"+v)); }catch(e){}
+  if(v==="reports") loadReportsUi(); else if(v==="settings") loadSettingsUi();
+  window.scrollTo(0,0);
+}
+function initViews(){
+  document.querySelectorAll(".nav a[data-view]").forEach(a=>a.addEventListener("click",e=>{ e.preventDefault(); setView(a.dataset.view); }));
+  window.addEventListener("hashchange",()=>setView(location.hash.slice(1)));
+  $("repApp").addEventListener("change",renderReports); $("repVerdict").addEventListener("change",renderReports);
+  $("setMode").addEventListener("change",syncSettingsForm); $("setSave").addEventListener("click",saveSettingsUi); $("setTest").addEventListener("click",testSettingsUi);
+  setView(location.hash.slice(1));
+}
+function el(tag,text,cls){ const e=document.createElement(tag); if(text!==undefined) e.textContent=text; if(cls) e.className=cls; return e; }
+let REPORTS=[];
+async function loadReportsUi(){
+  $("repCount").textContent="Loading...";
+  try{ REPORTS=await fetch("/api/ui/cases").then(r=>r.json()); }catch(e){ REPORTS=[]; showToast("Could not load the reports: "+e.message,"red"); }
+  const sel=$("repApp"), keep=sel.value; sel.textContent="";
+  const all=el("option","All apps"); all.value=""; sel.appendChild(all);
+  [...new Set(REPORTS.map(c=>c.app))].sort().forEach(a=>{ const o=el("option",a); o.value=a; sel.appendChild(o); });
+  if([...sel.options].some(o=>o.value===keep)) sel.value=keep; else if(APPS_UI.selected && [...sel.options].some(o=>o.value===APPS_UI.selected)) sel.value=APPS_UI.selected;
+  renderReports();
+}
+function reportWhen(id){ const m=/^(\d{4})(\d\d)(\d\d)T(\d\d)(\d\d)(\d\d)Z/.exec(id); if(!m) return id.slice(0,15); const d=new Date(Date.UTC(+m[1],m[2]-1,+m[3],+m[4],+m[5],+m[6])); return d.toLocaleString([],{month:"short",day:"numeric",hour:"2-digit",minute:"2-digit"}); }
+function renderReports(){
+  const app=$("repApp").value, vd=$("repVerdict").value, body=$("repRows"); body.textContent="";
+  const list=REPORTS.filter(c=>(!app||c.app===app)&&(!vd||c.verdict===vd));
+  $("repCount").textContent=list.length+" of "+REPORTS.length;
+  $("repEmpty").hidden=list.length>0;
+  list.forEach(c=>{
+    const tr=document.createElement("tr");
+    tr.appendChild(el("td",reportWhen(c.id))); tr.appendChild(el("td",c.app));
+    const t=el("td",c.title||c.id); if(c.sub){ const s=el("div",c.sub,"hint"); t.appendChild(s); } tr.appendChild(t);
+    const v=el("td"); v.appendChild(el("span",String(c.verdict||"").toUpperCase(),"vchip "+c.verdict)); tr.appendChild(v);
+    const d=el("td"); if(c.decision) d.appendChild(el("span",String(c.decision).toUpperCase(),"vchip "+c.decision)); else d.textContent="none yet"; tr.appendChild(d);
+    const act=el("td"); const open=el("button","Open","mini-btn"); open.type="button"; open.addEventListener("click",()=>openReport(c));
+    const full=el("a","Full report"); full.href="/report?case="+encodeURIComponent(c.id); full.target="_blank"; full.rel="noopener"; full.style.marginLeft="10px";
+    act.appendChild(open); act.appendChild(full); tr.appendChild(act); body.appendChild(tr);
+  });
+}
+async function openReport(c){
+  try{
+    APPS_UI.selected=c.app; rememberApp(c.app); document.querySelector(".page").classList.remove("repo-mode"); renderApps();
+    showToast("Opening the report..."); fillPicker(REPORTS); $("runPick").value=c.id; stopPolling();
+    const u=new URLSearchParams(location.search); u.set("case",c.id); history.replaceState(null,"","?"+u.toString()+location.hash);
+    await loadLive(c.id); setView("runs");
+  }catch(e){ showToast("Could not open that report: "+e.message,"red"); }
+}
+// ---- settings ----
+let SET=null;
+function syncSettingsForm(){ const m=$("setMode").value; $("setHostRow").hidden=m!=="ssh"; $("setLimitRow").hidden=m==="off"; }
+function setMsg(text,kind){ const m=$("setMsg"); m.textContent=text||""; m.className="set-msg"+(kind?" "+kind:""); }
+function renderFacts(){
+  const f=$("setFacts"); f.textContent=""; if(!SET) return;
+  const rows=[["Active now",SET.sandboxActive?SET.sandboxActive:"this machine (no sandbox)"],["Saved in",SET.source==="saved"?"out/settings.json":"not saved yet (using this shell's environment)"],["Model key",SET.modelKeySet?"set (never shown)":"not set: the AI steps are off"],["Reports",SET.paths.evidence],["Apps folder",SET.paths.apps],["App profiles",SET.paths.profiles],["Server port",String(SET.port)]];
+  rows.forEach(r=>{ f.appendChild(el("dt",r[0])); f.appendChild(el("dd",r[1])); });
+}
+async function loadSettingsUi(){
+  try{ SET=await fetch("/api/ui/settings").then(r=>r.json()); }catch(e){ setMsg("Could not load settings: "+e.message,"bad"); return; }
+  const s=SET.settings.sandbox; $("setMode").value=s.mode; $("setHost").value=s.host||""; $("setMem").value=s.memoryMb||""; $("setCpus").value=s.cpus||"";
+  syncSettingsForm(); renderFacts(); setMsg(SET.running?"A check is running: settings can be changed when it finishes.":"");
+  $("setSave").disabled=Boolean(SET.running);
+}
+function settingsForm(){ return {sandbox:{mode:$("setMode").value,host:$("setHost").value,memoryMb:$("setMem").value,cpus:$("setCpus").value}}; }
+async function saveSettingsUi(){
+  setMsg("Saving...");
+  const body=settingsForm();
+  try{
+    const r=await fetch("/api/ui/settings",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}); const j=await r.json();
+    if(!r.ok){ setMsg(j.error||"Could not save.","bad"); return; }
+    await loadSettingsUi(); setMsg("Saved. New checks use this.","ok");
+  }catch(e){ setMsg("Could not save: "+e.message,"bad"); }
+}
+async function testSettingsUi(){
+  setMsg("Asking Docker...");
+  try{ const r=await fetch("/api/ui/settings/test",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(settingsForm())}); const j=await r.json(); setMsg(j.text||j.error,j.ok?"ok":"bad"); }
+  catch(e){ setMsg("Test failed: "+e.message,"bad"); }
+}
+(async function init(){
+  initEvents(); initRunUi(); initAppsUi(); renderApps(); initViews();
+  fetch("/api/ui/runs/current").then(r=>r.json()).then(c=>{ if(c&&c.running&&(c.kind==="visual"||c.kind==="crawl")) watchVisualRun(); }).catch(()=>{});
+  const qp=new URLSearchParams(location.search); let want=qp.get("app"); try{ want=want||localStorage.getItem(APP_KEY); }catch(e){}
+  const apps=loadApps(false);                       // slow (it asks GitHub): it never holds up the reports
+  if(want && want!=="freshrss"){ await apps; if(appById(want)){ selectApp(want,{remember:false}); return; } }
+  try{
+    const list=await fetch("/api/ui/cases").then(r=>r.json());
+    fillPicker(list);
+    const mine=list.filter(c=>c.app==="freshrss"), wantCase=qp.get("case");
+    const id=mine.some(c=>c.id===wantCase) ? wantCase : (mine[0] && mine[0].id);
+    if(!id){ showToast("No reports yet. Run a check first.","red"); return; }
+    $("runPick").value=id;
+    await loadLive(id);
+  }catch(e){ showToast("Could not load the record: "+e.message,"red"); }
+})();
+</script>
+</body>
+</html>
