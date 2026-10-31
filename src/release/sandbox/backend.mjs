@@ -11,6 +11,7 @@ import { checkoutRef } from '../checkout.mjs'
 import { scriptsOffEnv } from '../onboard/profile.mjs'
 import { shimFile } from '../onboard/toolchain.mjs'
 import { isImage } from './docker-args.mjs'
+import { cacheImage, cacheInspectArgs, cacheKey } from './cache.mjs'
 import { dockerHostFor, makeDocker } from './docker-exec.mjs'
 import { createSandbox } from './sandbox.mjs'
 import { injectedEnv, resolveServices } from './services.mjs'
@@ -34,7 +35,7 @@ export function sandboxConfigFromEnv(env = process.env) {
   const image = env.BEHIQUE_SANDBOX_IMAGE ?? DEFAULT_IMAGE
   if (!isImage(image)) throw new Error(`BEHIQUE_SANDBOX_IMAGE must be a pinned Docker Hub image such as ${DEFAULT_IMAGE}`)
   const ssh = host && host.startsWith('ssh://') ? host.slice('ssh://'.length) : null
-  const cfg = { target: host ?? '', image, sshHost: ssh }
+  const cfg = { target: host ?? '', image, sshHost: ssh, cache: env.BEHIQUE_CACHE !== 'off' } // cache: keep each installed commit as an image and start from it next time
   // limits for the install and app containers (the default is 4 GB, 4 CPUs; a big build such as `next build` can need more)
   const mem = env.BEHIQUE_SANDBOX_MEMORY_MB, cpus = env.BEHIQUE_SANDBOX_CPUS
   if (mem !== undefined || cpus !== undefined) {
@@ -75,6 +76,18 @@ export function writeExtras(dir, shimNames) {
 
 const sub = (v, port) => String(v).split('{port}').join(String(port))
 
+/** The cache key for this build, or null when the profile has a shape the key cannot describe (then the build is simply not cached). */
+export function cacheKeyFor({ app, sha, image, installs, profile }) {
+  const k = cacheKey({ app, sha, image, installs: (installs ?? []).map(i => ({ cmd: i.cmd, args: i.args ?? [] })), allowScripts: profile.serve?.allowScripts === true, root: profile.serve?.root ?? undefined, services: (profile.services ?? []).map(s => s.kind ?? s) })
+  return k.ok ? k.key : null
+}
+
+async function imageExists(docker, image) {
+  const a = cacheInspectArgs(image)
+  if (!a.ok) return false
+  try { const r = await docker(a.args, { timeoutMs: 30_000 }); return r.code === 0 && /\S/.test(r.stdout) } catch { return false }
+}
+
 export async function startSandboxedBuild({ adapter, ref, port, config, register, deps = {} }) {
   const t0 = Date.now()
   const p = adapter.profile
@@ -94,7 +107,10 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
   const shimNames = [...new Set(cmds.filter(c => c === 'yarn' || c === 'pnpm'))]
   writeExtras(dir, shimNames)
 
-  const sb = make({ docker, pack, image: config.image, limits: config.limits })
+  // the build cache: the same commit, image, install steps and services were installed before, so the app can start from that image
+  const key = config.cache === false ? null : cacheKeyFor({ app: p.name, sha, image: config.image, installs, profile: p })
+  const hit = key ? await imageExists(docker, cacheImage(key)) : false
+  const sb = make({ docker, pack, image: config.image, limits: config.limits, fromCache: hit ? key : null })
   let link = null, tail = ''
   const self = { stop: async () => { register?.delete(self); await link?.close().catch(() => {}); await sb.destroy() } }
   register?.add(self)
@@ -117,10 +133,11 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
   for (const [k, v] of Object.entries(p.serve.env ?? {})) env[k] = sub(v, port)
   Object.assign(env, injectedEnv(services))
 
-  if (installs.length > 0) {
+  if (installs.length > 0 && !hit) {
     const inst = await sb.install(installs.map(i => ({ cmd: i.cmd, args: (i.args ?? []).map(a => sub(a, port)) })), { env })
     if (!inst.ok) return fail(`${p.name} ${ref}: ${inst.error}`, inst.logs)
   }
+  if (key && !hit) { const kept = await sb.commit({ key, app: p.name, sha }); if (!kept.ok) deps.log?.(`${p.name} ${ref}: the build was not kept for next time: ${kept.error}`) } // a failed commit costs time, not the run
 
   const run = p.serve.kind === 'static'
     ? { cmd: 'node', args: ['/work/.behique/static-server.mjs', p.serve.root ? `/work/${p.serve.root.replace(/^\/+/, '')}` : '/work', String(port), JSON.stringify(p.serve.overrides ?? {})] }
@@ -144,5 +161,5 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
     tail = l.ok ? l.text : ''
     return fail(`${p.name} ${ref} did not answer on ${base}${stopped ? ' (the server stopped)' : ` within ${Math.round(readyMs / 1000)} s`}`, tail)
   }
-  return { ref, sha, dir, base, port, entries: 0, buildMs: Date.now() - t0, stop: self.stop, logTail: () => tail, sandbox: { runId: sb.runId, target: config.target || 'local', appAddress: `${app.host}:${app.port}` } }
+  return { ref, sha, dir, base, port, entries: 0, buildMs: Date.now() - t0, cached: hit, stop: self.stop, logTail: () => tail, sandbox: { runId: sb.runId, target: config.target || 'local', appAddress: `${app.host}:${app.port}` } }
 }

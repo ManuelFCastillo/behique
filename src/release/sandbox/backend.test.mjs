@@ -19,7 +19,7 @@ before(() => {
 
 const adapterFor = (serve, extra = {}) => profileToAdapter({ name: 'demo', repo, workRoot: work, serve, ...extra }, { env: {} })
 
-function fakes({ prepare = { ok: true }, services = { ok: true }, install = { ok: true, steps: [] }, app = { ok: true, host: '172.20.0.2', port: 8300 }, answers = [true], running = true } = {}) {
+function fakes({ prepare = { ok: true }, services = { ok: true }, install = { ok: true, steps: [] }, app = { ok: true, host: '172.20.0.2', port: 8300 }, answers = [true], running = true, cached = false } = {}) {
   const calls = []
   let destroyed = 0
   const sbx = {
@@ -28,13 +28,15 @@ function fakes({ prepare = { ok: true }, services = { ok: true }, install = { ok
     startServices: async (r, o) => { calls.push(['services', r.map(s => s.kind)]); return services },
     install: async (steps, o) => { calls.push(['install', steps, o.env]); return install },
     startApp: async a => { calls.push(['app', a]); return app },
+    commit: async a => { calls.push(['commit', a]); return { ok: true, image: 'bq-cache:' + a.key } },
     logs: async () => ({ ok: true, text: 'last app lines' }),
     running: async () => ({ ok: true, running }),
     destroy: async () => { destroyed += 1; return { ok: true } },
   }
   const closed = []
   const deps = {
-    createSandbox: opts => { calls.push(['create', opts.image]); return sbx },
+    createSandbox: opts => { calls.push(['create', opts.image, opts.fromCache]); return sbx },
+    docker: async args => { calls.push(['docker', args]); return { code: cached ? 0 : 1, stdout: cached ? 'sha256:abc\n' : '', stderr: cached ? '' : 'No such image' } }, // `image inspect` of the cache image
     pack: async () => Buffer.alloc(0),
     forward: async a => { calls.push(['forward', a]); return { close: async () => { closed.push(1) } } },
     fetch: async () => ({ ok: answers.shift() ?? false }),
@@ -47,8 +49,9 @@ describe('sandboxConfigFromEnv', () => {
   it('is off unless asked, understands local and ssh, refuses anything else', () => {
     assert.equal(sandboxConfigFromEnv({}), null)
     assert.equal(sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'off' }), null)
-    assert.deepEqual(sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker' }), { target: '', image: 'node:22-bookworm', sshHost: null })
-    assert.deepEqual(sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker:ssh://hardac2' }), { target: 'ssh://hardac2', image: 'node:22-bookworm', sshHost: 'hardac2' })
+    assert.deepEqual(sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker' }), { target: '', image: 'node:22-bookworm', sshHost: null, cache: true })
+    assert.deepEqual(sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker:ssh://hardac2' }), { target: 'ssh://hardac2', image: 'node:22-bookworm', sshHost: 'hardac2', cache: true })
+    assert.equal(sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker', BEHIQUE_CACHE: 'off' }).cache, false)
     assert.deepEqual(sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker', BEHIQUE_SANDBOX_MEMORY_MB: '10240' }).limits, { memoryMb: 10240, cpus: 4, pids: 1024 })
     assert.throws(() => sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker', BEHIQUE_SANDBOX_MEMORY_MB: '100' }), /MEMORY_MB/)
     assert.throws(() => sandboxConfigFromEnv({ BEHIQUE_SANDBOX: 'docker', BEHIQUE_SANDBOX_CPUS: 'many' }), /CPUS/)
@@ -79,7 +82,9 @@ describe('startSandboxedBuild', () => {
     assert.match(b.sha, /^[0-9a-f]{40}$/)
     assert.equal(b.sandbox.appAddress, '172.20.0.2:8300')
     const names = f.calls.map(c => c[0])
-    assert.deepEqual(names, ['create', 'prepare', 'services', 'install', 'app', 'forward'])
+    assert.deepEqual(names, ['docker', 'create', 'prepare', 'services', 'install', 'commit', 'app', 'forward']) // docker = is this commit cached? (no)
+    assert.equal(f.calls[0][1][1], 'inspect'); assert.equal(f.calls[1][2], null); assert.equal(b.cached, false)
+    f.calls.splice(0, 1); f.calls.splice(4, 1) // the rest of this test reads the pre-cache order
     assert.deepEqual(f.calls[2][1], ['postgres'])
     const install = f.calls[3]
     assert.deepEqual(install[1], [{ cmd: 'pnpm', args: ['install', '--ignore-scripts'] }]) // scripts stay off
@@ -91,6 +96,21 @@ describe('startSandboxedBuild', () => {
     assert.deepEqual(f.calls[5][1], { listenPort: 8300, host: '172.20.0.2', port: 8300 })
     await b.stop()
     assert.equal(f.destroyedCount(), 1); assert.equal(f.closed.length, 1)
+  })
+
+  it('a cached commit skips the install and starts from the cache image; BEHIQUE_CACHE=off skips the cache entirely', async () => {
+    const a = adapterFor({ kind: 'command', cmd: 'pnpm', args: ['start'], install: [{ cmd: 'pnpm', args: ['install'] }] })
+    const f = fakes({ cached: true })
+    const b = await startSandboxedBuild({ adapter: a, ref: 'HEAD', port: 8300, config, deps: f.deps })
+    assert.deepEqual(f.calls.map(c => c[0]), ['docker', 'create', 'prepare', 'app', 'forward'])
+    assert.match(f.calls[1][2], new RegExp('^demo-' + b.sha.slice(0, 12) + '-[0-9a-f]{8}$'))
+    assert.equal(b.cached, true)
+    await b.stop()
+    const g = fakes({ cached: true })
+    const c = await startSandboxedBuild({ adapter: a, ref: 'HEAD', port: 8300, config: { ...config, cache: false }, deps: g.deps })
+    assert.deepEqual(g.calls.map(x => x[0]), ['create', 'prepare', 'install', 'app', 'forward'])
+    assert.equal(c.cached, false)
+    await c.stop()
   })
 
   it('serves a static app with the bundled server inside the box, from its folder', async () => {

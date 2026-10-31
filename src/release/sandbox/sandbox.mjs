@@ -18,6 +18,7 @@ import {
   createArgs,
   runArgs
 } from './docker-args.mjs'
+import { cacheImage as cacheImageName, cacheListArgs, cacheRemoveArgs, commitArgs, committerArgs, hitPlan, isCacheKey, parseCacheList, prunePlan } from './cache.mjs'
 
 function defaultNewRunId() {
   const chars = 'abcdefghijklmnopqrstuvwxyz0123456789'
@@ -73,7 +74,10 @@ function invalidImageError() {
   return 'invalid image.'
 }
 
-export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, limits } = {}) {
+// `fromCache`: a cache key (see cache.mjs). The sandbox then needs no volume, no seed and no install: the app container is created straight
+// from the cached image, with the installed checkout in its own copy-on-write layer.
+export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, limits, fromCache = null } = {}) {
+  const cacheKey = isCacheKey(fromCache) ? fromCache : null
   const runId = typeof newRunId === 'function' ? newRunId() : defaultNewRunId()
   const lim = limits !== undefined ? limits : { memoryMb: 4096, cpus: 4, pids: 1024 }
   const dockerFn = docker
@@ -120,6 +124,7 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
     if (r.res.code !== 0) {
       return { ok: false, error: failWithLine(firstLine(r.res.stderr), 'Could not create the network.'), logs: cleanLog(combinedLogs(r.res)) }
     }
+    if (cacheKey) { logFn('prepared ' + runId + ' from cache ' + cacheKey); return { ok: true, cached: true } }
     // 3: volume
     built = volumeCreateArgs({ runId, short: 'work' })
     if (!built.ok) return { ok: false, error: built.error }
@@ -330,7 +335,9 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
   async function startApp({ cmd, args, env = {}, port } = {}) {
     if (!imageOk()) return { ok: false, error: invalidImageError() }
     const argv = [cmd, ...(args || [])]
-    const built = runArgs({
+    const hit = cacheKey ? hitPlan({ runId, key: cacheKey, limits: lim, env, cmd: argv, port }) : null
+    if (hit && !hit.ok) return { ok: false, error: hit.error }
+    const built = hit ? runArgs(hit.plan) : runArgs({
       runId,
       short: 'app',
       role: 'app',
@@ -370,6 +377,29 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
     }
     if (!valid) return { ok: false, error: 'Could not find the app address.' }
     return { ok: true, host: ip, port }
+  }
+
+  /** After a successful install: keep the work volume as the image bq-cache:<key>, so the next build of this commit starts from it. */
+  async function commit({ key, app, sha } = {}) {
+    if (!imageOk()) return { ok: false, error: invalidImageError() }
+    if (cacheKey) return { ok: false, error: 'This sandbox was started from the cache; there is nothing new to keep.' }
+    const image_ = cacheImageName(key)
+    if (!image_) return { ok: false, error: 'invalid cache key.' }
+    const cb = committerArgs({ runId, image, volumeShort: 'work' })
+    if (!cb.ok) return { ok: false, error: cb.error }
+    const cname = names(runId, 'commit')
+    const cleanup = async () => { try { const rb = removeArgs({ kind: 'container', ids: [cname] }); if (rb.ok) await callDocker(rb.args) } catch {} }
+    let r = await callDocker(cb.args, { timeoutMs: 600000 })
+    if (!r.ok) { await cleanup(); return { ok: false, error: r.error } }
+    if (r.res.code !== 0) { await cleanup(); return { ok: false, error: failWithLine(firstLine(r.res.stderr), 'Could not copy the build for the cache.'), logs: cleanLog(combinedLogs(r.res)) } }
+    const ca = commitArgs({ runId, key, app, sha })
+    if (!ca.ok) { await cleanup(); return { ok: false, error: ca.error } }
+    r = await callDocker(ca.args, { timeoutMs: 600000 })
+    await cleanup()
+    if (!r.ok) return { ok: false, error: r.error }
+    if (r.res.code !== 0) return { ok: false, error: failWithLine(firstLine(r.res.stderr), 'Could not keep the build as an image.'), logs: cleanLog(combinedLogs(r.res)) }
+    logFn('kept ' + image_)
+    return { ok: true, image: image_ }
   }
 
   async function logs(lines = 200) {
@@ -457,7 +487,7 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
     return { ok: true, removed: counts }
   }
 
-  return { runId, prepare, startServices, install, startApp, logs, running, destroy }
+  return { runId, prepare, startServices, install, startApp, commit, logs, running, destroy, fromCache: cacheKey }
 }
 
 export async function cleanStale({ docker, olderThanMinutes = 120, now = Date.now } = {}) {
@@ -493,3 +523,21 @@ export async function cleanStale({ docker, olderThanMinutes = 120, now = Date.no
   } catch { /* never throws */ }
   return { ok: true, removed }
 }
+
+/** Remove cache images beyond the newest `keepPerApp` per app, and any older than `maxAgeDays` (the newest of each app is always kept). */
+export async function pruneCache({ docker, keepPerApp = 4, maxAgeDays = 14, now = Date.now } = {}) {
+  const ls = cacheListArgs()
+  let res
+  try { res = await docker(ls.args, { timeoutMs: 60_000 }) } catch (e) { return { ok: false, error: String(e.message).split('\n')[0] } }
+  if (res.code !== 0) return { ok: false, error: String(res.stderr).split('\n')[0] || 'docker image ls failed' }
+  const entries = parseCacheList(res.stdout)
+  const plan = prunePlan(entries, { keepPerApp, maxAgeDays, now: now() })
+  let removed = 0
+  for (let i = 0; i < plan.remove.length; i += 50) {
+    const rm = cacheRemoveArgs(plan.remove.slice(i, i + 50))
+    if (!rm.ok) continue
+    try { const r = await docker(rm.args, { timeoutMs: 120_000 }); if (r.code === 0) removed += plan.remove.slice(i, i + 50).length } catch {}
+  }
+  return { ok: true, images: entries.length, kept: plan.keep.length, removed }
+}
+

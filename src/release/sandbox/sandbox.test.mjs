@@ -2,7 +2,7 @@
 // Run: node --test src/release/sandbox/sandbox.test.mjs
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { createSandbox, cleanLog, cleanStale } from './sandbox.mjs'
+import { createSandbox, cleanLog, cleanStale, pruneCache } from './sandbox.mjs'
 import { isRunId } from './docker-args.mjs'
 
 const IMAGE = 'node:22-bookworm-slim'
@@ -367,3 +367,54 @@ test('an install step that stalls on every try fails with a clear message', asyn
   assert.match(r.error, /Step 1 \(npm ci\) stalled 2 times with no output for 60 seconds each/)
   assert.equal(docker.calls.filter(c => c.args[0] === 'start').length, 2)
 })
+
+const KEY = 'demo-0123456789ab-89abcdef'
+
+test('from the cache: prepare only makes the networks, startApp runs the cache image with no volume, and commit is refused', async () => {
+  const docker = makeFake({ 'inspect': { code: 0, stdout: '172.19.0.5\n', stderr: '' } })
+  const sb = sbWith(docker, { fromCache: KEY })
+  const r = await sb.prepare({ dir: '/tmp/x' })
+  assert.deepEqual(r, { ok: true, cached: true })
+  assert.equal(docker.calls.length, 2)
+  assert.ok(docker.calls.every(c => c.args.slice(0, 2).join(' ') === 'network create'))
+  const app = await sb.startApp({ cmd: 'node', args: ['server.js'], env: { A: '1' }, port: 3000 })
+  assert.equal(app.ok, true)
+  const run = docker.calls.find(c => c.args[0] === 'run').args
+  assert.ok(run.includes('bq-cache:' + KEY), 'runs the cache image')
+  assert.ok(!run.includes('--read-only'), 'the cached checkout is the container\'s own layer, so the root must be writable')
+  assert.ok(!run.some(a => a.startsWith('bq-abc123def4-work:')), 'no work volume')
+  assert.ok(run.includes('A=1') && run.includes('PORT=3000'))
+  const c = await sb.commit({ key: KEY, app: 'demo', sha: '0123456789ab0123456789ab0123456789ab0123' })
+  assert.equal(c.ok, false); assert.match(c.error, /from the cache/)
+})
+
+test('commit copies the work volume as root in a throwaway container, commits it as bq-cache:<key>, and removes the container', async () => {
+  const docker = makeFake()
+  const sb = sbWith(docker)
+  await sb.prepare({ dir: '/tmp/x' })
+  const n = docker.calls.length
+  const c = await sb.commit({ key: KEY, app: 'demo', sha: '0123456789ab0123456789ab0123456789ab0123' })
+  assert.deepEqual(c, { ok: true, image: 'bq-cache:' + KEY })
+  const [run, commit, rm] = docker.calls.slice(n).map(x => x.args)
+  assert.equal(run[0], 'run'); assert.ok(run.includes('--user') && run[run.indexOf('--user') + 1] === '0:0'); assert.ok(run.includes('bq-abc123def4-work:/vol:ro'))
+  assert.deepEqual(run.slice(-3), ['sh', '-c', 'mkdir -p /work && cp -a /vol/. /work/'])
+  assert.equal(commit[0], 'commit'); assert.equal(commit[commit.length - 1], 'bq-cache:' + KEY); assert.equal(commit[commit.length - 2], 'bq-abc123def4-commit')
+  assert.deepEqual(rm.slice(0, 2), ['rm', '-f']); assert.ok(rm.includes('bq-abc123def4-commit'))
+  const bad = makeFake({ 'run': { code: 1, stdout: '', stderr: 'cp: cannot stat' } })
+  const sb2 = sbWith(bad)
+  const c2 = await sb2.commit({ key: KEY, app: 'demo', sha: '0123456789ab0123456789ab0123456789ab0123' })
+  assert.equal(c2.ok, false); assert.match(c2.error, /cp: cannot stat/)
+  assert.equal(bad.calls.at(-1).args[0], 'rm', 'the commit container is removed after a failure too')
+})
+
+test('pruneCache lists cache images, keeps the newest per app and removes the rest', async () => {
+  const day = 86400000, now = Date.parse('2026-10-31T00:00:00Z')
+  const row = (key, daysAgo) => `bq-cache:${key}\t${new Date(now - daysAgo * day).toISOString()}\t100MB`
+  const list = [row('demo-000000000001-aaaaaaaa', 1), row('demo-000000000002-aaaaaaaa', 20), row('other-000000000003-aaaaaaaa', 40), 'node:22-bookworm\tx\t1GB'].join('\n')
+  const docker = makeFake({ 'image ls': { code: 0, stdout: list, stderr: '' } })
+  const r = await pruneCache({ docker, keepPerApp: 4, maxAgeDays: 14, now: () => now })
+  assert.deepEqual(r, { ok: true, images: 3, kept: 2, removed: 1 })
+  const rm = docker.calls.find(c => c.args[0] === 'image' && c.args[1] === 'rm').args
+  assert.deepEqual(rm, ['image', 'rm', 'bq-cache:demo-000000000002-aaaaaaaa'])
+})
+

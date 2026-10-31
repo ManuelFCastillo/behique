@@ -9,6 +9,9 @@ export const ALLOWED_CAPS = ['CHOWN', 'SETUID', 'SETGID', 'DAC_OVERRIDE', 'FOWNE
 const RUN_ID_RE = /^[a-z0-9]{6,16}$/
 const SHORT_RE = /^[a-z0-9][a-z0-9-]{0,30}$/
 const IMAGE_RE = /^[a-z0-9][a-z0-9._/-]{0,80}:[A-Za-z0-9._-]{1,64}$/
+// a build cache image made by this code (sandbox/cache.mjs): bq-cache:<app>-<sha12>-<fingerprint8>; the app container started from one needs a writable root
+const CACHE_IMAGE_RE = /^bq-cache:[a-z0-9-]{1,40}-[0-9a-f]{12}-[0-9a-f]{8}$/
+export const isCacheImageName = s => typeof s === 'string' && CACHE_IMAGE_RE.test(s)
 const ENV_KEY_RE = /^[A-Z][A-Z0-9_]{0,63}$/
 const PATH_RE = /^\/(?!.*\.\.)[A-Za-z0-9_./-]{1,100}$/
 // container-side paths that must never appear on a command, so a mistake cannot point at system or host-looking locations
@@ -322,7 +325,8 @@ function buildContainerArgs(plan, verb) {
   if (typeof detach !== 'boolean') return fail('detach must be true or false.')
   if (typeof rm !== 'boolean') return fail('rm must be true or false.')
   if (typeof readOnly !== 'boolean') return fail('readOnly must be true or false.')
-  if (readOnly === false && role !== 'service') return fail('readOnly false is only allowed for the service role.')
+  // an app started from a cache image has the installed checkout in its own copy-on-write layer and writes there (build caches, data files)
+  if (readOnly === false && role !== 'service' && !(role === 'app' && isCacheImageName(image))) return fail('readOnly false is only allowed for the service role, or an app started from a cache image.')
 
   const name = names(runId, short)
   const firstNet = names(runId, networks[0])
