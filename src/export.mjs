@@ -1,5 +1,5 @@
 // Turn accepted findings (recorded actions + assertion data) into Playwright test files, and run them.
-import { spawnSync } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -116,6 +116,23 @@ export function writeExport(dir, findings) {
 /** Run an exported folder with Playwright's own runner against a running app. Returns { results: { F1: true, ... } } (true = test passed). */
 export function runExported(dir, baseUrl, { only = null } = {}) { // only: run just <only>.spec.js, so each finding can get its own fresh build
   const r = spawnSync(join(ROOT, 'node_modules/.bin/playwright'), ['test', ...(only ? [`${only}.spec.js`] : [])], { cwd: dir, env: { ...process.env, BASE_URL: baseUrl, CI: '1' }, encoding: 'utf8', timeout: 300_000 })
+  return parseRun(r)
+}
+
+/** The same as runExported, without blocking: several runs (each against its own build) can be in flight at once. */
+export function runExportedAsync(dir, baseUrl, { only = null } = {}) {
+  return new Promise(resolve => {
+    const child = spawn(join(ROOT, 'node_modules/.bin/playwright'), ['test', ...(only ? [`${only}.spec.js`] : [])], { cwd: dir, env: { ...process.env, BASE_URL: baseUrl, CI: '1' } })
+    let stdout = '', stderr = ''
+    child.stdout.on('data', d => { stdout += d })
+    child.stderr.on('data', d => { stderr += d })
+    const timer = setTimeout(() => { try { child.kill('SIGKILL') } catch {} }, 300_000)
+    child.on('error', e => { clearTimeout(timer); resolve({ error: String(e.message).slice(0, 300), results: {} }) })
+    child.on('close', () => { clearTimeout(timer); resolve(parseRun({ stdout, stderr })) })
+  })
+}
+
+function parseRun(r) {
   let j
   try { j = JSON.parse(r.stdout) } catch { return { error: (r.stderr || r.stdout || 'no output').slice(0, 300), results: {} } }
   const results = {}, errors = {} // errors: first failure message per test (ANSI colours removed)

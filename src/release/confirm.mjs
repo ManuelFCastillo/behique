@@ -6,10 +6,13 @@
 // first bad change of the first confirmed test only.
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { runExported, writeExport } from '../export.mjs'
+import { runExportedAsync, writeExport } from '../export.mjs'
 import { firstConfirmed, judgeFindings, selectFindings, summarize } from './findings.mjs'
 import { captureShots, recordShots } from './shots.mjs'
-import { startBuild, stopAll } from './build.mjs'
+import { setTiming, startBuild, stopAll } from './build.mjs'
+import { poolSize, runPool, slotPort } from './pool.mjs'
+import { sandboxConfigFromEnv } from './sandbox/backend.mjs'
+import { createTiming, timingLine } from './timing.mjs'
 import { compareBuilds, summaryLines } from './compare.mjs'
 import { openCase } from './evidence.mjs'
 import { SCENARIOS } from './scenarios.mjs'
@@ -36,15 +39,17 @@ const caseId = `${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$
 const ev = openCase(join('out', 'evidence', caseId))
 ev.event('case.opened', { goodRef, candRef, adapter: adapter.name, ...(appName ? { app: appName } : {}), steps: actions, options: { bisect: args.includes('--bisect'), runs }, scenario: sc ? { name: scenario, label: sc.label, about: sc.about, upstream: sc.upstream } : null })
 console.log(`evidence: ${caseId}`)
+const timing = createTiming(); setTiming(timing) // where the time goes, by phase; written to the record and printed as one line at the end
+const close = data => { const s = timing.summary(); console.log(timingLine(s)); ev.event('check.timing', s); ev.event('case.closed', data) }
 // A cancelled run stops its builds, closes its record honestly, and exits; it never leaves servers or an unfinished record.
-process.on('SIGTERM', async () => { await stopAll(); try { ev.event('case.closed', { outcome: 'cancelled' }) } catch {} ; console.log('run cancelled'); process.exit(130) })
+process.on('SIGTERM', async () => { await stopAll(); try { close({ outcome: 'cancelled' }) } catch {} ; console.log('run cancelled'); process.exit(130) })
 
 let cmp
 try { cmp = await compareBuilds({ adapter, baseRef: goodRef, candRef, port, actions, readOnly }) } catch (e) {
   const msg = String(e.message ?? e).split('\n').filter(Boolean).slice(0, 2).join(' ').slice(0, 300)
   console.log(`a build failed to start, so the versions could not be compared: ${msg}`)
   ev.claim('verified_fact', `A build failed to start, so the two versions could not be compared: ${msg}`, { evidence: [ev.artifact('error.txt', String(e.stack ?? e).slice(0, 4000))] })
-  ev.event('case.closed', { outcome: 'build failed' }); process.exit(3)
+  close({ outcome: 'build failed' }); process.exit(3)
 }
 const { baseline, cand, control } = cmp
 summaryLines(cmp, goodRef, candRef).forEach(l => console.log(l))
@@ -55,7 +60,7 @@ const diffH = ev.artifact('facts-diff.json', { control, candidate: cand }, 'appl
 ev.claim('statistical', `${nVol} of ${nAll} recorded facts (${(100 * nVol / nAll).toFixed(1)}%) differed between two identical installs of ${goodRef}, so they are ignored when comparing.${nLearned ? ` A control recording then disagreed on ${nLearned} more, so those are ignored too (found over ${cmp.learned.rounds} extra recording${cmp.learned.rounds === 1 ? '' : 's'}).` : ''}`, { evidence: [baseH] })
 if (control.length) {
   console.log(`control run shows ${control.length} differences: masking is not trustworthy, stopping`)
-  ev.event('case.closed', { outcome: 'masking not trustworthy' }); process.exit(1)
+  close({ outcome: 'masking not trustworthy' }); process.exit(1)
 }
 ev.claim('verified_fact', `${nLearned ? 'A further recording' : 'A third recording'} of ${goodRef} showed 0 differences from the baseline, so the noise filter holds.`, { evidence: [diffH] })
 if (!cand.some(d => d.kind === 'changed')) {
@@ -64,11 +69,11 @@ if (!cand.some(d => d.kind === 'changed')) {
     const eg = gone.slice(0, 3).map(d => d.key.split('/').slice(-2).join('/')).join(', ')
     console.log(`no value changed, but ${gone.length} recorded facts disappeared (${eg}); no test was written`)
     ev.claim('verified_fact', `No recorded value changed, but ${gone.length} fact${gone.length === 1 ? '' : 's'} present on ${goodRef} ${gone.length === 1 ? 'is' : 'are'} missing on ${candRef} (for example ${eg}). No test was written for a missing element.`, { evidence: [diffH] })
-    ev.event('case.closed', { outcome: 'facts missing' }); process.exit(0)
+    close({ outcome: 'facts missing' }); process.exit(0)
   }
   console.log('no changed facts between the builds; nothing to turn into a test')
   ev.claim('verified_fact', `No recorded value differs between ${goodRef} and ${candRef} across ${actions.length} step${actions.length === 1 ? '' : 's'} (${n('added')} new and ${n('moved')} moved elements, 0 changed, 0 missing).`, { evidence: [diffH] })
-  ev.event('case.closed', { outcome: 'no changed facts' }); process.exit(0)
+  close({ outcome: 'no changed facts' }); process.exit(0)
 }
 const changed = cand.filter(d => d.kind === 'changed')
 const short = k => k.split('/').slice(-2).join('/')
@@ -80,7 +85,7 @@ const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pat
 await probe.stop()
 const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings })
 if (readOnly) for (const f of findings) f.readOnly = true
-if (!findings.length) { console.log('none of the changed facts can be written as a test'); ev.event('case.closed', { outcome: 'no testable change' }); process.exit(0) }
+if (!findings.length) { console.log('none of the changed facts can be written as a test'); close({ outcome: 'no testable change' }); process.exit(0) }
 const dir = join('out', 'regression', `${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_'))
 rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
 writeExport(dir, findings)
@@ -92,22 +97,31 @@ for (const f of findings) {
 }
 if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.length === 1 ? '' : 's'} not tested separately (${[...new Set(skipped.map(k => k.why.replace(/ \d+/, ' N')))].join('; ')})`)
 
-// Every run of every test gets its own freshly seeded build, so one test cannot change the state another sees.
+// Every run of every test gets its own freshly seeded build, so one test cannot change the state another sees. In a sandbox several
+// builds run at once (BEHIQUE_POOL, default 3), each on its own port; on this machine builds share the port, so they run one at a time.
+timing.setPhase('tests')
+const sandboxCfg = sandboxConfigFromEnv(process.env)
+const pool = poolSize({ setting: Number(process.env.BEHIQUE_POOL), sandbox: Boolean(sandboxCfg), perBuildMemoryMb: sandboxCfg?.limits?.memoryMb, freeMemoryMb: Number(process.env.BEHIQUE_POOL_MEMORY_MB) || undefined })
+if (pool > 1) console.log(`running ${pool} builds at once`)
+const originFor = b => new URL(b.base).origin
+const onBuild = async (ref, slot, work) => { // one fresh build on the slot's port, then `work`, then the build is stopped whatever happened
+  const p = slotPort(port, slot) ?? port
+  const b = await startBuild({ adapter, ref, port: p })
+  try { return { sha: b.sha, value: await work(b) } } finally { await b.stop() }
+}
 const runsOf = { [goodRef]: {}, [candRef]: {} }, runLog = []
-for (const ref of [goodRef, candRef]) {
-  for (const f of findings) {
-    runsOf[ref][f.id] = []
-    for (let n = 0; n < runs; n++) {
-      const b = await startBuild({ adapter, ref, port })
-      const r = runExported(dir, origin, { only: f.id })
-      await b.stop()
-      const outcome = r.error ? 'error' : r.results[f.id] === true ? 'passed' : 'failed'
-      runsOf[ref][f.id].push(r)
-      runLog.push({ id: f.id, ref, sha: b.sha, n: n + 1, outcome, ...(outcome === 'failed' ? { message: (r.errors?.[f.id] ?? '').split('\n').slice(0, 6).join('\n') } : {}) })
-      ev.event('test.run', { id: f.id, ref, sha: b.sha, n: n + 1, outcome })
-      console.log(`  run ${f.id} ${ref} ${n + 1}/${runs}: ${outcome}`)
-    }
-  }
+const jobs = []
+for (const ref of [goodRef, candRef]) for (const f of findings) { runsOf[ref][f.id] = []; for (let n = 0; n < runs; n++) jobs.push({ ref, f, n }) }
+const ran = await runPool(jobs, ({ ref, f }, slot) => onBuild(ref, slot, b => runExportedAsync(dir, originFor(b), { only: f.id })), { size: pool })
+for (let i = 0; i < jobs.length; i++) { // recorded in job order, so the log reads the same whatever ran first
+  const { ref, f, n } = jobs[i], got = ran[i]
+  const r = got.ok ? got.value.value : { error: got.error, results: {} }
+  const sha = got.ok ? got.value.sha : null
+  const outcome = r.error ? 'error' : r.results[f.id] === true ? 'passed' : 'failed'
+  runsOf[ref][f.id].push(r)
+  runLog.push({ id: f.id, ref, sha, n: n + 1, outcome, ...(outcome === 'failed' ? { message: (r.errors?.[f.id] ?? '').split('\n').slice(0, 6).join('\n') } : {}), ...(outcome === 'error' ? { message: String(r.error).slice(0, 300) } : {}) })
+  ev.event('test.run', { id: f.id, ref, sha, n: n + 1, outcome })
+  console.log(`  run ${f.id} ${ref} ${n + 1}/${runs}: ${outcome}`)
 }
 const judged = findings.map(f => judgeFindings([f], runsOf[goodRef][f.id], runsOf[candRef][f.id])[0])
 const runsH = ev.artifact('test-runs.json', runLog, 'application/json')
@@ -127,21 +141,20 @@ console.log(confirmed ? '\nCONFIRMED: reproducible behaviour change, test passes
 // a change that lives in an attribute looks identical in a picture, and the claim says exactly that.
 const shotSteps = [...new Set(judged.filter(j => j.verdict === 'confirmed').map(j => findings.find(f => f.id === j.id).fact.i))].sort((a, b) => a - b)
 if (shotSteps.length) {
+  timing.setPhase('shots')
   try {
     // A crawled step list holds several flows, each starting over with `goto /`: a screenshot replays only the flow its step is in,
     // like the test does, in a fresh browser on a fresh build.
     const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto' && actions[g].path === '/') return g + 1; return 0 }
     const groups = new Map()
     for (const step of shotSteps) groups.set(flowStart(step), [...(groups.get(flowStart(step)) ?? []), step])
-    const take = async ref => {
-      const all = {}
-      for (const [from, steps] of groups) {
-        const b = await startBuild({ adapter, ref, port })
-        try { for (const [k, png] of Object.entries(await captureShots(b.base, actions.slice(from), steps.map(x => x - from), { readOnly }))) all[+k + from] = png } finally { await b.stop() }
-      }
-      return all
-    }
-    const goodA = await take(goodRef), goodB = await take(goodRef), candShots = await take(candRef)
+    // one build per (version, flow): good twice and the candidate once, through the same pool as the test runs
+    const shotJobs = []
+    for (const which of ['goodA', 'goodB', 'cand']) for (const [from, steps] of groups) shotJobs.push({ which, ref: which === 'cand' ? candRef : goodRef, from, steps })
+    const taken = await runPool(shotJobs, ({ ref, from, steps }, slot) => onBuild(ref, slot, b => captureShots(b.base, actions.slice(from), steps.map(x => x - from), { readOnly })), { size: pool })
+    const shots = { goodA: {}, goodB: {}, cand: {} }
+    taken.forEach((t, i) => { if (!t.ok) throw new Error(t.error); for (const [k, png] of Object.entries(t.value.value)) shots[shotJobs[i].which][+k + shotJobs[i].from] = png })
+    const goodA = shots.goodA, goodB = shots.goodB, candShots = shots.cand
     for (const step of shotSteps) {
       const forSteps = judged.filter(j => j.verdict === 'confirmed' && findings.find(f => f.id === j.id).fact.i === step).map(j => j.id)
       const r = recordShots({ ev, step, label: baseline.labels[step], goodRef, candRef, goodPng: goodA[step], candPng: candShots[step], floorPng: goodB[step] })
@@ -157,6 +170,7 @@ if (shotSteps.length) {
 
 let found = null // --bisect: only worth doing once a regression is confirmed, and only for the first confirmed test
 if (confirmed && args.includes('--bisect')) {
+  timing.setPhase('bisect')
   const { bisect } = await import('./bisect.mjs')
   const blog = []
   found = await bisect({ adapter, goodRef, badRef: candRef, dir, id: first.id, port, runs, log: l => { console.log(l); blog.push(l) }, onEvent: (type, data) => ev.event('bisect.' + type, data) })
@@ -171,7 +185,7 @@ if (confirmed && args.includes('--bisect')) {
     ev.claim('suspected_cause', `The first bad change is one of ${found.range[1] - found.range[0] + 1} (changes #${found.range[0]} to #${found.range[1]}); the ones in between could not be tested.`, { evidence: [bisH] })
   }
 }
-ev.event('case.closed', { outcome: confirmed ? 'regression proven' : 'not confirmed', bisected: !!found })
+close({ outcome: confirmed ? 'regression proven' : 'not confirmed', bisected: !!found })
 console.log(`evidence log verified: ${ev.verify().ok}`)
 const topFact = findings[0].fact, tally = Object.fromEntries([goodRef, candRef].map(ref => [ref, runsOf[ref][findings[0].id].map(r => (r.error ? `error: ${r.error}` : r.results[findings[0].id] === true))]))
 writeFileSync(join(dir, 'result.json'), JSON.stringify({ goodRef, candRef, caseId, fact: topFact, tally, confirmed, findings: judged, skipped, bisect: found }, null, 1))
