@@ -15,6 +15,9 @@ import { crawlApp } from './run.mjs'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 
 /** The adapter and default good version of an app, from a saved profile or the built-in list. */
+/** The crawl options when none are given; a saved crawl is reused only for the same options (see reuse.mjs). */
+export const CRAWL_DEFAULTS = { maxDepth: 2, maxPaths: 40, maxFlows: 20, budgetMs: 120_000 }
+
 export async function resolveApp(name) {
   if (listProfileNames().includes(name)) {
     const profile = loadProfile(name)
@@ -35,7 +38,7 @@ export async function runCrawlCli(argv, { log = console.log } = {}) {
   const ref = refArg ?? resolved.defaultRef
   if (!ref) { log('no version given and the app has no default: pass a tag or branch'); return { code: 2 } }
   const num = (name, d) => { const v = Number(opt(name, d)); return Number.isFinite(v) && v > 0 ? v : d }
-  const options = { maxDepth: num('max-depth', 2), maxPaths: num('max-paths', 40), maxFlows: num('max-flows', 20), budgetMs: num('budget', 120) * 1000 }
+  const options = { maxDepth: num('max-depth', CRAWL_DEFAULTS.maxDepth), maxPaths: num('max-paths', CRAWL_DEFAULTS.maxPaths), maxFlows: num('max-flows', CRAWL_DEFAULTS.maxFlows), budgetMs: num('budget', CRAWL_DEFAULTS.budgetMs / 1000) * 1000 }
   let build
   try {
     build = await startBuild({ adapter: resolved.adapter, ref, port: num('port', 8300) })
@@ -48,7 +51,7 @@ export async function runCrawlCli(argv, { log = console.log } = {}) {
     const stem = `${app}-${build.sha.slice(0, 12)}`
     const stepsFile = join(outDir, `${stem}.steps.json`)
     writeFileSync(stepsFile, JSON.stringify(found.steps, null, 2) + '\n')
-    writeFileSync(join(outDir, `${stem}.crawl.json`), JSON.stringify({ app, ref, sha: build.sha, options, stoppedBy: found.stoppedBy, ms: found.ms, stats: found.stats, states: found.states.map(s => ({ url: s.url, title: s.title, path: s.path.map(a => a.label ?? a.type) })), flows: found.flows.map(f => f.path.map(a => a.label ?? a.type)), steps: found.steps }, null, 2) + '\n')
+    writeFileSync(join(outDir, `${stem}.crawl.json`), JSON.stringify({ app, ref, sha: build.sha, savedAt: new Date().toISOString(), options, stoppedBy: found.stoppedBy, ms: found.ms, stats: found.stats, states: found.states.map(s => ({ url: s.url, title: s.title, path: s.path.map(a => a.label ?? a.type) })), flows: found.flows.map(f => f.path.map(a => a.label ?? a.type)), steps: found.steps }, null, 2) + '\n')
     log(`${found.states.length} page states, ${found.flows.length} flows, ${found.steps.length} steps (stopped: ${found.stoppedBy}, ${(found.ms / 1000).toFixed(0)} s)`)
     log(`steps: ${stepsFile.replace(ROOT + '/', '')}`)
     return { code: 0, stepsFile, found }

@@ -90,7 +90,7 @@ let uiRun = null // the current or most recent run: { runId, params, startedAt, 
 const runView = r => r && ({ runId: r.runId, kind: r.kind, running: r.status === 'running', status: r.status, code: r.code, caseId: r.caseId, params: r.params, startedAt: r.startedAt, lastLine: r.lines.at(-1) ?? null, ...(r.kind === 'visual' ? { progress: visualProgress(r.lines) } : r.kind === 'crawl' ? { progress: crawlProgress(r.lines) } : {}) })
 const adapterOf = async app => (await import(`../src/release/adapters/${APPS[app].adapter}.mjs`)).default
 function startUiRun(params, kind = 'release') {
-  const argv = kind === 'visual' ? visualArgv(params) : kind === 'crawl' ? ['src/release/check-app.mjs', params.app, params.goodRef, params.candRef, ...(params.bisect ? ['--bisect'] : [])] : ['src/release/confirm.mjs', params.goodRef, params.candRef, '--scenario', params.scenario, ...(params.bisect ? ['--bisect'] : [])]
+  const argv = kind === 'visual' ? visualArgv(params) : kind === 'crawl' ? ['src/release/check-app.mjs', params.app, params.goodRef, params.candRef, ...(params.bisect ? ['--bisect'] : []), ...(params.recrawl ? ['--recrawl'] : [])] : ['src/release/confirm.mjs', params.goodRef, params.candRef, '--scenario', params.scenario, ...(params.bisect ? ['--bisect'] : [])]
   const proc = spawn('node', argv, { cwd: ROOT })
   const r = uiRun = { runId: 'r' + Date.now().toString(36), kind, params, startedAt: new Date().toISOString(), caseId: null, lines: [], status: 'running', code: null, proc }
   job = proc

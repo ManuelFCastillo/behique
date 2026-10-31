@@ -125,6 +125,7 @@ export async function validateVisualRun(input, { listProfiles, loadProfile, git 
         candSha: sha.candRef,
         bisect,
         region,
+        recrawl: input.recrawl === true, // a crawl run only: crawl the old version again instead of reusing a saved crawl of the same commit
       },
     }
   } catch {
