@@ -110,15 +110,15 @@
       <tr><th>Part</th><th>What it does</th><th>Status</th></tr>
       <tr><td><b>Release checker</b><br><span class="tag noai">no AI</span></td><td>The check you just ran: compares two versions and proves what changed.</td><td>Built, running above</td></tr>
       <tr><td><b>AI explorer</b><br><span class="tag ai">uses AI</span></td><td>Meta's models look at an app they have never seen and report bugs. Each report must come with a check that can be replayed.</td><td>Built and scored on a practice app. <a href="/bench" target="_blank">See its results</a>. No live button yet.</td></tr>
-      <tr><td><b>Cause explainer</b><br><span class="tag ai">uses AI</span></td><td>Reads the small code change that broke things and suggests why. Clearly labelled as a guess.</td><td><span class="tag soon">coming</span></td></tr>
+      <tr><td><b>Cause explainer</b><br><span class="tag ai">uses AI</span></td><td>Reads the small code change that broke things and suggests why. Clearly labelled as a guess.</td><td>Built, on the report page: it runs only when a person presses the button, and shows the cost first.</td></tr>
     </table>
   </div>
 
   <h2>Coming soon</h2>
   <ul class="soon small">
-    <li><b>A report page with Ship or Hold.</b> Everything above on one page, with a person recording the decision.</li>
     <li><b>Explorer without a hint.</b> The explorer found the Share path only when hinted; without a hint it missed it twice. Making it open items by itself is not done.</li>
-    <li><b>A second regression,</b> to show this is not built around one bug.</li>
+    <li><b>Apps behind a login.</b> The crawler finds click paths without hand-written steps, but cannot get past a login or use seeded data yet.</li>
+    <li><b>A check in a CI pipeline.</b> Not built; "CI" is only in the name.</li>
   </ul>
 
   <h2>Optional: try it yourself</h2>
