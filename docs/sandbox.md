@@ -40,6 +40,6 @@ Settings (all optional): `BEHIQUE_SANDBOX_IMAGE` (default `node:22-bookworm`, a 
 ## Known limits
 
 - Isolation is Docker (runc) on a machine where the account is in the `docker` group, which is root-equivalent there. Fine for the repos tried so far; before pointing it at arbitrary repos, move to Firecracker (hardac2 has KVM) or gVisor.
-- The sidecar proposer now reads compose `image:` lines (umami's `db` is postgres:15-alpine). A stalled install has no inactivity watchdog, only the 15 minute step timeout.
+- The sidecar proposer now reads compose `image:` lines (umami's `db` is postgres:15-alpine). An install step that prints nothing for 8 minutes is treated as stalled (2026-10-30): the docker client is killed, the container removed with `rm -f`, and the step is run once more on a fresh container; a second stall fails the step with "stalled 2 times". The 15 minute step timeout still applies on top. The idle limit is generous because `npm ci` can be quiet for a long time; it is the `stallMs` option of `install` (not yet a setting).
 - No data is seeded (Phase 3). Sidecars start empty; apps that create their own tables on build (umami) work, others may not.
 - The seed copies the whole checkout over docker; large repos with big assets are slow over ssh.

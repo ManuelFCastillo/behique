@@ -95,6 +95,9 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
       if (msg.toLowerCase().includes('timed out')) {
         return { ok: false, error: 'Docker command timed out.' }
       }
+      if (msg.toLowerCase().includes('stalled')) {
+        return { ok: false, stalled: true, error: 'Docker command stalled: ' + (msg.match(/no output for \d+ s/) || ['no output'])[0] + '.' }
+      }
       return { ok: false, error: failWithLine(firstLine(msg), 'Docker command failed.') }
     }
   }
@@ -245,7 +248,7 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
     return { ok: true }
   }
 
-  async function install(steps, { env = {}, timeoutMs = 900000 } = {}) {
+  async function install(steps, { env = {}, timeoutMs = 900000, stallMs = 480000, stallRetries = 1 } = {}) {
     if (!imageOk()) return { ok: false, error: invalidImageError() }
     const list = Array.isArray(steps) ? steps : []
     const done = []
@@ -283,21 +286,33 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
         } catch {}
         return { ok: false, error: 'Step ' + n + ' (' + label + ') exited with code ' + code + '.', logs: resLogs }
       }
-      let cr = await callDocker(built.args)
-      if (!cr.ok) return { ok: false, error: cr.error }
-      if (cr.res.code !== 0) {
-        return await failStep(cr.res.code, cleanLog(combinedLogs(cr.res)))
+      // A step that goes silent for stallMs is killed, its container removed, and the step run again on a fresh container (a stalled download
+      // usually clears on the second try). The volume keeps whatever the first try wrote; installs are written to be run again.
+      let sr = null
+      for (let attempt = 0; ; attempt++) {
+        let cr = await callDocker(built.args)
+        if (!cr.ok) return { ok: false, error: cr.error }
+        if (cr.res.code !== 0) {
+          return await failStep(cr.res.code, cleanLog(combinedLogs(cr.res)))
+        }
+        const conn = networkConnectArgs({ runId, networkShort: 'int', containerShort: short })
+        if (!conn.ok) return { ok: false, error: conn.error }
+        const nr = await callDocker(conn.args)
+        if (!nr.ok) return { ok: false, error: nr.error }
+        if (nr.res.code !== 0) {
+          return await failStep(nr.res.code, cleanLog(combinedLogs(nr.res)))
+        }
+        const st = startArgs({ runId, short, attach: true })
+        if (!st.ok) return { ok: false, error: st.error }
+        sr = await callDocker(st.args, { timeoutMs, idleMs: stallMs })
+        if (sr.ok || !sr.stalled) break
+        try {
+          const rb = removeArgs({ kind: 'container', ids: [cname] })
+          if (rb.ok) await callDocker(rb.args)
+        } catch {}
+        logFn('install step ' + n + ' (' + label + ') stalled' + (attempt < stallRetries ? ', trying again' : ', giving up'))
+        if (attempt >= stallRetries) return { ok: false, error: 'Step ' + n + ' (' + label + ') stalled ' + (attempt + 1) + ' times with no output for ' + Math.round(stallMs / 1000) + ' seconds each.' }
       }
-      const conn = networkConnectArgs({ runId, networkShort: 'int', containerShort: short })
-      if (!conn.ok) return { ok: false, error: conn.error }
-      const nr = await callDocker(conn.args)
-      if (!nr.ok) return { ok: false, error: nr.error }
-      if (nr.res.code !== 0) {
-        return await failStep(nr.res.code, cleanLog(combinedLogs(nr.res)))
-      }
-      const st = startArgs({ runId, short, attach: true })
-      if (!st.ok) return { ok: false, error: st.error }
-      const sr = await callDocker(st.args, { timeoutMs })
       if (!sr.ok) return { ok: false, error: sr.error }
       const tail = cleanLog(combinedLogs(sr.res))
       if (sr.res.code !== 0) {

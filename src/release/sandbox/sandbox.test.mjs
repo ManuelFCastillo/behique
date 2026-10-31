@@ -340,3 +340,30 @@ test('invalid image fails every step and docker never called', async () => {
   }
   assert.equal(docker.calls.length, 0)
 })
+
+test('a stalled install step is removed and run again on a fresh container', async () => {
+  let starts = 0
+  const docker = makeFake({
+    start: async () => {
+      starts += 1
+      if (starts === 1) throw new Error('docker start stalled: no output for 480 s')
+      return { code: 0, stdout: 'ok', stderr: '' }
+    }
+  })
+  const sb = sbWith(docker)
+  const r = await sb.install([{ cmd: 'npm', args: ['ci'] }])
+  assert.equal(r.ok, true)
+  assert.equal(starts, 2)
+  assert.equal(docker.calls.filter(c => c.args[0] === 'create').length, 2)
+  assert.ok(docker.calls.some(c => c.args[0] === 'rm' && c.args.includes('-f')))
+  assert.equal(docker.calls.find(c => c.args[0] === 'start').opts.idleMs, 480000)
+})
+
+test('an install step that stalls on every try fails with a clear message', async () => {
+  const docker = makeFake({ start: async () => { throw new Error('docker start stalled: no output for 60 s') } })
+  const sb = sbWith(docker)
+  const r = await sb.install([{ cmd: 'npm', args: ['ci'] }], { stallMs: 60000 })
+  assert.equal(r.ok, false)
+  assert.match(r.error, /Step 1 \(npm ci\) stalled 2 times with no output for 60 seconds each/)
+  assert.equal(docker.calls.filter(c => c.args[0] === 'start').length, 2)
+})

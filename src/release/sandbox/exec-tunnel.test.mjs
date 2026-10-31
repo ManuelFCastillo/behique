@@ -41,6 +41,13 @@ describe('makeDocker', () => {
     await assert.rejects(sleep([1]), /array of strings/)
     await assert.rejects(sleep('x'), /array of strings/)
   })
+  it('stops a command that goes silent, but not one that keeps printing', async () => {
+    const sh = makeDocker({ bin: 'sh', baseEnv: process.env })
+    await assert.rejects(sh(['-c', 'sleep 5'], { idleMs: 150 }), /stalled: no output for 0 s/)
+    const r = await sh(['-c', 'for i in 1 2 3 4; do echo $i; sleep 0.1; done'], { idleMs: 300 })
+    assert.equal(r.code, 0)
+    assert.match(r.stdout, /4/)
+  })
 })
 
 describe('forwardLocal', () => {
