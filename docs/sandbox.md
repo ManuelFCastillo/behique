@@ -37,6 +37,17 @@ Settings (all optional): `BEHIQUE_SANDBOX_IMAGE` (default `node:22-bookworm`, a 
 
 - Baseline of the six proposals as written: 1 of 6 pass (and 6 of 6 verified after the repair loop, see `docs/onboarding-baseline.md`), see the table in `docs/onboarding-baseline.md` (nextjs-blog and vitepress hit the `-- -p` problem, excalidraw's command does not fit v0.17.6).
 
+## Speed: build cache, pool, crawl reuse (2026-10-31)
+
+Measured before this work, a check rebuilt the same commit for every test run (nextjs-blog: 37 builds of two commits, about 50 s each, one at a time) and crawled the same good version on every check. Three pieces, from `docs/specs/speed/` (built by Muse, wired in by hand; the plan and the numbers are in `docs/speed-plan.md`):
+
+- **Build cache** (`cache.mjs`, wired in `backend.mjs` and `sandbox.mjs`). After the install steps succeed, the work volume is copied by a throwaway root container and committed as the image `bq-cache:<app>-<sha12>-<fp8>` (fp8 = a hash of the base image, the install steps, the scripts setting, the served root and the sidecar kinds; a change in any of them is a different key). The next build of that commit starts the app container straight from that image: no volume, no seed, no install. The cached checkout is the container's own copy-on-write layer, so that container's root is writable (the only case `docker-args.mjs` allows it, and only for an `app` container on a `bq-cache:` image). The seed and install containers are unchanged. `BEHIQUE_CACHE=off` (Settings: "keep installed builds") turns it off. A build is recorded with `cached: true`, and the `timing:` line of a check counts them.
+- **Pool** (`pool.mjs`, wired in `confirm.mjs`). Test runs and screenshots run `BEHIQUE_POOL` builds at once (1 to 8, default 3; Settings: "builds at once"), each on its own port (`8300 + slot`) and its own tunnel; results are recorded in job order so the evidence reads the same whatever finished first. Without a sandbox the pool is always 1 (host builds share the port). The Playwright run moved from `spawnSync` to `spawn` (`runExportedAsync`) so runs really overlap.
+- **Crawl reuse** (`crawl/reuse.mjs`, wired in `check-app.mjs`). A saved `out/crawl/<app>-<sha12>.crawl.json` of the same commit with the same options and at least one step stands in for a new crawl; `--recrawl` (the dashboard's "Crawl the old version again" box) forces one. Crawl files now carry `savedAt`.
+- **Prune**: `clean.mjs` also prunes the cache: the newest 4 images per app stay (`--keep`), older ones go after 14 days (`--days`); the newest of each app is always kept. Each image shows as about 1.2 GB in `docker image ls` but shares the base image's layers; only the installed checkout is new.
+
+Limits: two builds of the same uncached commit running at once both install and both commit; the second tag wins and the first image becomes dangling (harmless, pruned by Docker's own `image prune`). The cache key does not include the sidecar images' versions, only their kinds. A cache image is trusted as much as the install that made it: it is the repo's own code, installed, nothing more.
+
 ## Known limits
 
 - Isolation is Docker (runc) on a machine where the account is in the `docker` group, which is root-equivalent there. Fine for the repos tried so far; before pointing it at arbitrary repos, move to Firecracker (hardac2 has KVM) or gVisor.
