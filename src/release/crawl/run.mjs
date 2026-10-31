@@ -175,7 +175,7 @@ export async function crawlApp(base, options = {}) {
     }
     const path = planner.next()
     if (path === null) break
-    const s = new Session(base, { viewport })
+    const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
     try {
       await s.open()
       await s.ctx.route('**/*', route => {
@@ -247,9 +247,9 @@ export async function crawlApp(base, options = {}) {
         stoppedBy = 'budget'
         break
       }
-    } catch {
+    } catch (e) {
       try { planner.failed(path) } catch {}
-      try { log(`fail ${path.length} steps`) } catch {}
+      try { log(`fail ${path.length} steps: ${String((e && e.message) || e).split('\n')[0].slice(0, 120)}`) } catch {}
     } finally {
       await s.close()
     }

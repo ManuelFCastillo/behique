@@ -41,6 +41,8 @@ export async function runCrawlCli(argv, { log = console.log } = {}) {
     build = await startBuild({ adapter: resolved.adapter, ref, port: num('port', 8300) })
     log(`crawling ${app} ${ref} (${build.sha.slice(0, 12)}) at ${build.base}`)
     const found = await crawlApp(build.base, { ...options, log: l => log(`  ${l}`) })
+    // a page with nothing to click (a single static page) still has facts worth comparing: observe the landing page itself
+    if (found.steps.length === 0 && found.states.length >= 1) found.steps = [{ type: 'goto', path: '/' }]
     const outDir = join(ROOT, opt('out', 'out/crawl'))
     mkdirSync(outDir, { recursive: true })
     const stem = `${app}-${build.sha.slice(0, 12)}`

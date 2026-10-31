@@ -15,8 +15,9 @@ export const normPath = p => String(p).split('?')[0].replace(/\/\d+(?=\/|$)/g, '
 export const ACTION_TYPES =['click', 'fill', 'press', 'select', 'check', 'uncheck', 'hover', 'reload', 'wait', 'goto', 'api']
 
 export class Session {
-  constructor(baseUrl, { viewport = { width: 820, height: 900 } } = {}) {
+  constructor(baseUrl, { viewport = { width: 820, height: 900 }, navigationTimeoutMs = null } = {}) {
     this.viewport = viewport
+    this.navigationTimeoutMs = navigationTimeoutMs // null keeps the 3 s default; a dev server compiling on the first request needs far longer
     this.base = baseUrl.replace(/\/$/, '')
     this.log = []
     this.dialogs = []
@@ -30,6 +31,7 @@ export class Session {
     await this.ctx.addInitScript(INIT)
     this.page = await this.ctx.newPage()
     this.page.setDefaultTimeout(3000)
+    if (this.navigationTimeoutMs) this.page.setDefaultNavigationTimeout(this.navigationTimeoutMs)
     this.page.on('dialog', async d => {
       this.dialogs.push(d.message())
       this.log.push(`dialog(${d.type()}): ${JSON.stringify(d.message())}`)

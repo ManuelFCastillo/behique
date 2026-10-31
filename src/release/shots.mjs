@@ -19,7 +19,7 @@ export async function captureShots(base, actions, steps, { viewport = { width: 1
   const wanted = new Set(steps)
   const max = steps.length ? Math.max(...steps) : -1
   const out = {}
-  const s = new Session(base, { viewport })
+  const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
   try {
     await s.open()
     if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort())) // the same rule as the recording
