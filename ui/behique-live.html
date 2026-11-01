@@ -1400,9 +1400,9 @@ function renderApps(){
     b.setAttribute("aria-current", a.id===APPS_UI.selected ? "true" : "false"); b.title=a.statusText||"";
     const n=document.createElement("span"); n.className="n"; n.textContent=a.label;
     const sub=document.createElement("span"); sub.className="s"; sub.textContent=a.subtitle||"";
-    const s=a.runnable?null:setupSummary(folderOf(a));
-    const c=document.createElement("span"); c.className="c "+(a.runnable?"ready":s&&s.state==="running"?"busy":s&&s.state==="failed"?"failed":"setup");
-    c.textContent=a.runnable?"ready":s&&s.state==="running"?"setting up":s&&s.state==="failed"?"set-up failed":s&&s.state==="proposed"?"proposed":"needs setup";
+    const s=a.runnable||a.profileId?null:setupSummary(folderOf(a));
+    const c=document.createElement("span"); c.className="c "+(a.runnable||a.profileId?"ready":s&&s.state==="running"?"busy":s&&s.state==="failed"?"failed":"setup");
+    c.textContent=a.runnable?"ready":a.profileId?"set up":s&&s.state==="running"?"setting up":s&&s.state==="failed"?"set-up failed":s&&s.state==="proposed"?"proposed":"needs setup";
     if(s) b.title=s.text;
     b.append(n,sub,c); b.addEventListener("click",()=>selectApp(a.id)); return b;
   };
@@ -1431,6 +1431,12 @@ function renderRepoPanel(a){
   p.appendChild(chips);
   p.appendChild(mk("p","rp-desc",a.description||"No description on GitHub."));
   const su=setupSummary(folderOf(a));
+  if(a.profileId){ // set up, but its app is not in the list yet (a stale list): say where checks run, offer to open it
+    const sb=mk("div","rp-status"); sb.appendChild(mk("div","rp-badge","SET UP"));
+    sb.appendChild(mk("p",null,"Behique set this repo up as the app \""+a.profileId+"\". Checks on it run there."));
+    const b=mk("button","mini-btn","Open the app"); b.type="button"; b.addEventListener("click",()=>{ RUN.apps=[]; loadApps(false).then(()=>selectApp(a.profileId)); }); sb.appendChild(b);
+    p.appendChild(sb); return;
+  }
   const box=mk("div","rp-status");
   box.appendChild(mk("div","rp-badge",su&&su.state==="running"?"SETTING UP":su&&su.state==="saved"?"SET UP":su&&su.state==="failed"?"CLONED, SET-UP FAILED":su&&su.state==="proposed"?"CLONED, PROPOSED":a.cloned?"CLONED, NEEDS SETUP":"NEEDS SETUP"));
   box.appendChild(mk("p",null,"Behique cannot run a check on this repo yet. To compare two versions of an app it has to know:"));
@@ -1483,7 +1489,9 @@ async function loadApps(refresh){
   loadSetupState();
 }
 function selectApp(id,opts){
-  const a=appById(id)||appById("freshrss"); APPS_UI.selected=a.id;
+  let a=appById(id)||appById("freshrss");
+  if(a.profileId&&appById(a.profileId)) a=appById(a.profileId); // a GitHub repo that was set up opens the app saved from it
+  APPS_UI.selected=a.id;
   if(!opts || opts.remember!==false) rememberApp(a.id);
   document.querySelector(".page").classList.toggle("repo-mode", !a.runnable);
   renderApps();

@@ -34,9 +34,17 @@ test('listCandidates filters and sorts', async () => {
     listProfiles: async () => ['beta'],
   })
   assert.deepEqual(res, [
-    { name: 'alpha', path: join(APPS, 'alpha'), hasProfile: false },
-    { name: 'beta', path: join(APPS, 'beta'), hasProfile: true },
+    { name: 'alpha', path: join(APPS, 'alpha'), hasProfile: false, profileName: null },
+    { name: 'beta', path: join(APPS, 'beta'), hasProfile: true, profileName: 'beta' },
   ])
+  // with profileFor, a folder counts as set up when a profile was saved from it, whatever that app is called
+  const linked = await listCandidates({
+    appsRoot: APPS, readdir: async () => ['alpha', 'beta'], isGitRepo: async () => true, listProfiles: async () => ['nextjs-blog'],
+    profileFor: (folder) => (folder === 'alpha' ? 'nextjs-blog' : null),
+  })
+  assert.deepEqual(linked.map(c => [c.name, c.hasProfile, c.profileName]), [['alpha', true, 'nextjs-blog'], ['beta', false, null]])
+  const failing = await listCandidates({ appsRoot: APPS, readdir: async () => ['alpha'], isGitRepo: async () => true, listProfiles: async () => [], profileFor: () => { throw new Error('disk') } })
+  assert.equal(failing[0].hasProfile, false, 'a failing lookup never breaks the list')
 })
 
 test('resolveRepo accepts plain and rejects bad', async () => {

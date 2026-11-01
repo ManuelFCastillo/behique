@@ -44,6 +44,23 @@ test('an app Behique set up itself is listed as ready, and its visual reports ar
   assert.equal(appOfOpened({ kind: 'visual', adapter: 'visual-../x' }), null, 'only plain names')
 })
 
+test('a repo that a saved profile was set up from is linked to that app', async () => {
+  const { profileForRepo, profileFolder } = await import('./appregistry.mjs')
+  const profiles = [{ name: 'nextjs-blog', repo: '/apps/tailwind-nextjs-starter-blog' }, { name: 'codecosmos', repo: '/apps/codecosmos/' }, { name: 'todomvc' }]
+  assert.equal(profileFolder(profiles[1]), 'codecosmos')
+  assert.equal(profileFolder({ repo: '/x/.hidden' }), null)
+  assert.equal(profileForRepo('tailwind-nextjs-starter-blog', profiles).name, 'nextjs-blog', 'by the repo folder, whatever the app is called')
+  assert.equal(profileForRepo('codecosmos', profiles).name, 'codecosmos')
+  assert.equal(profileForRepo('todomvc', profiles).name, 'todomvc', 'by name when the profile has no repo path')
+  assert.equal(profileForRepo('nextjs-blog', profiles), null, 'an app name is not a repo name')
+  assert.equal(profileForRepo('', profiles), null)
+  const { apps } = await listApps({ github: gh([r('codecosmos'), r('beta')]), profiles, cloned: name => '/apps/' + name })
+  const cc = apps.find(a => a.id === 'github:me/codecosmos'), beta = apps.find(a => a.label === 'beta')
+  assert.equal(cc.profileId, 'codecosmos'); assert.equal(cc.status, 'set-up'); assert.equal(cc.runnable, false, 'the run happens on the profile app')
+  assert.match(cc.statusText, /^Set up as the app "codecosmos"/); assert.equal(cc.subtitle, 'private · Go · set up')
+  assert.equal(beta.profileId, null); assert.equal(beta.status, 'needs-setup'); assert.equal(beta.subtitle, 'private · Go · cloned')
+})
+
 test('a repo already cloned into the apps folder says so, and still needs setup', async () => {
   const { apps } = await listApps({ github: gh([r('alpha'), r('beta')]), cloned: name => (name === 'alpha' ? '/apps/alpha' : null) })
   const alpha = apps.find(a => a.label === 'alpha'), beta = apps.find(a => a.label === 'beta')

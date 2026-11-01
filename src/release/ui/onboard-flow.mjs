@@ -20,10 +20,19 @@ function isRefOk(v) {
   return true
 }
 
-export async function listCandidates({ appsRoot, readdir, isGitRepo, listProfiles }) {
+/**
+ * The repositories in the apps folder that can be set up. `profileFor(folder)` names the saved profile set up from
+ * that folder (by the profile's repo path, so an app may be called something else), or null; without it, a profile
+ * named like the folder counts.
+ */
+export async function listCandidates({ appsRoot, readdir, isGitRepo, listProfiles, profileFor = null }) {
   const entries = await readdir(appsRoot)
   const saved = await listProfiles()
   const have = new Set(Array.isArray(saved) ? saved : [])
+  const profileOf = (name) => {
+    if (typeof profileFor === 'function') { try { return profileFor(name) ?? null } catch { return null } }
+    return have.has(name) ? name : null
+  }
   const out = []
   for (const name of entries) {
     if (typeof name !== 'string') continue
@@ -39,7 +48,8 @@ export async function listCandidates({ appsRoot, readdir, isGitRepo, listProfile
       git = false
     }
     if (!git) continue
-    out.push({ name, path: p, hasProfile: have.has(name) })
+    const profile = profileOf(name)
+    out.push({ name, path: p, hasProfile: profile !== null, profileName: profile })
   }
   out.sort((a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0))
   return out

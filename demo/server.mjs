@@ -14,7 +14,7 @@ import { hypothesize, preview as previewHypothesis } from '../src/release/hypoth
 import { APPS, SCENARIOS } from '../src/release/scenarios.mjs'
 import { gitIn, validateRun } from '../src/release/runparams.mjs'
 import { buildViewModel } from '../src/release/viewmodel.mjs'
-import { listApps } from '../src/release/appregistry.mjs'
+import { listApps, profileForRepo } from '../src/release/appregistry.mjs'
 import { createGithub } from '../src/release/github.mjs'
 import { recordDecision } from '../src/release/decision.mjs'
 import { askModel, askPreview, whyNot } from '../src/release/ask.mjs'
@@ -86,6 +86,7 @@ const setupState = createSetupState({ // the step in progress and the last resul
 const repoOfApp = name => { try { return repoOfProposal(JSON.parse(readFileSync(join(ROOT, 'out', 'onboard', String(name) + '.proposed.json'), 'utf8'))) } catch { return null } } // the folder a saved proposal came from
 const onboardDeps = () => ({
   appsRoot: APPS_ROOT, isGitRepo: async p => { try { return statSync(join(p, '.git')).isDirectory() } catch { return false } }, /* a real clone only: a build worktree has a .git file instead */ readdir: async d => readdirSync(d), listProfiles: async () => profileNames(),
+  profileFor: folder => profileForRepo(folder, profiles())?.name ?? null, // the same rule as the sidebar: by the profile's repo folder, whatever the app is called
   inspectRepo, skillText: defaultSkillText(), buildMessages, projectCost, provider: 'meta', keyPresent: Boolean(ENV[PROVIDERS.meta.keyEnv]),
   ask: defaultAsk, proposeProfile, describeCommands, validateProfile, verifyProfile, saveProfile,
   writeFile: async (path, text) => { const f = join(ROOT, path); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, text, 'utf8') },
