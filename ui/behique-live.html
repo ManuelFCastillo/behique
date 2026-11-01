@@ -414,6 +414,7 @@ img,svg{max-width:100%}
 @media (prefers-reduced-motion: reduce){.runpick select{transition:none}}
 
 /* Views: the sidebar switches what the main area shows. Runs is the default page. */
+.page.no-report #bisectCard,.page.no-report #evidenceCard,.page.no-report #askCard,.page.no-report .builds,.page.no-report .rightcol,.page.no-report .bottombar,.page.no-report #reasonWrap{display:none} /* an app with no reports yet: only the hero, which says so */
 .page.v-evidence .center{display:none}
 .page.v-evidence .rightcol{grid-column:2/4}
 .page.v-bisect .rightcol,.page.v-bisect .builds{display:none}
@@ -1115,6 +1116,7 @@ function renderBisectChrome(){
 }
 async function loadLive(id){
   const vm=await fetch("/api/ui/case?id="+encodeURIComponent(id)).then(r=>{ if(!r.ok) throw new Error("no such report"); return r.json(); });
+  document.querySelector(".page").classList.remove("no-report");
   LIVE.vm=vm; LIVE.rawLines=vm.rawLines.slice(); LIVE.tamperAt=null; LIVE.changing=false; ASK.preview=null; ASK.busy=false; hideAskReview(); DATA=dataFromVM(vm);
   scenario="default"; modelUsed=true; tampered=false; state.verdict=vm.verdict; state.decision=vm.decision; state.chainOk=null;
   state.claims=JSON.parse(JSON.stringify(vm.claims)); bisectData=DATA.timelineNodes.slice();
@@ -1503,9 +1505,20 @@ async function ensureReport(){   // back on a runnable app: show one of its repo
   fillPicker(list);
   const mine=list.filter(c=>c.app===APPS_UI.selected);
   const keep=LIVE.vm && mine.some(c=>c.id===LIVE.vm.id) ? LIVE.vm.id : (mine[0] && mine[0].id);
-  if(!keep){ showToast("No reports yet for this app. Start a run.","red"); return; }
+  if(!keep){ showNoReport(); return; }
   $("runPick").value=keep;
   if(!LIVE.vm || LIVE.vm.id!==keep) await loadLive(keep); else if(LIVE.vm.verdict==="running") startPolling(keep);
+}
+function showNoReport(){   // the selected app has no reports: the hero says so instead of leaving the last report on screen
+  stopPolling(); LIVE.vm=null; LIVE.rawLines=[]; const a=appById(APPS_UI.selected)||{ label: APPS_UI.selected };
+  document.querySelector(".page").classList.add("no-report");
+  const gem=$("gem"), word=$("verdictWord"); gem.classList.remove("gem-emerald","gem-ruby","shock"); gem.classList.add("gem-gray"); gem.dataset.v="none";
+  word.style.color="var(--muted)"; word.textContent="NO RUNS";
+  $("verdictLabel").textContent="Nothing checked yet";
+  $("verdictTitle").textContent=a.label+(a.defaults&&a.defaults.good&&a.defaults.cand?": "+a.defaults.good+" (good) vs "+a.defaults.cand+" (candidate) are the saved defaults":"");
+  $("verdictSub").textContent="No reports for this app yet. Press New run to compare two versions; the report appears here while it runs.";
+  $("verdictAbout").hidden=true; $("runbar").hidden=true; $("runPick").value="";
+  syncRunUi();
 }
 function initAppsUi(){
   $("appSearch").addEventListener("input",e=>{ APPS_UI.query=e.target.value; renderApps(); });
