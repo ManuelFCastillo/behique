@@ -68,6 +68,18 @@ export async function inspectRepo(repoPath, { git = defaultGit } = {}) {
     if (out !== null && out !== '') headSubject = out
   }
 
+  // The newest commits, so a repository without tags still offers two versions to compare.
+  let recent = []
+  if (isGit) {
+    const out = await tryRun(run, ['log', '-8', '--format=%h %s'])
+    if (out !== null && out !== '') {
+      recent = out.split('\n').map((s) => s.trim()).filter((s) => s.length > 0).slice(0, 8).map((line) => {
+        const sp = line.indexOf(' ')
+        return sp === -1 ? { sha: line, subject: '' } : { sha: line.slice(0, sp), subject: line.slice(sp + 1).slice(0, 80) }
+      })
+    }
+  }
+
   let topLevel = []
   try {
     const entries = await fs.readdir(repoPath)
@@ -148,6 +160,7 @@ export async function inspectRepo(repoPath, { git = defaultGit } = {}) {
     tags,
     branch,
     headSubject,
+    recent,
     topLevel,
     packageJson,
     lockfile,

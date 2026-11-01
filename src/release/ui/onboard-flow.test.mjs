@@ -3,7 +3,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { join } from 'node:path'
-import { listCandidates, resolveRepo, onboardPreview, onboardPropose, onboardVerify } from './onboard-flow.mjs'
+import { listCandidates, resolveRepo, onboardPreview, onboardPropose, onboardVerify, listRefs, suggestPair } from './onboard-flow.mjs'
 
 const APPS = '/apps'
 
@@ -70,6 +70,36 @@ test('onboardPreview calls no ask and fingerprints stably', async () => {
   assert.deepEqual(a.facts.tags.length <= 5, true)
   assert.deepEqual(a.facts.scripts, ['dev', 'build'])
   assert.equal(a.model, 'muse-spark-1.3')
+})
+
+test('a commit sha is a valid version, like a tag or a branch', async () => {
+  const sha40 = 'a'.repeat(40)
+  const r = await onboardPreview({ ...goodInput, good: '694d36c', cand: sha40 }, previewDeps())
+  assert.equal(r.ok, true)
+  assert.equal(r.sent[1].content, `694d36c:${sha40}:/apps/alpha`)
+})
+
+test('listRefs offers tags, the branch and recent commits, and suggests a pair', async () => {
+  const deps = previewDeps({ inspectRepo: async (path) => ({ path, isGit: true, tags: [], branch: 'main', recent: [{ sha: '694d36c', subject: 'Data: nightly sky' }, { sha: 'd88b984', subject: 'Data: nightly sky' }] }) })
+  const r = await listRefs({ repo: 'alpha' }, deps)
+  assert.equal(r.ok, true)
+  assert.deepEqual(r.tags, [])
+  assert.equal(r.branch, 'main')
+  assert.equal(r.recent.length, 2)
+  assert.deepEqual(r.suggest, { good: 'd88b984', cand: 'main' })
+  const missing = await listRefs({ repo: 'nope' }, deps)
+  assert.equal(missing.ok, false)
+  assert.equal(missing.status, 404)
+  const bad = await listRefs({ repo: '../etc' }, deps)
+  assert.equal(bad.ok, false)
+})
+
+test('suggestPair prefers the two newest tags, then one tag against the branch, then the commit before HEAD against the branch', () => {
+  assert.deepEqual(suggestPair({ tags: ['v2', 'v1'], branch: 'main' }), { good: 'v1', cand: 'v2' })
+  assert.deepEqual(suggestPair({ tags: ['v1'], branch: 'main' }), { good: 'v1', cand: 'main' })
+  assert.deepEqual(suggestPair({ tags: ['v1'], branch: null, recent: [{ sha: 'aaa' }] }), { good: 'v1', cand: 'aaa' })
+  assert.deepEqual(suggestPair({ tags: [], branch: null, recent: [{ sha: 'aaa' }, { sha: 'bbb' }] }), { good: 'bbb', cand: 'aaa' })
+  assert.deepEqual(suggestPair({ tags: [], branch: 'main', recent: [{ sha: 'aaa' }] }), { good: null, cand: null })
 })
 
 test('onboardPreview refusals and canSend', async () => {

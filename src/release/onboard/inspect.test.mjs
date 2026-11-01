@@ -66,6 +66,7 @@ test('non git directory does not throw', async () => {
   assert.deepEqual(facts.tags, [])
   assert.equal(facts.branch, null)
   assert.equal(facts.headSubject, null)
+  assert.deepEqual(facts.recent, [])
   assert.deepEqual(facts.topLevel, ['a.txt'])
   assert.equal(facts.packageJson, null)
   assert.equal(facts.lockfile, null)
@@ -79,6 +80,7 @@ test('fake git function is used', async () => {
     if (args[0] === 'rev-parse' && args[1] === '--is-inside-work-tree') return 'true'
     if (args[0] === 'tag') return 'v9.0.0\nv8.0.0'
     if (args[0] === 'rev-parse') return 'mybranch'
+    if (args[0] === 'log' && args[1] === '-8') return 'abc1234 Data: nightly sky\ndef5678 Fix the legend\n9999999'
     if (args[0] === 'log') return 'fake subject'
     throw new Error('unexpected')
   }
@@ -87,5 +89,10 @@ test('fake git function is used', async () => {
   assert.deepEqual(facts.tags, ['v9.0.0', 'v8.0.0'])
   assert.equal(facts.branch, 'mybranch')
   assert.equal(facts.headSubject, 'fake subject')
+  assert.deepEqual(facts.recent, [
+    { sha: 'abc1234', subject: 'Data: nightly sky' },
+    { sha: 'def5678', subject: 'Fix the legend' },
+    { sha: '9999999', subject: '' },
+  ])
   assert.ok(calls.length >= 4)
 })

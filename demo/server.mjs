@@ -21,7 +21,7 @@ import { askModel, askPreview, whyNot } from '../src/release/ask.mjs'
 import adapter from '../src/release/adapters/freshrss.mjs'
 import { ENV, PROVIDERS } from '../src/llm.mjs'
 import { validateVisualRun, visualArgv, visualProgress, caseIdOf } from '../src/release/ui/visual-run.mjs'
-import { listCandidates, onboardPreview, onboardPropose, onboardVerify } from '../src/release/ui/onboard-flow.mjs'
+import { listCandidates, listRefs, onboardPreview, onboardPropose, onboardVerify } from '../src/release/ui/onboard-flow.mjs'
 import { crawlProgress } from '../src/release/ui/crawl-run.mjs'
 import { cloneRun, clonePreview } from '../src/release/ui/clone-flow.mjs'
 import { applySettings, loadSettings, needsSandbox, saveSettings, validateSettings, SANDBOX_REQUIRED } from '../src/release/ui/settings.mjs'
@@ -344,6 +344,10 @@ createServer(async (req, res) => {
       try { const r = await cloneRun(JSON.parse(await readBody(req) || '{}'), cloneDeps()); return send(res, r.ok ? 200 : r.status ?? 400, r) } finally { cloning = false }
     }
     if (u.pathname === '/api/ui/onboard/candidates') return send(res, 200, await listCandidates(onboardDeps())) // repositories already cloned in the apps folder
+    if (u.pathname === '/api/ui/onboard/refs') { // the versions a cloned repo offers (tags, branch, newest commits); plain git reads, no model
+      const r = await listRefs({ repo: u.searchParams.get('repo') }, onboardDeps())
+      return send(res, r.ok ? 200 : r.status ?? 400, r)
+    }
     if (u.pathname === '/api/ui/onboard/preview' && req.method === 'POST') { // what would be sent and what it would cost; calls no model
       const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
       const r = await onboardPreview(JSON.parse(await readBody(req) || '{}'), onboardDeps())

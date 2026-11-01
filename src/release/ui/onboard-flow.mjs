@@ -70,6 +70,33 @@ export async function resolveRepo(appsRoot, name, { isGitRepo }) {
   return p
 }
 
+/**
+ * The versions a cloned repository offers: its tags, its branch and its newest commits, plus a suggested pair.
+ * Plain git reads, no model. A tag, a branch or a commit all work as a version: a build is identified by its
+ * commit sha whatever name was given.
+ */
+export async function listRefs(input, deps) {
+  const { repo } = input ?? {}
+  const { appsRoot, isGitRepo, inspectRepo } = deps ?? {}
+  let path, facts
+  try { path = await resolveRepo(appsRoot, repo, { isGitRepo }) } catch (e) { return fail(404, e) }
+  try { facts = await inspectRepo(path) } catch (e) { return fail(500, e) }
+  const tags = Array.isArray(facts && facts.tags) ? facts.tags.slice(0, 10).map(String) : []
+  const branch = facts && typeof facts.branch === 'string' ? facts.branch : null
+  const recent = Array.isArray(facts && facts.recent)
+    ? facts.recent.filter((c) => c && typeof c.sha === 'string').slice(0, 8).map((c) => ({ sha: c.sha, subject: String(c.subject ?? '') }))
+    : []
+  return { ok: true, repo, tags, branch, recent, suggest: suggestPair({ tags, branch, recent }) }
+}
+
+/** Old = the release before the newest tag; new = the newest tag. Without tags: old = the commit before HEAD, new = the branch. */
+export function suggestPair({ tags = [], branch = null, recent = [] }) {
+  if (tags.length >= 2) return { good: tags[1], cand: tags[0] }
+  if (tags.length === 1) return { good: tags[0], cand: branch || (recent[0] && recent[0].sha) || null }
+  if (recent.length >= 2) return { good: recent[1].sha, cand: branch || recent[0].sha }
+  return { good: null, cand: null }
+}
+
 function fingerprintOf(messages, provider) {
   return createHash('sha256').update(String(provider) + '\n' + JSON.stringify(messages)).digest('hex').slice(0, 16)
 }

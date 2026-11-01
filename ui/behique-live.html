@@ -570,8 +570,9 @@ img,svg{max-width:100%}
 <h3>Set up an app</h3><div class="sub">Behique inspects a repository you already cloned, a model proposes how to run it, and Behique checks the proposal by building and taking pictures. You approve each step. Nothing is cloned.</div>
 <label class="f" for="setupRepo">Repository (in the apps folder)</label><select id="setupRepo"></select>
 <div class="two"><div><label class="f" for="setupName">App name (letters, digits, dashes)</label><input type="text" id="setupName" autocomplete="off" spellcheck="false"></div><div></div></div>
-<div class="two"><div><label class="f" for="setupGood">Old version (tag or branch)</label><input type="text" id="setupGood" autocomplete="off" spellcheck="false"></div>
-<div><label class="f" for="setupCand">New version (tag or branch)</label><input type="text" id="setupCand" autocomplete="off" spellcheck="false"></div></div>
+<div class="two"><div><label class="f" for="setupGood">Old version (tag, branch or commit)</label><input type="text" id="setupGood" autocomplete="off" spellcheck="false"></div>
+<div><label class="f" for="setupCand">New version (tag, branch or commit)</label><input type="text" id="setupCand" autocomplete="off" spellcheck="false"></div></div>
+<div class="about" id="setupRefs"></div>
 <div class="btns"><button class="mini-btn" id="setupReview" type="button">Review what would be sent</button></div>
 <div class="stepbox" id="setupPreview" hidden><div class="about" id="setupFacts"></div><div class="about">This is the exact text that would be sent to the model, word for word:</div><div class="pre" id="setupSent"></div><div class="about" id="setupCost"></div>
 <div class="btns"><button class="mini-btn" id="setupSend" type="button">Send</button></div></div>
@@ -1276,12 +1277,29 @@ const SETUP={ preview:null, busy:false };
 const setupErr=m=>{ $("setupErr").textContent=m||""; };
 const postJson=(url,body)=>fetch(url,{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body) }).then(async r=>({ ok:r.ok, status:r.status, j:await r.json() }));
 const setupInput=()=>({ repo:$("setupRepo").value, name:$("setupName").value.trim(), good:$("setupGood").value.trim(), cand:$("setupCand").value.trim() });
-async function openSetup(){
-  setupErr(""); ["setupPreview","setupProposal","setupResult"].forEach(i=>{ $(i).hidden=true; }); SETUP.preview=null;
+// pre = { repo, name } from a cloned repo's card: the dialog opens with that repo chosen and the name filled in
+async function openSetup(pre){
+  pre=pre&&typeof pre.repo==="string"?pre:null;
+  setupErr(""); ["setupPreview","setupProposal","setupResult"].forEach(i=>{ $(i).hidden=true; }); SETUP.preview=null; $("setupRefs").textContent="";
   let cands=[]; try{ cands=await fetch("/api/ui/onboard/candidates").then(r=>r.json()); }catch(e){ showToast("Could not list repositories: "+e.message,"red"); return; }
   const sel=$("setupRepo"); sel.textContent=""; cands.forEach(c=>{ const o=document.createElement("option"); o.value=c.name; o.textContent=c.name+(c.hasProfile?" (already set up)":""); o.disabled=c.hasProfile; sel.appendChild(o); });
   if(!cands.length) setupErr("No repositories found in the apps folder.");
+  if(pre){ const hit=cands.find(c=>c.name===pre.repo); if(hit&&!hit.hasProfile){ sel.value=pre.repo; $("setupName").value=pre.name||""; $("setupGood").value=""; $("setupCand").value=""; } else if(hit) setupErr(pre.repo+" is already set up."); else setupErr(pre.repo+" is not in the apps folder."); }
   $("setupOverlay").classList.add("open");
+  if(sel.value) loadSetupRefs(sel.value);
+}
+// the versions the chosen repo offers (tags, branch, newest commits): plain git reads, no model; empty fields get the suggested pair
+async function loadSetupRefs(repo){
+  const box=$("setupRefs"); box.textContent="Reading the repository's tags and commits...";
+  let r; try{ r=await fetch("/api/ui/onboard/refs?repo="+encodeURIComponent(repo)).then(async x=>({ ok:x.ok, j:await x.json() })); }catch(e){ box.textContent="Could not read the repository: "+e.message; return; }
+  if($("setupRepo").value!==repo) return; // the choice changed while we read
+  if(!r.ok){ box.textContent=r.j.error||"Could not read the repository."; return; }
+  const j=r.j, parts=[];
+  parts.push(j.tags.length?"Tags: "+j.tags.join(", "):"No tags");
+  if(j.branch) parts.push("branch "+j.branch);
+  if(j.recent.length) parts.push("newest commits: "+j.recent.slice(0,5).map(c=>c.sha+(c.subject?" "+c.subject:"")).join(" . "));
+  box.textContent=parts.join(" . ")+". A tag, a branch or a commit all work; the build is identified by its commit either way.";
+  if(j.suggest.good&&j.suggest.cand&&!$("setupGood").value&&!$("setupCand").value){ $("setupGood").value=j.suggest.good; $("setupCand").value=j.suggest.cand; box.textContent+=" Filled in: "+j.suggest.good+" against "+j.suggest.cand+"; change either."; }
 }
 async function reviewSetup(){
   setupErr(""); $("setupProposal").hidden=true; $("setupResult").hidden=true;
@@ -1318,7 +1336,8 @@ async function verifySetup(){
   finally{ SETUP.busy=false; b.disabled=false; b.textContent="Verify and save"; }
 }
 function initRunUi(){
-  $("setupOpen").addEventListener("click",openSetup); $("setupClose").addEventListener("click",()=>$("setupOverlay").classList.remove("open"));
+  $("setupOpen").addEventListener("click",()=>openSetup(null)); $("setupClose").addEventListener("click",()=>$("setupOverlay").classList.remove("open"));
+  $("setupRepo").addEventListener("change",()=>{ $("setupGood").value=""; $("setupCand").value=""; loadSetupRefs($("setupRepo").value); });
   $("setupReview").addEventListener("click",reviewSetup); $("setupSend").addEventListener("click",sendSetup); $("setupVerify").addEventListener("click",verifySetup);
   $("replayBtn").addEventListener("click",()=>{ RUN.running?cancelRun():openRunDialog(); });
   $("runApp").addEventListener("change",fillRunApp); $("runType").addEventListener("change",()=>{ $("runTypeAbout").textContent=RUN_TYPES[runType()][1]; $("runCaseWrap").hidden=runType()!=="case"; $("runRecrawlWrap").hidden=runType()!=="crawl"; updateRunTime(); }); $("runCase").addEventListener("change",showRunAbout);
@@ -1380,13 +1399,17 @@ function renderRepoPanel(a){
   const box=mk("div","rp-status");
   box.appendChild(mk("div","rp-badge",a.cloned?"CLONED, NEEDS SETUP":"NEEDS SETUP"));
   box.appendChild(mk("p",null,"Behique cannot run a check on this repo yet. To compare two versions of an app it has to know:"));
-  const ul=mk("ul"); ["how to install it","how to start it, and on which port","seed data, so every run starts from the same state","the clicks to replay","which versions to compare (tags or branches)"].forEach(t=>ul.appendChild(mk("li",null,t)));
+  const ul=mk("ul"); ["how to install it","how to start it, and on which port","seed data, so every run starts from the same state","the clicks to replay","which versions to compare (tags, branches or commits)"].forEach(t=>ul.appendChild(mk("li",null,t)));
   box.appendChild(ul);
-  if(a.cloned) box.appendChild(mk("p","rp-note","Cloned to "+a.cloned+". Nothing from it has been run. Press Set up an app in the sidebar and Behique will inspect it and propose how to install, start and check it; you approve each command."));
-  else box.appendChild(mk("p","rp-note","Nothing has been cloned or run. Behique has only read this repo's name and details from GitHub. To set it up, clone it first (Behique shows the exact command and asks before it runs), then use Set up an app."));
+  if(a.cloned) box.appendChild(mk("p","rp-note","Cloned to "+a.cloned+". Nothing from it has been run. Set up this app: Behique inspects the clone and a model proposes how to install, start and check it; you see the exact text before it is sent and approve each command."));
+  else box.appendChild(mk("p","rp-note","Nothing has been cloned or run. Behique has only read this repo's name and details from GitHub. To set it up, clone it first (Behique shows the exact command and asks before it runs), then set it up from this card."));
   p.appendChild(box);
   const act=mk("div","rp-clone"); p.appendChild(act);
-  if(a.cloned) return;
+  if(a.cloned){
+    const folder=String(a.cloned).split("/").pop(), slug=String(a.label||folder).toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40);
+    const b=mk("button","mini-btn","Set up this app"); b.type="button"; b.title="Opens Set up an app with this repository chosen. Nothing is sent or run until you approve it."; b.addEventListener("click",()=>openSetup({ repo:folder, name:slug })); act.appendChild(b);
+    return;
+  }
   const b=mk("button","mini-btn","Review cloning this repo"); b.type="button"; b.title="Shows the exact command and the size. Nothing is cloned until you confirm."; b.addEventListener("click",()=>reviewClone(a,act)); act.appendChild(b);
 }
 async function reviewClone(a,host){
