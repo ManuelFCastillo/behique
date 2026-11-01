@@ -35,6 +35,24 @@ export function measureCanvases() {
   return out
 }
 
+/**
+ * Is the viewport mostly a drawn canvas? True when the visible canvas boxes (clipped to the viewport) cover at least
+ * `share` of it. Such a page gets its animation loop paused for pictures and a longer screenshot timeout.
+ */
+export function canvasHeavy(list, viewport, { share = 0.25 } = {}) {
+  const vw = Number(viewport?.width) || 0
+  const vh = Number(viewport?.height) || 0
+  if (vw <= 0 || vh <= 0 || !Array.isArray(list)) return false
+  let area = 0
+  for (const c of list) {
+    if (!c || !c.visible) continue
+    const w = Math.min(vw, c.x + c.w) - Math.max(0, c.x)
+    const h = Math.min(vh, c.y + c.h) - Math.max(0, c.y)
+    if (w > 0 && h > 0) area += w * h
+  }
+  return area >= share * vw * vh
+}
+
 /** Keep the large visible canvas boxes, clipped to the viewport, biggest first. */
 export function pickCanvases(list, viewport, { minW = 200, minH = 150, max = 4 } = {}) {
   const kept = []

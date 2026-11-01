@@ -1,8 +1,9 @@
 // Settled pictures of an app: take a stable screenshot and compare regions against a noise floor.
 // Run: node --test src/release/visual/picture.test.mjs
 import { chromium } from 'playwright'
-import { settle } from '../../senses/hands.mjs'
+import { CANVAS_SETTLE, settle } from '../../senses/hands.mjs'
 import { aboveFloor, diff, noiseFloor, scaleBox } from '../../senses/pixels.mjs'
+import { canvasHeavy, measureCanvases } from '../canvas-check.mjs'
 
 const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -56,18 +57,21 @@ export async function openSettled(browser, url, profile) {
     errors.push(String(e?.message ?? e).slice(0, 120))
   })
   await page.goto(url)
-  let r = await settle(page, loadSettleOf(profile))
+  // a page that is mostly a drawn canvas gets its animation loop paused for every picture and a longer screenshot timeout
+  const heavy = canvasHeavy(await page.evaluate(measureCanvases).catch(() => []), vp)
+  const canvas = heavy ? CANVAS_SETTLE : {}
+  let r = await settle(page, { ...loadSettleOf(profile), ...canvas })
   let ok = r.settled
   let png = r.png
   for (const s of profile?.setup ?? []) {
     if (s.type === 'click_at') await page.mouse.click(s.x, s.y)
     else if (s.type === 'wait') await sleep(s.ms)
     else if (s.type === 'press') await page.keyboard.press(s.key)
-    r = await settle(page, STEP_SETTLE)
+    r = await settle(page, { ...STEP_SETTLE, ...canvas })
     png = r.png
     ok = ok && r.settled
   }
-  return { ctx, page, png, settled: ok, ms: Date.now() - t0, errors, blocked }
+  return { ctx, page, png, settled: ok, ms: Date.now() - t0, errors, blocked, canvasHeavy: heavy }
 }
 
 /** Take one settled picture, always closing the context. Launches a browser when none is given. */
@@ -75,9 +79,9 @@ export async function pictureOf(url, profile, { browser = null } = {}) {
   const own = !browser
   const b = browser ?? await chromium.launch()
   try {
-    const { ctx, png, settled, ms, errors, blocked } = await openSettled(b, url, profile)
+    const { ctx, png, settled, ms, errors, blocked, canvasHeavy: heavy } = await openSettled(b, url, profile)
     try {
-      return { png, settled, ms, errors, blocked }
+      return { png, settled, ms, errors, blocked, canvasHeavy: heavy }
     } finally {
       await ctx.close()
     }

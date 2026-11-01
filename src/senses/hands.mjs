@@ -21,23 +21,57 @@ function point(p, vp, frame = 'css') {
 }
 
 /** The screenshot used for every before/after pair: the viewport only, never a tall page (Phase 0). */
-export const shot = page => page.screenshot({ fullPage: false, animations: 'disabled', caret: 'hide', timeout: 20000 })
+export const shot = (page, { timeout = 20000 } = {}) => page.screenshot({ fullPage: false, animations: 'disabled', caret: 'hide', timeout })
+
+/**
+ * Stop the page's animation loop: requestAnimationFrame stops scheduling, so the frame being drawn is the last one.
+ * A page that redraws a full-screen canvas every frame on a software GPU (no WebGPU adapter in headless Chromium:
+ * codecosmos ran at about 2 frames a second) never hands the compositor a finished frame in time, and every screenshot
+ * times out. Best effort: a loop that kept its own reference to requestAnimationFrame keeps running.
+ */
+export async function pauseFrames(page) {
+  await page.evaluate(() => {
+    const w = globalThis
+    if (w.__behiqueRaf) return
+    w.__behiqueRaf = w.requestAnimationFrame
+    w.requestAnimationFrame = () => 0
+  })
+}
+
+export async function resumeFrames(page) {
+  await page.evaluate(() => {
+    const w = globalThis
+    if (!w.__behiqueRaf) return
+    w.requestAnimationFrame = w.__behiqueRaf
+    delete w.__behiqueRaf
+  })
+}
+
+/** Settle options for a page whose viewport is mostly a drawn canvas: the loop is paused for every picture and each screenshot gets a minute. */
+export const CANVAS_SETTLE = { pauseFrames: true, shotTimeoutMs: 60000 }
 
 /**
  * Wait until the viewport stops changing: `stableMs` of identical frames (polled every `pollMs`), or `maxMs` at most.
  * A fixed sleep is a guess about how long an app animates; on a real app under load the guess is wrong often enough that
  * the same action gave different "after" pictures (Music Blocks, Phase 3 measurement). Returns the last frame.
+ * With `pauseFrames` the animation loop is stopped while the pictures are taken and started again after; `shotTimeoutMs`
+ * is the time one screenshot may take.
  */
-export async function settle(page, { stableMs = 600, pollMs = 150, maxMs = 8000 } = {}) {
+export async function settle(page, { stableMs = 600, pollMs = 150, maxMs = 8000, pauseFrames: pause = false, shotTimeoutMs = 20000 } = {}) {
   const need = Math.max(1, Math.ceil(stableMs / pollMs)), t0 = Date.now()
-  let last = await shot(page), same = 0
-  while (Date.now() - t0 < maxMs) {
-    await sleep(pollMs)
-    const next = await shot(page)
-    if (diff(last, next).changed === 0) { if (++same >= need) return { png: next, settled: true, ms: Date.now() - t0 } } else same = 0
-    last = next
+  if (pause) await pauseFrames(page).catch(() => {})
+  try {
+    let last = await shot(page, { timeout: shotTimeoutMs }), same = 0
+    while (Date.now() - t0 < maxMs) {
+      await sleep(pollMs)
+      const next = await shot(page, { timeout: shotTimeoutMs })
+      if (diff(last, next).changed === 0) { if (++same >= need) return { png: next, settled: true, ms: Date.now() - t0 } } else same = 0
+      last = next
+    }
+    return { png: last, settled: false, ms: Date.now() - t0 }
+  } finally {
+    if (pause) await resumeFrames(page).catch(() => {})
   }
-  return { png: last, settled: false, ms: Date.now() - t0 }
 }
 
 /** Run the action itself, with no checks. Throws on a bad target or action. */

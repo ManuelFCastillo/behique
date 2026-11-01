@@ -3,7 +3,21 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { blank, decode, encode, paint, scaleBox } from '../senses/pixels.mjs'
-import { canvasNotice, compareCanvases, diffCanvasPng, measureCanvases, pickCanvasSteps, pickCanvases, recordCanvases } from './canvas-check.mjs'
+import { canvasHeavy, canvasNotice, compareCanvases, diffCanvasPng, measureCanvases, pickCanvasSteps, pickCanvases, recordCanvases } from './canvas-check.mjs'
+
+test('canvasHeavy: a viewport mostly covered by visible canvas, clipped to the viewport', () => {
+  const vp = { width: 1000, height: 800 }
+  assert.equal(canvasHeavy([{ x: 0, y: 0, w: 1000, h: 800, visible: true }], vp), true) // full screen
+  assert.equal(canvasHeavy([{ x: 0, y: 0, w: 500, h: 400, visible: true }], vp), true) // exactly a quarter
+  assert.equal(canvasHeavy([{ x: 0, y: 0, w: 499, h: 400, visible: true }], vp), false) // just under
+  assert.equal(canvasHeavy([{ x: 0, y: 0, w: 1000, h: 800, visible: false }], vp), false) // hidden
+  assert.equal(canvasHeavy([{ x: -4000, y: 0, w: 4100, h: 800, visible: true }], vp), false) // mostly off screen: 100 wide inside
+  assert.equal(canvasHeavy([{ x: 0, y: 0, w: 300, h: 800, visible: true }, { x: 300, y: 0, w: 300, h: 800, visible: true }], vp), true) // two add up
+  assert.equal(canvasHeavy([], vp), false)
+  assert.equal(canvasHeavy(null, vp), false)
+  assert.equal(canvasHeavy([{ x: 0, y: 0, w: 1000, h: 800, visible: true }], { width: 0, height: 0 }), false)
+  assert.equal(canvasHeavy([{ x: 0, y: 0, w: 100, h: 100, visible: true }], vp, { share: 0.01 }), true)
+})
 
 function pngOf(image) {
   return encode(image)

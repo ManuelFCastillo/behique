@@ -112,7 +112,8 @@ export async function verifyProfile(profile, {
     }
     {
       const settled = Boolean(goodPic.settled) && Boolean(candPic.settled)
-      const detail = `good ${Number(goodPic.ms ?? 0)}ms, candidate ${Number(candPic.ms ?? 0)}ms`
+      const canvas = goodPic.canvasHeavy || candPic.canvasHeavy ? ' (mostly a drawn canvas: the animation loop was paused for each picture)' : ''
+      const detail = `good ${Number(goodPic.ms ?? 0)}ms, candidate ${Number(candPic.ms ?? 0)}ms${canvas}`
       push('pictures settle', settled, settled ? detail : `${detail} (did not settle)`)
     }
 

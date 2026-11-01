@@ -2,9 +2,9 @@
 // compare good versus candidate, describe the result honestly, and file it.
 // Run tests with: node --test src/release/shots.test.mjs
 import { Session } from '../session.mjs'
-import { settle } from '../senses/hands.mjs'
+import { CANVAS_SETTLE, settle } from '../senses/hands.mjs'
 import { aboveFloor, diff, diffImage } from '../senses/pixels.mjs'
-import { measureCanvases, pickCanvases } from './canvas-check.mjs'
+import { canvasHeavy, measureCanvases, pickCanvases } from './canvas-check.mjs'
 
 const safeRef = (ref) => String(ref).replace(/[^A-Za-z0-9._-]/g, '_')
 
@@ -26,14 +26,20 @@ export async function captureShotsWithCanvases(base, actions, steps, { viewport 
   const max = steps.length ? Math.max(...steps) : -1
   const out = {}, canvases = {}
   const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
-  const take = async i => { const r = await settle(s.page, settleOptions); out[i] = r.png; canvases[i] = pickCanvases(await s.page.evaluate(measureCanvases).catch(() => []), viewport) }
+  const measure = () => s.page.evaluate(measureCanvases).catch(() => [])
+  let opts = settleOptions
+  // a page that is mostly a drawn canvas gets its animation loop paused for every picture and a longer screenshot timeout
+  const adapt = async () => { if (!opts.pauseFrames && canvasHeavy(await measure(), viewport)) opts = { ...settleOptions, ...CANVAS_SETTLE } }
+  const take = async i => { const r = await settle(s.page, opts); out[i] = r.png; canvases[i] = pickCanvases(await measure(), viewport) }
   try {
     await s.open()
     if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) || s.writesAllowed ? route.continue() : route.abort())) // the same rule as the recording
-    if (wanted.has(0)) await take(0); else await settle(s.page, settleOptions)
+    await adapt()
+    if (wanted.has(0)) await take(0); else await settle(s.page, opts)
     for (let i = 0; i < max; i++) {
       await s.act(actions[i])
-      if (wanted.has(i + 1)) await take(i + 1); else await settle(s.page, settleOptions)
+      await adapt()
+      if (wanted.has(i + 1)) await take(i + 1); else await settle(s.page, opts)
     }
   } finally {
     await s.close()
