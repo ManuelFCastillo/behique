@@ -2,6 +2,8 @@
 // Behique RECOMMENDS (the verdict, read from the record); a person DECIDES. The two are kept apart: every decision records
 // what Behique recommended at that moment, whether it went against that recommendation (an override), and which earlier
 // decision it replaces. The record is append-only, so a decision can be superseded but never removed.
+import { basename, dirname } from 'node:path'
+import { anchor } from './anchor.mjs'
 import { summarize } from './evidence.mjs'
 import { verdictOf } from './viewmodel.mjs'
 
@@ -40,5 +42,8 @@ export function recordDecision(c, input, now = Date.now()) {
   if (!r.ok) return r
   const supersedes = s.decisions.at(-1)?.seq ?? null
   const seq = c.decide(r.choice, { who: r.who, note: r.reason, override: r.override, recommendation: verdict, supersedes })
-  return { ok: true, seq, override: r.override, recommendation: verdict, supersedes }
+  // a decision is the moment a person signs the record, so its head goes to the ledger outside the case folder
+  let anchored = null
+  try { anchored = anchor(dirname(c.dir), basename(c.dir), c, { mirror: process.env.BEHIQUE_ANCHOR_MIRROR || null }).seq } catch {}
+  return { ok: true, seq, override: r.override, recommendation: verdict, supersedes, anchored }
 }

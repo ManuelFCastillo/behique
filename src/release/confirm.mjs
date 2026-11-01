@@ -7,15 +7,18 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runExportedAsync, writeExport } from '../export.mjs'
-import { firstConfirmed, judgeFindings, selectFindings, summarize } from './findings.mjs'
+import { firstConfirmed, judgeFindings, selectFindings, summarize, vanishedRoots } from './findings.mjs'
 import { LABEL, maskedAreas, noticePhrase, noticeSummary } from './notice.mjs'
-import { captureShots, recordShots } from './shots.mjs'
+import { captureShots, captureShotsWithCanvases, recordShots } from './shots.mjs'
 import { setTiming, startBuild, stopAll } from './build.mjs'
 import { poolSize, runPool, slotPort } from './pool.mjs'
 import { sandboxConfigFromEnv } from './sandbox/backend.mjs'
 import { createTiming, timingLine } from './timing.mjs'
 import { compareBuilds, summaryLines } from './compare.mjs'
 import { openCase } from './evidence.mjs'
+import { anchor } from './anchor.mjs'
+import { redactActions, withLogin } from './login.mjs'
+import { compareCanvases, pickCanvasSteps, recordCanvases } from './canvas-check.mjs'
 import { SCENARIOS } from './scenarios.mjs'
 import { listProfileNames, loadProfile, profileToAdapter } from './onboard/profile.mjs'
 
@@ -32,18 +35,47 @@ const appName = opt('app', null) // an app Behique set up itself (a saved profil
 if (appName && !listProfileNames().includes(appName)) { console.error(`unknown app "${String(appName).slice(0, 30)}"; saved apps: ${listProfileNames().join(', ') || 'none'}`); process.exit(2) }
 if (appName && !sc && !args.includes('--steps')) { console.error('an app needs its click steps: pass --steps <file> (the crawl writes one: node src/release/crawl/cli.mjs <app>)'); process.exit(2) }
 const adapter = appName ? profileToAdapter(loadProfile(appName)) : (await import(`./adapters/${sc?.adapter ?? opt('adapter', 'freshrss')}.mjs`)).default
-const actions = JSON.parse(readFileSync(sc?.steps ?? opt('steps', 'bench/fixtures/freshrss/steps.json'), 'utf8'))
+const profile = appName ? loadProfile(appName) : null
+// a profile's login step runs first and again after every flow reset (`goto /`); its password is filled in but never written to the record
+const actions = withLogin(JSON.parse(readFileSync(sc?.steps ?? opt('steps', 'bench/fixtures/freshrss/steps.json'), 'utf8')), profile?.login ?? null, process.env)
 
 // Everything below is also written to an evidence case: an append-only log plus saved evidence files, with each
 // conclusion recorded as a labelled claim (see evidence.mjs). The report page reads from it.
 const caseId = `${new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z')}_${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_')
 const ev = openCase(join('out', 'evidence', caseId))
-ev.event('case.opened', { goodRef, candRef, adapter: adapter.name, ...(appName ? { app: appName } : {}), steps: actions, options: { bisect: args.includes('--bisect'), runs }, scenario: sc ? { name: scenario, label: sc.label, about: sc.about, upstream: sc.upstream } : null })
+ev.event('case.opened', { goodRef, candRef, adapter: adapter.name, ...(appName ? { app: appName } : {}), steps: redactActions(actions), options: { bisect: args.includes('--bisect'), runs }, scenario: sc ? { name: scenario, label: sc.label, about: sc.about, upstream: sc.upstream } : null })
 console.log(`evidence: ${caseId}`)
 const timing = createTiming(); setTiming(timing) // where the time goes, by phase; written to the record and printed as one line at the end
-const close = data => { const s = timing.summary(); console.log(timingLine(s)); ev.event('check.timing', s); ev.event('case.closed', data) }
+const close = data => {
+  const s = timing.summary(); console.log(timingLine(s)); ev.event('check.timing', s); ev.event('case.closed', data)
+  // the head of the finished record goes to the ledger outside the case folder (and to a mirror elsewhere when BEHIQUE_ANCHOR_MIRROR names one)
+  try { anchor(join('out', 'evidence'), caseId, ev, { mirror: process.env.BEHIQUE_ANCHOR_MIRROR || null }) } catch (e) { console.log(`not anchored: ${String(e.message).slice(0, 120)}`) }
+}
 // A cancelled run stops its builds, closes its record honestly, and exits; it never leaves servers or an unfinished record.
 process.on('SIGTERM', async () => { await stopAll(); try { close({ outcome: 'cancelled' }) } catch {} ; console.log('run cancelled'); process.exit(130) })
+
+// How many builds run at once (BEHIQUE_POOL, default 3), each on its own port; on this machine builds share the port, so they run one at a time.
+// Used by the canvas comparison, the test runs and the screenshots alike.
+const sandboxCfg = sandboxConfigFromEnv(process.env)
+const pool = poolSize({ setting: Number(process.env.BEHIQUE_POOL), sandbox: Boolean(sandboxCfg), perBuildMemoryMb: sandboxCfg?.limits?.memoryMb, freeMemoryMb: Number(process.env.BEHIQUE_POOL_MEMORY_MB) || undefined })
+if (pool > 1) console.log(`running ${pool} builds at once`)
+const onBuild = async (ref, slot, work) => { // one fresh build on the slot's port, then `work`, then the build is stopped whatever happened
+  const p = slotPort(port, slot) ?? port
+  const b = await startBuild({ adapter, ref, port: p })
+  try { return { sha: b.sha, value: await work(b) } } finally { await b.stop() }
+}
+// A crawled step list holds several flows, each starting over with `goto /`: a replay runs only the flow its step is in, in a fresh browser on a fresh build.
+const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto' && actions[g].path === '/') return g + 1; return 0 }
+const groupByFlow = steps => { const groups = new Map(); for (const step of steps) groups.set(flowStart(step), [...(groups.get(flowStart(step)) ?? []), step]); return groups }
+/** The page at each step on the good version twice (the second is the noise floor) and on the candidate once, through the pool: { goodA, goodB, cand } of step -> result. */
+const takeAt = async (steps, capture) => {
+  const jobs = []
+  for (const which of ['goodA', 'goodB', 'cand']) for (const [from, list] of groupByFlow(steps)) jobs.push({ which, ref: which === 'cand' ? candRef : goodRef, from, steps: list })
+  const taken = await runPool(jobs, ({ ref, from, steps }, slot) => onBuild(ref, slot, b => capture(b, actions.slice(from), steps.map(x => x - from))), { size: pool })
+  const out = { goodA: {}, goodB: {}, cand: {} }
+  taken.forEach((t, i) => { if (!t.ok) throw new Error(t.error); for (const [k, v] of Object.entries(t.value.value)) out[jobs[i].which][+k + jobs[i].from] = v })
+  return out
+}
 
 let cmp
 try { cmp = await compareBuilds({ adapter, baseRef: goodRef, candRef, port, actions, readOnly }) } catch (e) {
@@ -69,36 +101,78 @@ if (control.length) {
   close({ outcome: 'masking not trustworthy' }); process.exit(1)
 }
 ev.claim('verified_fact', `${nLearned ? 'A further recording' : 'A third recording'} of ${goodRef} showed 0 differences from the baseline, so the noise filter holds.`, { evidence: [diffH] })
-if (!cand.some(d => d.kind === 'changed')) {
-  const gone = cand.filter(d => d.kind === 'removed'), n = k => cand.filter(d => d.kind === k).length
-  if (gone.length) { // nothing changed value, but things that existed before are missing now: never recommend shipping on that
-    const eg = gone.slice(0, 3).map(d => d.key.split('/').slice(-2).join('/')).join(', ')
-    console.log(`no value changed, but ${gone.length} recorded facts disappeared (${eg}); no test was written`)
-    ev.claim('verified_fact', `No recorded value changed, but ${gone.length} fact${gone.length === 1 ? '' : 's'} present on ${goodRef} ${gone.length === 1 ? 'is' : 'are'} missing on ${candRef} (for example ${eg}). No test was written for a missing element.`, { evidence: [diffH] })
-    close({ outcome: 'facts missing' }); process.exit(0)
+
+// Canvas drawings: the recorded facts see a canvas only as a box with a size, so at the steps where one shows the drawing itself is
+// compared pixel by pixel, inside the canvas box, against the noise floor of two good runs. A changed drawing is person-visible
+// evidence on its own (recorded as a claim with the diff picture); it is not a repeatable test, and the record says so.
+const canvasSteps = pickCanvasSteps(baseline, actions)
+const canvasChanged = [] // { step, label, n } for each step where a canvas drawing changed beyond the floor
+if (canvasSteps.length) {
+  timing.setPhase('canvas')
+  console.log(`canvas drawings at ${canvasSteps.length} step${canvasSteps.length === 1 ? '' : 's'}: comparing the pixels inside each canvas`)
+  try {
+    const got = await takeAt(canvasSteps, (b, acts, steps) => captureShotsWithCanvases(b.base, acts, steps, { readOnly }).then(r => Object.fromEntries(steps.map(s => [s, { png: r.shots[s], boxes: r.canvases[s] ?? [] }]))))
+    for (const step of canvasSteps) {
+      const boxes = got.goodA[step]?.boxes ?? []
+      if (!boxes.length) { ev.event('canvas.compared', { step, label: baseline.labels[step], results: [] }); console.log(`  step ${step}: no canvas large enough to compare`); continue }
+      const results = compareCanvases({ goodA: got.goodA[step].png, goodB: got.goodB[step].png, cand: got.cand[step].png, boxes })
+      const r = recordCanvases({ ev, step, label: baseline.labels[step], goodRef, candRef, results, pngs: { goodA: got.goodA[step].png, cand: got.cand[step].png } })
+      if (r.changed) canvasChanged.push({ step, label: baseline.labels[step], n: r.changed })
+      for (const x of results) console.log(`  step ${step}: ${x.text}`)
+    }
+  } catch (e) { // the canvas comparison is extra evidence: a failure here must not change the result of the DOM check
+    const msg = String(e.message ?? e).split('\n')[0].slice(0, 200)
+    ev.event('canvas.failed', { reason: msg })
+    console.log(`canvas comparison unavailable: ${msg}`)
   }
+  timing.setPhase('compare')
+}
+// An element that is on the good version and gone from the candidate is a difference like any other: each vanished element (the
+// root of what disappeared, not every attribute under it) becomes a test that expects the old value, so it fails on the candidate.
+const vanished = vanishedRoots(cand)
+if (!cand.some(d => d.kind === 'changed') && !vanished.length) {
+  const n = k => cand.filter(d => d.kind === k).length
   console.log('no changed facts between the builds; nothing to turn into a test')
   ev.claim('verified_fact', `No recorded value differs between ${goodRef} and ${candRef} across ${actions.length} step${actions.length === 1 ? '' : 's'} (${n('added')} new and ${n('moved')} moved elements, 0 changed, 0 missing).`, { evidence: [diffH] })
+  if (canvasChanged.length) { // the page's facts agree, but a drawing does not: that is a change a person would see, so no ship
+    console.log(`but a canvas drawing changed at step${canvasChanged.length === 1 ? '' : 's'} ${canvasChanged.map(c => c.step).join(', ')}: HOLD`)
+    close({ outcome: 'canvas changed', canvasSteps: canvasChanged.map(c => c.step) }); process.exit(1)
+  }
   close({ outcome: 'no changed facts' }); process.exit(0)
 }
-const changed = cand.filter(d => d.kind === 'changed')
+const valueChanges = cand.filter(d => d.kind === 'changed')
+const changed = [...valueChanges, ...vanished] // ranked: value changes first, then vanished elements
 const short = k => k.split('/').slice(-2).join('/')
 const cut = (v, n) => { const t = JSON.stringify(v); return t.length > n ? t.slice(0, n) + '...' : t } // shown shortened, never cut silently
-ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${changed.length} recorded value${changed.length === 1 ? '' : 's'}: ${changed.slice(0, 4).map(d => `${short(d.key)} was ${cut(d.was, 90)}, now ${cut(d.now, 90)}`).join('; ')}.`, { evidence: [diffH] })
+const nGone = vanished.reduce((a, d) => a + (d.vanished ?? 1), 0)
+const parts = [
+  valueChanges.length ? `${valueChanges.length} recorded value${valueChanges.length === 1 ? '' : 's'}` : null,
+  vanished.length ? `${vanished.length} element${vanished.length === 1 ? '' : 's'} present on ${goodRef} ${vanished.length === 1 ? 'is' : 'are'} missing (${nGone} recorded fact${nGone === 1 ? '' : 's'})` : null,
+].filter(Boolean)
+ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${parts.join(', and ')}: ${changed.slice(0, 4).map(d => d.kind === 'removed' ? `${short(d.key)} (was ${cut(d.was, 90)}) is gone` : `${short(d.key)} was ${cut(d.was, 90)}, now ${cut(d.now, 90)}`).join('; ')}.`, { evidence: [diffH] })
+if (vanished.length) console.log(`${vanished.length} element${vanished.length === 1 ? '' : 's'} vanished on ${candRef} (${nGone} facts): ${vanished.slice(0, 3).map(d => short(d.key)).join(', ')}`)
 
 const probe = await startBuild({ adapter, ref: goodRef, port })
 const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pathname
 await probe.stop()
 const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings, origin }) // ordered: what a person would notice first; third-party content skipped
 for (const f of findings) { f.origin = origin; if (readOnly) f.readOnly = true } // origin: so a test can swap it for the address of the build it runs against
-if (!findings.length) { console.log('none of the changed facts can be written as a test'); close({ outcome: 'no testable change' }); process.exit(0) }
+if (!findings.length) {
+  console.log('none of the changed facts can be written as a test')
+  if (canvasChanged.length) { console.log(`but a canvas drawing changed at step${canvasChanged.length === 1 ? '' : 's'} ${canvasChanged.map(c => c.step).join(', ')}: HOLD`); close({ outcome: 'canvas changed', canvasSteps: canvasChanged.map(c => c.step) }); process.exit(1) }
+  if (vanished.length) { // things that existed before are missing and no test could say so: never recommend shipping on that
+    ev.claim('verified_fact', `${vanished.length} element${vanished.length === 1 ? '' : 's'} present on ${goodRef} ${vanished.length === 1 ? 'is' : 'are'} missing on ${candRef} and no test could be written for ${vanished.length === 1 ? 'it' : 'them'}.`, { evidence: [diffH] })
+    close({ outcome: 'facts missing' }); process.exit(0)
+  }
+  close({ outcome: 'no testable change' }); process.exit(0)
+}
 const dir = join('out', 'regression', `${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_'))
 rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
 writeExport(dir, findings)
 const specH = {}
 for (const f of findings) {
   specH[f.id] = ev.artifact(`${f.id}.spec.js`, readFileSync(join(dir, f.id + '.spec.js'), 'utf8'), 'text/javascript')
-  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice })
+  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice, ...(f.fact.removed ? { removed: true, vanished: f.fact.vanished } : {}) })
   console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}\n  class: ${LABEL[f.notice?.cls] ?? 'unknown'} (${f.notice?.why ?? ''})`)
 }
 if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.length === 1 ? '' : 's'} not tested separately (${[...new Set(skipped.map(k => k.why.replace(/ \d+/, ' N')))].join('; ')})`)
@@ -106,15 +180,7 @@ if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.l
 // Every run of every test gets its own freshly seeded build, so one test cannot change the state another sees. In a sandbox several
 // builds run at once (BEHIQUE_POOL, default 3), each on its own port; on this machine builds share the port, so they run one at a time.
 timing.setPhase('tests')
-const sandboxCfg = sandboxConfigFromEnv(process.env)
-const pool = poolSize({ setting: Number(process.env.BEHIQUE_POOL), sandbox: Boolean(sandboxCfg), perBuildMemoryMb: sandboxCfg?.limits?.memoryMb, freeMemoryMb: Number(process.env.BEHIQUE_POOL_MEMORY_MB) || undefined })
-if (pool > 1) console.log(`running ${pool} builds at once`)
 const originFor = b => new URL(b.base).origin
-const onBuild = async (ref, slot, work) => { // one fresh build on the slot's port, then `work`, then the build is stopped whatever happened
-  const p = slotPort(port, slot) ?? port
-  const b = await startBuild({ adapter, ref, port: p })
-  try { return { sha: b.sha, value: await work(b) } } finally { await b.stop() }
-}
 const runsOf = { [goodRef]: {}, [candRef]: {} }, runLog = []
 const jobs = []
 for (const ref of [goodRef, candRef]) for (const f of findings) { runsOf[ref][f.id] = []; for (let n = 0; n < runs; n++) jobs.push({ ref, f, n }) }
@@ -151,17 +217,8 @@ const shotSteps = [...new Set(judged.filter(j => j.verdict === 'confirmed').map(
 if (shotSteps.length) {
   timing.setPhase('shots')
   try {
-    // A crawled step list holds several flows, each starting over with `goto /`: a screenshot replays only the flow its step is in,
-    // like the test does, in a fresh browser on a fresh build.
-    const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto' && actions[g].path === '/') return g + 1; return 0 }
-    const groups = new Map()
-    for (const step of shotSteps) groups.set(flowStart(step), [...(groups.get(flowStart(step)) ?? []), step])
     // one build per (version, flow): good twice and the candidate once, through the same pool as the test runs
-    const shotJobs = []
-    for (const which of ['goodA', 'goodB', 'cand']) for (const [from, steps] of groups) shotJobs.push({ which, ref: which === 'cand' ? candRef : goodRef, from, steps })
-    const taken = await runPool(shotJobs, ({ ref, from, steps }, slot) => onBuild(ref, slot, b => captureShots(b.base, actions.slice(from), steps.map(x => x - from), { readOnly })), { size: pool })
-    const shots = { goodA: {}, goodB: {}, cand: {} }
-    taken.forEach((t, i) => { if (!t.ok) throw new Error(t.error); for (const [k, png] of Object.entries(t.value.value)) shots[shotJobs[i].which][+k + shotJobs[i].from] = png })
+    const shots = await takeAt(shotSteps, (b, acts, steps) => captureShots(b.base, acts, steps, { readOnly }))
     const goodA = shots.goodA, goodB = shots.goodB, candShots = shots.cand
     for (const step of shotSteps) {
       const forSteps = judged.filter(j => j.verdict === 'confirmed' && findings.find(f => f.id === j.id).fact.i === step).map(j => j.id)
@@ -193,8 +250,8 @@ if (confirmed && args.includes('--bisect')) {
     ev.claim('suspected_cause', `The first bad change is one of ${found.range[1] - found.range[0] + 1} (changes #${found.range[0]} to #${found.range[1]}); the ones in between could not be tested.`, { evidence: [bisH] })
   }
 }
-close({ outcome: confirmed ? 'regression proven' : 'not confirmed', bisected: !!found })
+close({ outcome: confirmed ? 'regression proven' : canvasChanged.length ? 'canvas changed' : 'not confirmed', bisected: !!found, ...(canvasChanged.length ? { canvasSteps: canvasChanged.map(c => c.step) } : {}) })
 console.log(`evidence log verified: ${ev.verify().ok}`)
 const topFact = findings[0].fact, tally = Object.fromEntries([goodRef, candRef].map(ref => [ref, runsOf[ref][findings[0].id].map(r => (r.error ? `error: ${r.error}` : r.results[findings[0].id] === true))]))
 writeFileSync(join(dir, 'result.json'), JSON.stringify({ goodRef, candRef, caseId, fact: topFact, tally, confirmed, findings: judged, skipped, bisect: found }, null, 1))
-process.exit(confirmed ? 0 : 1)
+process.exit(confirmed || canvasChanged.length ? 0 : 1)

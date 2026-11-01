@@ -29,6 +29,16 @@
           "build"
         ]
       }
+    ],
+    "prepare": [
+      {
+        "cmd": "node",
+        "args": [
+          "node_modules/prisma/build/index.js",
+          "migrate",
+          "deploy"
+        ]
+      }
     ]
   },
   "ready": {
@@ -41,6 +51,14 @@
     "deviceScaleFactor": 2
   },
   "setup": [],
+  "login": {
+    "path": "/login",
+    "user": { "selector": "input[name=\"username\"]", "value": "admin" },
+    "password": { "selector": "input[name=\"password\"]", "value": "umami" },
+    "submit": { "selector": "[data-test=\"button-submit\"]" },
+    "public": true,
+    "note": "umami's documented default account (created by the build's migration); the password is public, so it may sit in the profile"
+  },
   "regions": {},
   "anchors": {},
   "services": [

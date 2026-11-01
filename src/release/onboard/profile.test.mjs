@@ -263,3 +263,16 @@ describe('saveProfile and loadProfile', () => {
     assert.throws(() => loadProfile('nope', dir), /not found/)
   })
 })
+
+describe('serve.prepare', () => {
+  it('is validated like install and described as running before every start', () => {
+    const p = validCommand()
+    p.serve.prepare = [{ cmd: 'pnpm', args: ['exec', 'node', 'scripts/check-db.js'] }]
+    assert.deepEqual(validateProfile(p), [])
+    assert.ok(describeCommands(p).some(l => l === 'prepare (before every start): pnpm exec node scripts/check-db.js'))
+    p.serve.prepare = [{ cmd: 'bash', args: ['-c', 'x'] }]
+    assert.ok(validateProfile(p).some(x => x.includes('serve.prepare[0].cmd')))
+    p.serve.prepare = 'pnpm'
+    assert.deepEqual(validateProfile(p), ['serve.prepare must be an array'])
+  })
+})

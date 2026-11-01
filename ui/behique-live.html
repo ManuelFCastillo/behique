@@ -77,23 +77,6 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 .status{width:10px;height:10px;border-radius:50%}
 .status.g{background:var(--emerald);box-shadow:0 0 8px var(--emerald)} .status.r{background:var(--ruby);box-shadow:0 0 8px var(--ruby)}
 .build-sub{font-size:12px;color:var(--muted);margin:2px 0 10px 18px}
-.mock{background:#f2f4f7;color:#1a222d;border-radius:10px;overflow:hidden;font-size:12px}
-.mock-top{background:#fff;border-bottom:1px solid #d7dde5;display:flex;align-items:center;gap:8px;padding:8px 10px}
-.mock-logo{font-weight:800;font-size:13px}
-.mock-search{flex:1;background:#eef1f5;border:1px solid #d7dde5;border-radius:6px;padding:4px 8px;color:#7a8695}
-.mock-body{display:grid;grid-template-columns:120px 1fr;min-height:220px}
-.mock-feeds{background:#e9edf2;padding:8px;font-size:12px}
-.mock-feeds div{padding:4px 6px;border-radius:6px}.mock-feeds .sel{background:#d3dbe5;font-weight:700}
-.mock-art{padding:10px 12px;background:#fff}
-.mock-art h4{font-size:13px;margin-bottom:2px}
-.mock-meta{color:#6b7888;font-size:12px;margin-bottom:8px}
-.btn-row{display:flex;gap:6px;margin-bottom:8px}
-.mbtn{border:1px solid #c6cfda;border-radius:6px;padding:4px 8px;background:#fff;font-size:12px;font-weight:600}
-.mbtn.share-g{border-color:var(--emerald);color:#0a7a48;outline:1px solid var(--emerald)}
-.mbtn.share-r{border-color:var(--ruby);color:#b81e28;outline:1px solid var(--ruby)}
-.pop{border:1px solid #d0d7e1;border-radius:8px;padding:8px;background:#fbfcfd}
-.url{border:1px solid #cbd3de;border-radius:6px;padding:5px 8px;background:#fff;font-family:ui-monospace,monospace;font-size:12px;color:#333;min-height:26px}
-.msg{margin-top:6px;font-size:12px;font-weight:700}.msg.g{color:#0a7a48}.msg.r{color:#b81e28}
 /* RIGHT */
 .rightcol{grid-column:3;display:flex;flex-direction:column}
 .evidence{padding:16px;display:flex;flex-direction:column;gap:2px;flex:1}
@@ -255,8 +238,8 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 <style>
 html,body{overflow-x:hidden;max-width:100%}
 body{overflow-x:hidden}
-.page,.center,.rightcol,.verdict,.bisect,.build,.builds,.evidence,.bottombar,.timeline,.mock,.mock-body,.mock-art{max-width:100%}
-.center,.rightcol,.verdict-text,.build,.mock,.mock-art,.mock-body,.claim,.evidence{min-width:0}
+.page,.center,.rightcol,.verdict,.bisect,.build,.builds,.evidence,.bottombar,.timeline,.measured{max-width:100%}
+.center,.rightcol,.verdict-text,.build,.measured,.claim,.evidence{min-width:0}
 img,svg{max-width:100%}
 .rail-fade{transition:opacity 200ms ease,transform 200ms ease}
 @media(max-width:1500px){
@@ -269,13 +252,7 @@ img,svg{max-width:100%}
 .v-div{display:none}
 .v-title,.v-sub{white-space:normal;overflow-wrap:anywhere}
 .petro{display:none}
-.mock{overflow:hidden}
-.mock-body{grid-template-columns:110px minmax(0,1fr)}
-.mock-feeds{overflow:hidden}
-.mock-art{min-width:0;overflow:hidden}
-.btn-row{flex-wrap:wrap}
-.url{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.pop{min-width:0;overflow:hidden}
+.measured{overflow:hidden}
 .bisect-head{flex-wrap:wrap;gap:8px}
 .culprit-tag{max-width:calc(100% - 16px);white-space:normal}
 }
@@ -301,8 +278,6 @@ img,svg{max-width:100%}
 .bottombar{grid-column:1;height:auto;flex-wrap:wrap;padding:12px;row-gap:12px}
 #reasonWrap{grid-column:1}
 .builds{grid-template-columns:1fr}
-.mock-body{grid-template-columns:minmax(0,1fr)}
-.mock-feeds{display:flex;flex-wrap:wrap;gap:4px}
 .timeline{padding:28px 16px 78px}
 .t-line{left:23px;right:23px}
 .end-label.left{left:16px}
@@ -391,6 +366,14 @@ img,svg{max-width:100%}
 .dec-none{color:var(--muted);font-size:13px}
 .runbar{margin-top:8px;height:5px;max-width:420px;border-radius:3px;background:var(--line);overflow:hidden}
 .runbar i{display:block;height:100%;width:0;background:var(--amber);transition:width .8s ease}
+.ext-runs{margin-top:8px;display:flex;flex-direction:column;gap:6px;max-width:560px}
+.ext-run{display:grid;grid-template-columns:1fr auto;grid-template-areas:"who open" "bar open" "what open";gap:2px 10px;align-items:center;font-size:12px;padding:6px 8px;border:1px solid var(--line);border-radius:6px}
+.ext-run.stale{opacity:.6}
+.ext-run .ext-who{grid-area:who;font-weight:600}
+.ext-run .ext-bar{grid-area:bar;display:block;height:4px;border-radius:2px;background:var(--line);overflow:hidden}
+.ext-run .ext-bar i{display:block;height:100%;width:0;background:var(--amber);transition:width .8s ease}
+.ext-run .ext-what{grid-area:what;color:var(--muted,#8a94a6)}
+.ext-run .mini-btn{grid-area:open}
 #runOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:310}
 #runOverlay.open{display:flex}
 #runDlg{width:min(540px,92vw);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 0 40px rgba(0,0,0,.6)}
@@ -489,7 +472,7 @@ img,svg{max-width:100%}
 <div class="gem" id="gem" aria-hidden="true"></div>
 <div class="verdict-text"><div class="label" id="verdictLabel">Behique recommends</div><h1 id="verdictWord">HOLD</h1><button class="mini-btn" id="replayBtn" type="button">New run</button></div>
 <div class="v-div"></div>
-<div><div class="v-title" id="verdictTitle">FreshRSS 1.29.1 (good) vs 1.30.0 (candidate)</div><div class="v-sub" id="verdictSub">1 reproduced regression, 227 commits bisected in 8 steps</div><div class="v-about" id="verdictAbout" hidden></div><div class="runbar" id="runbar" hidden><i id="runbarFill"></i></div></div>
+<div><div class="v-title" id="verdictTitle">FreshRSS 1.29.1 (good) vs 1.30.0 (candidate)</div><div class="v-sub" id="verdictSub">1 reproduced regression, 227 commits bisected in 8 steps</div><div class="v-about" id="verdictAbout" hidden></div><div id="extRuns" class="ext-runs" hidden></div><div class="runbar" id="runbar" hidden><i id="runbarFill"></i></div></div>
 <div class="petro" aria-hidden="true">
 <svg width="140" height="80" viewBox="0 0 140 80" fill="none" stroke="#e8edf3" stroke-width="1"><circle cx="25" cy="30" r="12"/><path d="M25 10v-6M25 56v-6M5 30H-1M45 30h-6M11 16l-4-4M39 48l-4-4M39 12l4-4M11 44l4-4"/><path d="M70 20c8 0 8 12 0 12s-8 12 0 12 8 12 0 12"/><circle cx="115" cy="35" r="10"/><path d="M110 55c5-8 10-8 10 0s5 8 0 0"/></svg>
 </div>
@@ -507,20 +490,10 @@ img,svg{max-width:100%}
 </section>
 <div class="vrun card" id="vrun" hidden><div class="vrun-t" id="vrunText">Starting</div><div class="vrun-bar"><div id="vrunFill"></div></div></div>
 <div class="builds">
-<article class="build card reveal" style="--d:210ms"><div class="build-head"><span class="status g"></span><h2>Good build</h2></div><div class="build-sub">FreshRSS 1.29.1 (good)</div>
-<div class="mock"><div class="mock-top"><span class="mock-logo">FreshRSS</span><span class="mock-search">Search articles</span></div>
-<div class="mock-body"><div class="mock-feeds"><div>All articles 328</div><div>Starred 12</div><div>Unread 42</div><div class="sel">Tech 98</div><div>World 64</div><div>Programming 71</div><div>Design 28</div></div>
-<div class="mock-art"><h4>A more humane web</h4><div class="mock-meta">By Tantek . Mar 12, 2024</div>
-<div class="btn-row"><span class="mbtn">Read later</span><span class="mbtn">Star</span><span class="mbtn share-g">Share</span></div>
-<div class="pop"><div class="url">https://tantek.com/2024/03/12/a-more-hu...</div><div class="msg g">Link copied to clipboard</div></div>
-</div></div></div></article>
-<article class="build card reveal" style="--d:280ms"><div class="build-head"><span class="status r"></span><h2>Candidate build</h2></div><div class="build-sub">FreshRSS 1.30.0 (candidate)</div>
-<div class="mock"><div class="mock-top"><span class="mock-logo">FreshRSS</span><span class="mock-search">Search articles</span></div>
-<div class="mock-body"><div class="mock-feeds"><div>All articles 328</div><div>Starred 12</div><div>Unread 42</div><div class="sel">Tech 98</div><div>World 64</div><div>Programming 71</div><div>Design 28</div></div>
-<div class="mock-art"><h4>A more humane web</h4><div class="mock-meta">By Tantek . Mar 12, 2024</div>
-<div class="btn-row"><span class="mbtn">Read later</span><span class="mbtn">Star</span><span class="mbtn share-r">Share</span></div>
-<div class="pop"><div class="url">&nbsp;</div><div class="msg r">No link available</div></div>
-</div></div></div></article>
+<article class="build card reveal" style="--d:210ms"><div class="build-head"><span class="status g"></span><h2>Good build</h2></div><div class="build-sub">Good version</div>
+<div class="measured good"><div class="m-h">Measured on the good version</div><div class="m-w">Nothing loaded yet. What the check recorded on the good version shows here: the facts that differ, what the masking hides, and screenshots at the steps where a change shows.</div></div></article>
+<article class="build card reveal" style="--d:280ms"><div class="build-head"><span class="status r"></span><h2>Candidate build</h2></div><div class="build-sub">Candidate version</div>
+<div class="measured cand"><div class="m-h">Measured on the candidate</div><div class="m-w">Nothing loaded yet. The same facts on the candidate show here, each one labelled by whether a person would notice the change.</div></div></article>
 </div>
 </div>
 <div class="rightcol">
@@ -821,6 +794,14 @@ async function sha256hex(str){
   const buf=await crypto.subtle.digest("SHA-256", new TextEncoder().encode(str));
   return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
 }
+// The head of a finished record is also written to a ledger outside the case folder (out/evidence/anchors.ndjson, and a mirror when one is
+// set): the chain check above proves the lines agree with each other, the anchor proves the newest line is the one that was filed.
+function anchorSentence(){
+  const a=LIVE.vm && LIVE.vm.anchors; if(!a) return "";
+  if(a.ok===true) return " · "+(a.text||"Anchored outside the folder");
+  if(a.ok===false) return " · ⚠ "+(a.text||"The record does not match its anchor");
+  return a.text?" · "+a.text:"";
+}
 async function verifyChain(){
   if(verifying) return false;
   verifying=true;
@@ -853,7 +834,7 @@ async function verifyChain(){
     if(bad){ bad.classList.add("tampered"); bad.classList.remove("tamper-shake"); void bad.offsetWidth; bad.classList.add("tamper-shake"); setTimeout(()=>bad.classList.remove("tamper-shake"),500); let after=false; document.querySelectorAll("#claimsList .claim").forEach(x=>{ if(after) x.classList.add("dimmed"); if(x===bad) after=true; }); }
     verifying=false; return false;
   }
-  state.chainOk=true; status.textContent=""; const ok=document.createElement("span"); ok.className="verify-ok"; ok.textContent="\u2714 Chain verified ("+lines.length+" events, checked in this browser)"; ok.title="Each event stores the SHA-256 of the one before it. The newest event has nothing after it, so it is protected only once another event follows."; status.appendChild(ok);
+  state.chainOk=true; status.textContent=""; const ok=document.createElement("span"); ok.className="verify-ok"; ok.textContent="\u2714 Chain verified ("+lines.length+" events, checked in this browser)"+anchorSentence(); ok.title="Each event stores the SHA-256 of the one before it. The newest event has nothing after it, so it is protected only once another event follows."; status.appendChild(ok);
   verifying=false; return true;
 }
 function toggleTamper(){
@@ -1094,7 +1075,7 @@ function initEvents(){
 }
 function renderBuilds(){
   if(LIVE.vm && LIVE.vm.visual){ renderVisualBuilds(); return; }
-  const vm=LIVE.vm, subs=document.querySelectorAll(".build .build-sub"), mocks=document.querySelectorAll(".build .mock, .build .measured"), dots=document.querySelectorAll(".build .status");
+  const vm=LIVE.vm, subs=document.querySelectorAll(".build .build-sub"), mocks=document.querySelectorAll(".build .measured"), dots=document.querySelectorAll(".build .status");
   const sides=[{ref:vm.goodRef,tag:"good",cls:"good",key:"was"},{ref:vm.candRef,tag:"candidate",cls:"cand",key:"now"}];
   subs.forEach((el,i)=>{ el.textContent=vm.app+" "+sides[i].ref+" ("+sides[i].tag+")"; });
   if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
@@ -1102,7 +1083,7 @@ function renderBuilds(){
     const box=document.createElement("div"); box.className="measured "+sides[i].cls;
     const h=document.createElement("div"); h.className="m-h"; h.textContent="Measured on "+sides[i].ref; box.appendChild(h);
     if(!vm.facts.length){ const p=document.createElement("div"); p.className="m-w"; p.textContent=vm.verdict==="running"?"Waiting for the comparison...":"No differing facts were recorded."; box.appendChild(p); }
-    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; w.textContent=(f.id?f.id+": ":"")+f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"; const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c);
+    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; w.textContent=(f.id?f.id+": ":"")+f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"+(f.removed?" · the element is gone on the candidate ("+f.vanished+" recorded fact"+(f.vanished===1?"":"s")+" with it)":""); const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c);
       if(f.label){ const k=document.createElement("div"); k.className="m-w notice notice-"+f.cls; k.textContent=f.label+(f.why?" ("+f.why+")":"")+(f.verdict&&f.verdict!=="confirmed"?" . "+f.verdict.replace(/_/g," "):""); r.appendChild(k); } // the class: would a person notice this change, and why
       box.appendChild(r); });
     if(i===0 && vm.masked && vm.masked.text){ const p=document.createElement("div"); p.className="m-w masked-note"; p.textContent="Not seen by this check: "+vm.masked.text; box.appendChild(p); } // what masking hides, said once under the good build
@@ -1155,6 +1136,27 @@ async function syncRunUi(){   // the hero button and the progress bar follow the
   const b=$("replayBtn"); b.disabled=false; b.textContent=RUN.running?"Cancel run":"New run"; b.title=RUN.running?"Stop the run in progress":"Compare two versions of an app";
   const vm=LIVE.vm, bar=$("runbar");
   if(vm && vm.verdict==="running" && vm.progress){ bar.hidden=false; $("runbarFill").style.width=Math.round(vm.progress.fraction*100)+"%"; } else { bar.hidden=true; }
+  syncExternalRuns();
+}
+// Checks started from a terminal (`behique check`, check-app.mjs) write the same evidence this page reads: while one is open it shows
+// here with the phase its own events are at, and its report can be opened. The server lists only cases it did not start itself.
+let EXT={ rows:[], shown:"" };
+async function syncExternalRuns(){
+  let rows=[]; try{ rows=await fetch("/api/ui/runs/external").then(r=>r.json()); }catch(e){ return; }
+  if(!Array.isArray(rows)) rows=[];
+  const box=$("extRuns"); if(!box) return;
+  const key=rows.map(r=>r.caseId+":"+r.phase+":"+r.pct+":"+(r.stale?1:0)).join("|");
+  EXT.rows=rows; if(key===EXT.shown) return; EXT.shown=key;
+  box.textContent=""; box.hidden=rows.length===0;
+  rows.forEach(r=>{
+    const row=document.createElement("div"); row.className="ext-run"+(r.stale?" stale":"");
+    const who=document.createElement("span"); who.className="ext-who"; who.textContent=(r.app||"app")+" "+(r.goodRef||"?")+" vs "+(r.candRef||"?")+" (from the command line)";
+    const bar=document.createElement("span"); bar.className="ext-bar"; const fill=document.createElement("i"); fill.style.width=Math.round((r.pct||0)*100)+"%"; bar.appendChild(fill);
+    const what=document.createElement("span"); what.className="ext-what"; what.textContent=r.text||r.phase;
+    const open=document.createElement("button"); open.type="button"; open.className="mini-btn"; open.textContent="Open"; open.title="Follow this check's report as it is written";
+    open.addEventListener("click",()=>{ const pick=$("runPick"); if(pick && [...pick.options].some(o=>o.value===r.caseId)){ pick.value=r.caseId; pick.dispatchEvent(new Event("change")); } else { fetch("/api/ui/cases").then(x=>x.json()).then(cs=>{ fillPicker(cs); if(pick){ pick.value=r.caseId; pick.dispatchEvent(new Event("change")); } }).catch(()=>{}); } });
+    row.appendChild(who); row.appendChild(bar); row.appendChild(what); row.appendChild(open); box.appendChild(row);
+  });
 }
 function stopPolling(){ if(RUN.poll){ clearInterval(RUN.poll); RUN.poll=null; } }
 function startPolling(id){
@@ -1245,7 +1247,7 @@ function watchVisualRun(){
   tick(); VPOLL=setInterval(tick,1000);
 }
 function renderVisualBuilds(){
-  const vm=LIVE.vm, V=vm.visual, panes=document.querySelectorAll(".build .mock, .build .measured"), subs=document.querySelectorAll(".build .build-sub"), dots=document.querySelectorAll(".build .status");
+  const vm=LIVE.vm, V=vm.visual, panes=document.querySelectorAll(".build .measured"), subs=document.querySelectorAll(".build .build-sub"), dots=document.querySelectorAll(".build .status");
   const sides=[{ref:vm.goodRef,tag:"good",cls:"good"},{ref:vm.candRef,tag:"candidate",cls:"cand"}];
   subs.forEach((el,i)=>{ el.textContent=vm.app+" "+sides[i].ref+" ("+sides[i].tag+")"; }); if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
   const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
@@ -1376,13 +1378,15 @@ function renderRepoPanel(a){
   p.appendChild(chips);
   p.appendChild(mk("p","rp-desc",a.description||"No description on GitHub."));
   const box=mk("div","rp-status");
-  box.appendChild(mk("div","rp-badge","NEEDS SETUP"));
+  box.appendChild(mk("div","rp-badge",a.cloned?"CLONED, NEEDS SETUP":"NEEDS SETUP"));
   box.appendChild(mk("p",null,"Behique cannot run a check on this repo yet. To compare two versions of an app it has to know:"));
   const ul=mk("ul"); ["how to install it","how to start it, and on which port","seed data, so every run starts from the same state","the clicks to replay","which versions to compare (tags or branches)"].forEach(t=>ul.appendChild(mk("li",null,t)));
   box.appendChild(ul);
-  box.appendChild(mk("p","rp-note","Nothing has been cloned or run. Behique has only read this repo's name and details from GitHub. To set it up, clone it first (Behique shows the exact command and asks before it runs), then use Set up an app."));
+  if(a.cloned) box.appendChild(mk("p","rp-note","Cloned to "+a.cloned+". Nothing from it has been run. Press Set up an app in the sidebar and Behique will inspect it and propose how to install, start and check it; you approve each command."));
+  else box.appendChild(mk("p","rp-note","Nothing has been cloned or run. Behique has only read this repo's name and details from GitHub. To set it up, clone it first (Behique shows the exact command and asks before it runs), then use Set up an app."));
   p.appendChild(box);
   const act=mk("div","rp-clone"); p.appendChild(act);
+  if(a.cloned) return;
   const b=mk("button","mini-btn","Review cloning this repo"); b.type="button"; b.title="Shows the exact command and the size. Nothing is cloned until you confirm."; b.addEventListener("click",()=>reviewClone(a,act)); act.appendChild(b);
 }
 async function reviewClone(a,host){
@@ -1397,7 +1401,7 @@ async function reviewClone(a,host){
   go.addEventListener("click",async()=>{ go.disabled=true; go.textContent="Cloning...";
     try{ const x=await fetch("/api/ui/clone",{ method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify({ repo:a.fullName, confirm:r.j.confirm }) }), j=await x.json();
       if(!x.ok){ go.textContent="Clone into the apps folder"; go.disabled=!!j.stale; host.appendChild(mk("p","rp-note",j.error||"The clone failed.")); return; }
-      go.textContent="Cloned"; host.appendChild(mk("p","rp-note","Cloned to "+j.path+". Now press Set up an app in the sidebar, and Behique will work out how to run it.")); showToast("Cloned "+a.name,"green");
+      a.cloned=j.path; a.subtitle=(a.subtitle?a.subtitle+" · ":"")+"cloned"; renderApps(); renderRepoPanel(a); showToast("Cloned "+(j.name||a.fullName)+" to "+j.path,"green"); // the panel now says it is cloned, and what to do next
     }catch(e){ go.disabled=false; go.textContent="Clone into the apps folder"; host.appendChild(mk("p","rp-note","Could not reach the server: "+e.message)); } });
   host.appendChild(go);
 }

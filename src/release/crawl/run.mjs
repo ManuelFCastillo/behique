@@ -159,6 +159,7 @@ export async function crawlApp(base, options = {}) {
     maxPerPage = 12,
     maxFlows = 20, // a recorded step is cheap, and the release check compares what every one of them shows
     budgetMs = 120000,
+    login = [], // a profile's login step (recorder actions), performed in every fresh browser before anything else
     log = () => {}
   } = options
   const origin = new URL(base).origin
@@ -181,7 +182,7 @@ export async function crawlApp(base, options = {}) {
       await s.ctx.route('**/*', route => {
         const req = route.request()
         const m = req.method()
-        if (m !== 'GET' && m !== 'HEAD') return route.abort()
+        if (m !== 'GET' && m !== 'HEAD' && !s.writesAllowed) return route.abort() // writes pass only while the profile's login step runs
         try {
           if (new URL(req.url()).origin !== origin) return route.abort()
         } catch {
@@ -191,6 +192,7 @@ export async function crawlApp(base, options = {}) {
       })
       s.page.removeAllListeners('dialog')
       s.page.on('dialog', d => d.dismiss().catch(() => {}))
+      for (const a of login) await s.act(a)
       if (startPath !== '/') await s.act({ type: 'goto', path: startPath })
       let ok = true
       for (const a of path) {

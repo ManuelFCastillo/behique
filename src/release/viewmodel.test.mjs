@@ -235,3 +235,20 @@ test('a failed run says why, in words taken from the record, not from the last c
 test('a report says which app it belongs to, so the sidebar can filter reports', () => {
   assert.equal(buildViewModel(report(), { caseId: 'x' }).appId, 'freshrss')
 })
+
+test('a vanished element shows as missing on the candidate, with how many facts went with it', () => {
+  const c = openCase(mkdtempSync(join(tmpdir(), 'vm-')))
+  c.event('case.opened', { goodRef: '1.0', candRef: '2.0', adapter: 'x', steps: [], scenario: null })
+  c.event('builds.compared', { good: { ref: '1.0', sha: 'aaaaaaa111' }, candidate: { ref: '2.0', sha: 'bbbbbbb222' } })
+  const facts = c.artifact('facts-diff.json', { control: [], candidate: [] })
+  c.claim('verified_fact', 'an element is gone', { evidence: [facts] })
+  c.event('test.exported', { id: 'R1', fact: 'body/div[1]/a[2]#text', i: 1, good: '"Share"', candidate: 'missing on the candidate', notice: { cls: 'visible', why: 'text a person reads' }, removed: true, vanished: 5 })
+  const spec = c.artifact('R1.spec.js', 'x')
+  c.event('test.judged', { id: 'R1', verdict: 'confirmed', goodPassed: 3, candFailed: 3, runs: 3, notice: { cls: 'visible', why: 'text a person reads' } })
+  c.claim('reproduced_failure', 'test R1 passes on old and fails on new', { evidence: [spec] })
+  c.event('case.closed', { outcome: 'regression proven' })
+  const vm = buildViewModel(c, { caseId: 'gone' })
+  assert.equal(vm.verdict, 'hold')
+  const f = vm.facts[0]
+  assert.deepEqual([f.id, f.was, f.now, f.removed, f.vanished, f.cls], ['R1', 'Share', 'missing', true, 5, 'visible'])
+})

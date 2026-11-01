@@ -32,7 +32,7 @@ test('an unknown phase or the same phase again changes nothing', () => {
 test('the line round-trips and a non-timing line parses to null', () => {
   const s = summarize({ builds: [{ phase: 'tests', ms: 7000, cached: true }], marks: [{ phase: 'compare', at: 0 }, { phase: 'tests', at: 464_000 }], startedAt: 0, now: 2_160_000 })
   const line = timingLine(s)
-  assert.equal(line, 'timing: total 2160 s | compare 464 s (0 builds, 0 cached) | tests 1696 s (1 builds, 1 cached) | shots 0 s (0 builds, 0 cached) | bisect 0 s (0 builds, 0 cached)')
+  assert.equal(line, 'timing: total 2160 s | compare 464 s (0 builds, 0 cached) | canvas 0 s (0 builds, 0 cached) | tests 1696 s (1 builds, 1 cached) | shots 0 s (0 builds, 0 cached) | bisect 0 s (0 builds, 0 cached)')
   const back = parseTimingLine(line)
   assert.equal(back.total.seconds, 2160); assert.deepEqual(back.phases.tests, { seconds: 1696, builds: 1, cached: 1 })
   assert.equal(parseTimingLine('evidence: x'), null)

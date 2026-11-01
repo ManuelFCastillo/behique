@@ -15,6 +15,10 @@ import { cacheImage, cacheInspectArgs, cacheKey } from './cache.mjs'
 import { dockerHostFor, makeDocker } from './docker-exec.mjs'
 import { createSandbox } from './sandbox.mjs'
 import { injectedEnv, resolveServices } from './services.mjs'
+import { cpArgs, seedPlan, seedSummary } from './seed.mjs'
+import { rmSync as rmSeedFile, writeFileSync as writeSeedFile } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join as joinPath } from 'node:path'
 import { forwardLocal, sshTunnel } from './tunnel.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
@@ -138,11 +142,36 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
     if (!inst.ok) return fail(`${p.name} ${ref}: ${inst.error}`, inst.logs)
   }
   if (key && !hit) { const kept = await sb.commit({ key, app: p.name, sha }); if (!kept.ok) deps.log?.(`${p.name} ${ref}: the build was not kept for next time: ${kept.error}`) } // a failed commit costs time, not the run
+  // serve.prepare runs on EVERY run, cached build or not: the sidecars are fresh each time, so an app's own migrations and seeding
+  // (umami: `check-db`) belong here and not in the install, which a cached build skips.
+  const prepares = p.serve.kind === 'static' ? [] : (p.serve.prepare ?? [])
+  if (prepares.length > 0) {
+    const prep2 = await sb.install(prepares.map(i => ({ cmd: i.cmd, args: (i.args ?? []).map(a => sub(a, port)) })), { env, timeoutMs: 300000, stallMs: 120000, tmpfs: hit ? ['/work/.home'] : [] })
+    if (!prep2.ok) return fail(`${p.name} ${ref}: prepare: ${prep2.error}`, prep2.logs)
+  }
 
   const run = p.serve.kind === 'static'
     ? { cmd: 'node', args: ['/work/.behique/static-server.mjs', p.serve.root ? `/work/${p.serve.root.replace(/^\/+/, '')}` : '/work', String(port), JSON.stringify(p.serve.overrides ?? {})] }
     : { cmd: p.serve.cmd, args: (p.serve.args ?? []).map(a => sub(a, port)) }
   // the launcher makes a server that listens only on localhost reachable from outside the container, and runs the command as given
+  if ((p.seed ?? []).length > 0) { // rows for the sidecars, after the install so the app's own migrations have run, before the app starts; sidecars are fresh every run
+    const plan = seedPlan(p.seed, services, { runId: sb.runId, checkoutDir: dir })
+    if (!plan.ok) return fail(`${p.name} ${ref}: seed: ${plan.error}`)
+    const tmpFiles = []
+    for (const [i, st] of plan.steps.entries()) {
+      if (!st.cp.inline) continue // an inline script goes through a temporary file, then the same copy as a file seed
+      const f = joinPath(tmpdir(), `bq-seed-${sb.runId}-${i + 1}${st.to.slice(st.to.lastIndexOf('.'))}`)
+      writeSeedFile(f, st.source.script); tmpFiles.push(f)
+      const cp = cpArgs({ runId: sb.runId, short: st.short, from: f, to: st.to })
+      if (!cp.ok) return fail(`${p.name} ${ref}: seed ${i + 1}: ${cp.error}`)
+      st.cp = cp
+    }
+    const seeded = await sb.seed(plan.steps)
+    for (const f of tmpFiles) rmSeedFile(f, { force: true })
+    const summary = seedSummary(plan.steps, seeded.outcomes)
+    deps.log?.(`${p.name} ${ref}: ${summary}`)
+    if (!seeded.ok) return fail(`${p.name} ${ref}: ${summary}`, seeded.outcomes.find(o => !o.ok)?.logs)
+  }
   const app = await sb.startApp({ cmd: 'node', args: ['/work/.behique/launch.mjs', String(port), '--', run.cmd, ...run.args], env, port })
   if (!app.ok) { const l = await sb.logs(200); return fail(`${p.name} ${ref}: ${app.error}`, app.logs ?? (l.ok ? l.text : '')) } // an app that exits at once has no address, so its own last lines say why
 

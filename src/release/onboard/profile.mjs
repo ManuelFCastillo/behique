@@ -9,6 +9,8 @@ import { promisify } from 'node:util'
 import { describeEnv, shimFile, withIgnoreScripts } from './toolchain.mjs'
 import { cleanLogs } from './repair.mjs'
 import { validateServices, describeServices } from '../sandbox/services.mjs'
+import { describeSeeds, validateSeeds } from '../sandbox/seed.mjs'
+import { describeLogin, validateLogin } from '../login.mjs'
 
 const runFile = promisify(execFile)
 
@@ -18,7 +20,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 export const PROFILE_DIR = join(HERE, 'profiles')
 const DEFAULT_SERVER = join(HERE, 'static-server.mjs')
 
-const TOP_FIELDS = new Set(['name', 'repo', 'workRoot', 'defaults', 'serve', 'ready', 'viewport', 'setup', 'regions', 'anchors', 'services', 'notes'])
+const TOP_FIELDS = new Set(['name', 'repo', 'workRoot', 'defaults', 'serve', 'ready', 'viewport', 'setup', 'regions', 'anchors', 'services', 'seed', 'login', 'notes'])
 const NAME_RE = /^[a-z0-9-]+$/
 // Arguments that make a command run inline code or a shell string. What counts depends on the program: -p is node's --print but
 // a port flag for next, -c is python's inline code and npm's or pnpm's shell mode.
@@ -174,6 +176,20 @@ export function validateProfile(profile) {
           })
         }
       }
+      if (serve.prepare !== undefined) { // commands run before every start, cached build or not (migrations, seeding), under the same rules as install
+        if (!Array.isArray(serve.prepare)) {
+          problems.push('serve.prepare must be an array')
+        } else {
+          serve.prepare.forEach((item, i) => {
+            if (typeof item !== 'object' || item === null) {
+              problems.push(`serve.prepare[${i}] must be an object`)
+              return
+            }
+            checkCmd(item.cmd, `serve.prepare[${i}]`, problems)
+            checkArgs(item.args ?? [], `serve.prepare[${i}]`, problems, item.cmd)
+          })
+        }
+      }
       if (serve.basePath !== undefined && typeof serve.basePath !== 'string') {
         problems.push('serve.basePath must be a string')
       }
@@ -253,6 +269,9 @@ export function validateProfile(profile) {
   if (profile.services !== undefined) {
     for (const p of validateServices(profile.services)) problems.push(p.startsWith('services') ? p : `services: ${p}`)
   }
+  // seed files for those sidecars, and a login step (both approved by a person like every command; see sandbox/seed.mjs and login.mjs)
+  if (profile.seed !== undefined) for (const p of validateSeeds(profile.seed, profile.services ?? [])) problems.push(p.startsWith('seed') ? p : `seed: ${p}`)
+  if (profile.login !== undefined) for (const p of validateLogin(profile.login)) problems.push(p.startsWith('login') ? p : `login: ${p}`)
   return problems
 }
 
@@ -301,6 +320,10 @@ export function describeCommands(profile) {
     const text = `install: ${item.cmd}${(item.args ?? []).length > 0 ? ' ' + item.args.join(' ') : ''}`
     lines.push(warnSuffix(item.cmd, item.args ?? []) ? warn(text) : text)
   }
+  for (const item of p.serve.kind === 'static' ? [] : (p.serve.prepare ?? [])) {
+    const text = `prepare (before every start): ${item.cmd}${(item.args ?? []).length > 0 ? ' ' + item.args.join(' ') : ''}`
+    lines.push(warnSuffix(item.cmd, item.args ?? []) ? warn(text) : text)
+  }
   if (p.serve.kind === 'static') {
     lines.push('serve: built-in static file server' + (p.serve.root ? ` (folder ${p.serve.root})` : ''))
   } else {
@@ -310,6 +333,8 @@ export function describeCommands(profile) {
   }
   lines.push(...describeEnv(p.serve.env ?? {}))
   lines.push(...describeServices(p.services ?? []))
+  lines.push(...describeSeeds(p.seed ?? [], p.services ?? []))
+  if (p.login) lines.push(describeLogin(p.login))
   if (p.serve.allowScripts === true) lines.push("installs run the repository's own lifecycle scripts (downloads and runs code from the internet)")
   return lines
 }

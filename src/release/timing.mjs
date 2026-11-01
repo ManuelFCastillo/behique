@@ -1,7 +1,7 @@
 // Where a check's time goes: every build is noted with its phase (compare, tests, shots, bisect), how long it took and whether it
 // came from a cache. The summary is written to the evidence record (`check.timing`) and printed as one line the bench can read.
 // Pure data; no clocks of its own. Tests: node --test src/release/timing.test.mjs
-export const PHASES = ['compare', 'tests', 'shots', 'bisect']
+export const PHASES = ['compare', 'canvas', 'tests', 'shots', 'bisect']
 
 /** A fresh collector. `now` is injected for tests. */
 export function createTiming({ now = Date.now } = {}) {

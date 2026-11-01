@@ -65,6 +65,9 @@ export class Session {
 
   /** Execute one action. Returns a short result string; throws if it fails. Not recorded here. */
   async act(a) {
+    // A read-only recording blocks every request but GET and HEAD, except while a profile's login step runs (its actions are marked
+    // fromLogin): the login's own POST must go through, and the flag drops at the first action after it.
+    this.writesAllowed = Boolean(a && a.fromLogin)
     const p = this.page
     const loc = () => {
       if (typeof a.selector !== 'string' || !a.selector) throw new Error('selector is required')

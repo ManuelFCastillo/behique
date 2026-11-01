@@ -253,7 +253,29 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
     return { ok: true }
   }
 
-  async function install(steps, { env = {}, timeoutMs = 900000, stallMs = 480000, stallRetries = 1 } = {}) {
+  /** Load seed data into the sidecars, from the plan `sandbox/seed.mjs` built: a folder, a copy into /seed, then the database's own client. Stops at the first failure. */
+  async function seed(steps) {
+    const outcomes = []
+    const one = async st => {
+      if (!st || !st.exec || !Array.isArray(st.exec.args)) return { ok: false, error: 'the seed step has no command.' }
+      if (!st.cp || !Array.isArray(st.cp.args)) return { ok: false, error: 'the seed step has no file to copy (an inline script is written to a file by the backend first).' }
+      const mk = execArgs({ runId, short: st.short, cmd: ['mkdir', '-p', '/seed'] })
+      if (!mk.ok) return { ok: false, error: mk.error }
+      for (const [args, what, timeoutMs] of [[mk.args, 'Could not make the seed folder.', 30000], [st.cp.args, 'Could not copy the seed file.', 120000], [st.exec.args, 'The seed failed.', 300000]]) {
+        const r = await callDocker(args, { timeoutMs })
+        if (!r.ok) return r
+        if (r.res.code !== 0) return { ok: false, error: failWithLine(firstLine(r.res.stderr || r.res.stdout), what), logs: cleanLog(combinedLogs(r.res)) }
+      }
+      return { ok: true }
+    }
+    for (const st of Array.isArray(steps) ? steps : []) {
+      outcomes.push(await one(st))
+      if (!outcomes.at(-1).ok) break
+    }
+    return { ok: outcomes.length === (Array.isArray(steps) ? steps.length : 0) && outcomes.every(o => o.ok), outcomes }
+  }
+
+  async function install(steps, { env = {}, timeoutMs = 900000, stallMs = 480000, stallRetries = 1, tmpfs = [] } = {}) {
     if (!imageOk()) return { ok: false, error: invalidImageError() }
     const list = Array.isArray(steps) ? steps : []
     const done = []
@@ -267,14 +289,15 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
         runId,
         short,
         role: 'install',
-        image,
+        // from the cache, /work is a layer of the cached image and there is no volume (the same way the app starts); a prepare step runs there
+        image: cacheKey ? cacheImageName(cacheKey) : image,
         networks: ['open'],
-        volume: { short: 'work', path: '/work' },
+        volume: cacheKey ? null : { short: 'work', path: '/work' },
         workdir: '/work',
         user: '1000:1000',
         cmd,
         env: { ...env, HOME: '/work/.home', CI: '1' },
-        tmpfs: [],
+        tmpfs, // a cached build's /work is an image layer, so a prepare step gets a writable home this way
         caps: [],
         limits: lim,
         interactive: false,
@@ -487,7 +510,7 @@ export function createSandbox({ docker, pack, sleep, now, log, newRunId, image, 
     return { ok: true, removed: counts }
   }
 
-  return { runId, prepare, startServices, install, startApp, commit, logs, running, destroy, fromCache: cacheKey }
+  return { runId, prepare, startServices, seed, install, startApp, commit, logs, running, destroy, fromCache: cacheKey }
 }
 
 export async function cleanStale({ docker, olderThanMinutes = 120, now = Date.now } = {}) {

@@ -12,7 +12,7 @@ function stepCode(a) {
   const L = loc(a.selector)
   switch (a.type) {
     case 'click': return `await ${L}.click()`
-    case 'fill': return `await ${L}.fill(${q(String(a.text ?? ''))})`
+    case 'fill': return a.secret && a.envName ? `await ${L}.fill(process.env[${q(String(a.envName))}] ?? '')` : `await ${L}.fill(${q(a.secret ? '[redacted]' : String(a.text ?? ''))})` // a secret never lands in a test file
     case 'press': return a.selector ? `await ${L}.press(${q(String(a.key))})` : `await page.keyboard.press(${q(String(a.key))})`
     case 'select': return `await ${L}.selectOption(${q(String(a.value))})`
     case 'check': return `await ${L}.check()`
@@ -92,7 +92,13 @@ export function specSource(f) {
   const pause = a => (a.type === 'wait' ? [] : ['await page.waitForTimeout(200)'])
   // scroll_delta compares the page's scroll position before and after the LAST action, so it needs no absolute pixel values
   const delta = f.assert.kind === 'scroll_delta'
-  const steps = (delta ? f.history.slice(0, -1) : f.history).flatMap(a => [stepCode(a), ...pause(a)])
+  // A profile's login step (actions marked fromLogin) may write; a read-only test lets its requests through and blocks the rest again after it.
+  const hist = delta ? f.history.slice(0, -1) : f.history
+  const steps = hist.flatMap((a, i) => [
+    ...(f.readOnly && a.fromLogin && !hist[i - 1]?.fromLogin ? ['loginWrites = true'] : []),
+    stepCode(a), ...pause(a),
+    ...(f.readOnly && a.fromLogin && !hist[i + 1]?.fromLogin ? ['loginWrites = false'] : []),
+  ])
   const settle = f.assert.kind === 'api' ? [] : ['await page.waitForTimeout(250)']
   const ctx = { origin: typeof f.origin === 'string' && ORIGIN_RE.test(f.origin) ? f.origin : null, live: false } // f.origin: where the facts were recorded
   const check = delta
@@ -110,7 +116,7 @@ ${indent([
     "page.on('dialog', d => { dialogs.push(d.message()); d.accept() })",
     '// Start from a clean app. This hook is project specific: replace it with your own reset.',
     "await request.post('/api/reset').catch(() => {})",
-    ...(f.readOnly ? ["// The facts were recorded with every request but GET and HEAD blocked, so the test blocks them too.", "await page.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()))"] : []),
+    ...(f.readOnly ? ["// The facts were recorded with every request but GET and HEAD blocked (except during the login step), so the test blocks them too.", 'let loginWrites = false', "await page.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) || loginWrites ? route.continue() : route.abort()))"] : []),
     `await page.goto(${q(f.start ?? '/')})`,
     ...(ctx.live ? [`// The expected value embeds the address the app was served from when it was recorded (${ctx.origin}); compare against this build's address instead.`, 'const live = new URL(page.url()).origin'] : []),
     ...steps,

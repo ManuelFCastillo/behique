@@ -4,6 +4,7 @@
 import { Session } from '../session.mjs'
 import { settle } from '../senses/hands.mjs'
 import { aboveFloor, diff, diffImage } from '../senses/pixels.mjs'
+import { measureCanvases, pickCanvases } from './canvas-check.mjs'
 
 const safeRef = (ref) => String(ref).replace(/[^A-Za-z0-9._-]/g, '_')
 
@@ -12,28 +13,32 @@ const safeRef = (ref) => String(ref).replace(/[^A-Za-z0-9._-]/g, '_')
  * Step 0 is right after opening, step n is after the n-th action (1-based).
  * Only the largest requested step is reached, the rest of the actions are not run.
  */
-export async function captureShots(base, actions, steps, { viewport = { width: 1280, height: 900 }, settleOptions = {}, readOnly = false } = {}) {
+export async function captureShots(base, actions, steps, options = {}) {
+  return (await captureShotsWithCanvases(base, actions, steps, options)).shots
+}
+
+/** The same pictures, plus the large canvases measured on the page at each wanted step: { shots: { step: png }, canvases: { step: boxes } }. */
+export async function captureShotsWithCanvases(base, actions, steps, { viewport = { width: 1280, height: 900 }, settleOptions = {}, readOnly = false } = {}) {
   for (const s of steps) {
     if (!Number.isInteger(s) || s < 0 || s > actions.length) throw new Error(`step ${s} is outside 0..${actions.length}`)
   }
   const wanted = new Set(steps)
   const max = steps.length ? Math.max(...steps) : -1
-  const out = {}
+  const out = {}, canvases = {}
   const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
+  const take = async i => { const r = await settle(s.page, settleOptions); out[i] = r.png; canvases[i] = pickCanvases(await s.page.evaluate(measureCanvases).catch(() => []), viewport) }
   try {
     await s.open()
-    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort())) // the same rule as the recording
-    let r = await settle(s.page, settleOptions)
-    if (wanted.has(0)) out[0] = r.png
+    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) || s.writesAllowed ? route.continue() : route.abort())) // the same rule as the recording
+    if (wanted.has(0)) await take(0); else await settle(s.page, settleOptions)
     for (let i = 0; i < max; i++) {
       await s.act(actions[i])
-      r = await settle(s.page, settleOptions)
-      if (wanted.has(i + 1)) out[i + 1] = r.png
+      if (wanted.has(i + 1)) await take(i + 1); else await settle(s.page, settleOptions)
     }
   } finally {
     await s.close()
   }
-  return out
+  return { shots: out, canvases }
 }
 
 /**

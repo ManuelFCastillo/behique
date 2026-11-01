@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { startBuild, stopAll } from '../build.mjs'
 import { listProfileNames, loadProfile, profileToAdapter } from '../onboard/profile.mjs'
+import { describeLogin, loginActions } from '../login.mjs'
 import { APPS } from '../scenarios.mjs'
 import { crawlApp } from './run.mjs'
 
@@ -21,7 +22,7 @@ export const CRAWL_DEFAULTS = { maxDepth: 2, maxPaths: 40, maxFlows: 20, budgetM
 export async function resolveApp(name) {
   if (listProfileNames().includes(name)) {
     const profile = loadProfile(name)
-    return { adapter: profileToAdapter(profile), defaultRef: profile.defaults?.good ?? null, kind: 'profile' }
+    return { adapter: profileToAdapter(profile), defaultRef: profile.defaults?.good ?? null, kind: 'profile', login: profile.login ?? null }
   }
   if (APPS[name]) return { adapter: (await import(`../adapters/${APPS[name].adapter}.mjs`)).default, defaultRef: APPS[name].defaults.good, kind: 'builtin' }
   throw new Error(`unknown app "${String(name).slice(0, 30)}"; saved apps: ${listProfileNames().join(', ') || 'none'}; built in: ${Object.keys(APPS).join(', ')}`)
@@ -43,7 +44,10 @@ export async function runCrawlCli(argv, { log = console.log } = {}) {
   try {
     build = await startBuild({ adapter: resolved.adapter, ref, port: num('port', 8300) })
     log(`crawling ${app} ${ref} (${build.sha.slice(0, 12)}) at ${build.base}`)
-    const found = await crawlApp(build.base, { ...options, log: l => log(`  ${l}`) })
+    // the login actions are passed to the crawl but never into `options`, which is saved to the crawl file
+    const login = resolved.login ? loginActions(resolved.login, process.env) : []
+    if (login.length) log(`  logging in first: ${describeLogin(resolved.login)}`)
+    const found = await crawlApp(build.base, { ...options, login, log: l => log(`  ${l}`) })
     // a page with nothing to click (a single static page) still has facts worth comparing: observe the landing page itself
     if (found.steps.length === 0 && found.states.length >= 1) found.steps = [{ type: 'goto', path: '/' }]
     const outDir = join(ROOT, opt('out', 'out/crawl'))

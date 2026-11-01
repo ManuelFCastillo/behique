@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { startBuild } from '../src/release/build.mjs'
 import { LABELS, listCases, openCase, summarize, writeError } from '../src/release/evidence.mjs'
+import { externalRuns, recentCases } from '../src/release/ui/external-runs.mjs'
 import { hypothesize, preview as previewHypothesis } from '../src/release/hypothesis.mjs'
 import { APPS, SCENARIOS } from '../src/release/scenarios.mjs'
 import { gitIn, validateRun } from '../src/release/runparams.mjs'
@@ -87,6 +88,7 @@ const onboardDeps = () => ({
 
 // ---- runs started from the dashboard: they live in the background, independent of any open page ----
 let uiRun = null // the current or most recent run: { runId, params, startedAt, caseId, lines, status, code, proc }
+const startedCases = new Set() // case ids of every run this server started, so a case written by a terminal run can be told apart
 const runView = r => r && ({ runId: r.runId, kind: r.kind, running: r.status === 'running', status: r.status, code: r.code, caseId: r.caseId, params: r.params, startedAt: r.startedAt, lastLine: r.lines.at(-1) ?? null, ...(r.kind === 'visual' ? { progress: visualProgress(r.lines) } : r.kind === 'crawl' ? { progress: crawlProgress(r.lines) } : {}) })
 const adapterOf = async app => (await import(`../src/release/adapters/${APPS[app].adapter}.mjs`)).default
 function startUiRun(params, kind = 'release') {
@@ -95,7 +97,7 @@ function startUiRun(params, kind = 'release') {
   const r = uiRun = { runId: 'r' + Date.now().toString(36), kind, params, startedAt: new Date().toISOString(), caseId: null, lines: [], status: 'running', code: null, proc }
   job = proc
   let buf = ''
-  const take = d => { buf += String(d); const parts = buf.split('\n'); buf = parts.pop(); for (const l of parts) { if (!l.trim()) continue; r.lines.push(l); if (r.lines.length > 400) r.lines.shift(); const m = l.match(/^(?:evidence|case): (\S+)$/) ?? (kind === 'visual' && l.match(/^case (\S+)$/)); if (m && /^[\w.-]+$/.test(m[1])) r.caseId = m[1] } }
+  const take = d => { buf += String(d); const parts = buf.split('\n'); buf = parts.pop(); for (const l of parts) { if (!l.trim()) continue; r.lines.push(l); if (r.lines.length > 400) r.lines.shift(); const m = l.match(/^(?:evidence|case): (\S+)$/) ?? (kind === 'visual' && l.match(/^case (\S+)$/)); if (m && /^[\w.-]+$/.test(m[1])) { r.caseId = m[1]; startedCases.add(m[1]) } } }
   proc.stdout.on('data', take); proc.stderr.on('data', take)
   proc.on('error', e => { r.lines.push('could not start: ' + e.message) })
   proc.on('close', (code, signal) => { r.code = code; r.status = signal === 'SIGTERM' || code === 130 ? 'cancelled' : code === 0 || code === 1 ? 'finished' : 'failed'; if (job === proc) job = null })
@@ -281,7 +283,8 @@ createServer(async (req, res) => {
     if (u.pathname === '/api/ui/repos') { // the sidebar's list: built-in apps, then the GitHub account's repos (read-only, nothing is cloned)
       const wantRefresh = u.searchParams.get('refresh') === '1' && Date.now() - lastGithubRefresh > 10_000 // at most one real refresh per 10 s
       if (wantRefresh) lastGithubRefresh = Date.now()
-      return send(res, 200, await listApps({ github, refresh: wantRefresh, profiles: profiles() }))
+      const clonedAt = name => { if (!/^[A-Za-z0-9._-]+$/.test(name) || name.startsWith('.')) return null; const p = join(APPS_ROOT, name); try { return statSync(join(p, '.git')).isDirectory() ? p : null } catch { return null } } // a real clone in the apps folder, by the repo's own name
+      return send(res, 200, await listApps({ github, refresh: wantRefresh, profiles: profiles(), cloned: clonedAt }))
     }
     if (u.pathname === '/api/ui/cases') { // the runs list for the dashboard: newest first
       return send(res, 200, listCases(EVIDENCE).map(id => { const vm = buildViewModel(openCase(join(EVIDENCE, id)), { caseId: id }); return { id, app: vm.appId, title: vm.title, scenario: vm.scenario?.label ?? null, verdict: vm.verdict, sub: vm.sub, decision: vm.decision?.choice ?? null, progress: vm.progress?.text ?? null } }))
@@ -319,6 +322,10 @@ createServer(async (req, res) => {
       return send(res, 200, { ...runView(startUiRun(v.params)), note: v.note })
     }
     if (u.pathname === '/api/ui/runs/current') return send(res, 200, uiRun ? runView(uiRun) : { running: false, status: 'none' })
+    if (u.pathname === '/api/ui/runs/external') { // checks started from a terminal (bin/behique.mjs, check-app.mjs): open cases this server did not start, with a phase read from their own events
+      const started = new Set([...startedCases, ...(uiRun?.caseId ? [uiRun.caseId] : [])])
+      return send(res, 200, externalRuns({ cases: recentCases({ root: EVIDENCE, listCases, openCase, limit: 15 }), started }))
+    }
     if (u.pathname === '/api/ui/runs/cancel' && req.method === 'POST') {
       const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
       if (!uiRun || uiRun.status !== 'running') return send(res, 409, { error: 'No run from the dashboard is in progress.' })
