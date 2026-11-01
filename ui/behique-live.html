@@ -1246,12 +1246,23 @@ function watchVisualRun(){
       await loadLive(cur.caseId); if(LIVE.vm && LIVE.vm.verdict==="running") startPolling(cur.caseId); return;
     }
     await syncRunUi();
-    if(cur.running){ $("vrun").hidden=false; $("vrunText").textContent=(cur.progress&&cur.progress.text)||"Running"; $("vrunFill").style.width=Math.round(((cur.progress&&cur.progress.fraction)||0)*100)+"%"; return; }
+    if(cur.running){ const text=(cur.progress&&cur.progress.text)||"Running", el=elapsedText(cur.startedAt); $("vrun").hidden=false; $("vrunText").textContent=text+(el?" . "+el:""); $("vrunFill").style.width=Math.round(((cur.progress&&cur.progress.fraction)||0)*100)+"%"; heroRunning(cur,text,el); return; }
     clearInterval(VPOLL); VPOLL=null; $("vrun").hidden=true;
     if(cur.caseId){ fillPicker(await fetch("/api/ui/cases").then(x=>x.json())); $("runPick").value=cur.caseId; history.replaceState(null,"","?case="+cur.caseId); await loadLive(cur.caseId); showToast("Run finished","green"); }
-    else showToast(cur.status==="cancelled"?"Run cancelled":"The run did not produce a report: "+(cur.lastLine||"no output"),"red");
+    else { showToast(cur.status==="cancelled"?"Run cancelled":"The run did not produce a report: "+(cur.lastLine||"no output"),"red"); if(!LIVE.vm) showNoReport(); }
   };
   tick(); VPOLL=setInterval(tick,1000);
+}
+function elapsedText(startedAt){ const t=typeof startedAt==="number"?startedAt:Date.parse(startedAt); if(!t) return ""; return mmss(Math.max(0,Math.round((Date.now()-t)/1000)))+" elapsed"; }
+function heroRunning(cur,text,el){   // a visual or crawl run has no report yet: the hero follows the run itself, with the phase and the clock
+  const p=cur.params||{}, gem=$("gem"), word=$("verdictWord");
+  if(LIVE.vm && LIVE.vm.verdict!=="running"){
+    if(String(LIVE.vm.app||"").toLowerCase()!==String(p.app||"").toLowerCase()) return;  // a finished report of another app is on screen: leave it
+    LIVE.vm=null; LIVE.rawLines=[]; stopPolling(); document.querySelector(".page").classList.add("no-report"); gem.dataset.v=""; // the same app: the new run replaces the old report on screen (it stays in the picker)
+  }
+  if(gem.dataset.v!=="running"){ gem.classList.remove("gem-emerald","gem-ruby"); gem.classList.add("gem-gray"); gem.dataset.v="running"; word.style.color="var(--muted)"; word.textContent="RUNNING"; $("verdictLabel").textContent="Behique is checking"; $("verdictAbout").hidden=true; }
+  $("verdictTitle").textContent=(p.app||APPS_UI.selected)+(p.goodRef&&p.candRef?": "+p.goodRef+" (good) vs "+p.candRef+" (candidate)":"");
+  $("verdictSub").textContent=text+(el?" . "+el:"")+(cur.kind==="crawl"?" . The report appears here once the comparison starts.":" . The report appears here when the run finishes.");
 }
 function renderVisualBuilds(){
   const vm=LIVE.vm, V=vm.visual, panes=document.querySelectorAll(".build .measured"), subs=document.querySelectorAll(".build .build-sub"), dots=document.querySelectorAll(".build .status");
