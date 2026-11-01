@@ -26,6 +26,18 @@ const twoRegions = () => ([
   { name: 'sidebar', box: { x: 0, y: 2, w: 2, h: 2 }, inRegion: 0, floor: 3, above: false },
 ])
 
+test('the whole-picture diff is offered once, with the scale that maps region boxes onto it', () => {
+  const c = openVisual({ regions: twoRegions() })
+  c.artifact('diff-header.png', png(), 'image/png')
+  c.artifact('diff-sidebar.png', png(), 'image/png') // the same picture saved under the second region's name, as the check does
+  const v = visualView(c, { caseId: 'case 1' })
+  assert.equal(v.diff, v.regions[0].diff)
+  assert.equal(v.diffShared, true)
+  assert.equal(v.scale, 2)
+  const none = visualView(openVisual({ regions: twoRegions() }), { caseId: 'c' })
+  assert.equal(none.diff, null); assert.equal(none.diffShared, false)
+})
+
 test('two regions where one differs', () => {
   const c = openVisual({ regions: twoRegions() })
   c.artifact('diff-header.png', png(), 'image/png')

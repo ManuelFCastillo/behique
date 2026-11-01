@@ -70,9 +70,11 @@ export function visualView(c, { caseId } = {}) {
       first: urlFor(caseId, firstArt),
     }
 
+    const diffArts = []
     const regions = rawRegions.map(r => {
       const name = r?.name ?? ''
       const diffArt = typeof name === 'string' && name ? artOf(`diff-${name}.png`) : null
+      if (diffArt) diffArts.push(diffArt)
       return {
         name,
         box: r?.box ?? null,
@@ -82,6 +84,12 @@ export function visualView(c, { caseId } = {}) {
         diff: urlFor(caseId, diffArt),
       }
     })
+    // The check draws ONE whole-picture diff and saves it once per region under the region's name, so the per-region
+    // pictures are the same file. The page shows it once, with the regions outlined; `scale` maps a region box (CSS
+    // pixels) onto that picture (device pixels).
+    const diff = diffArts.length ? urlFor(caseId, diffArts[0]) : null
+    const diffShared = diffArts.length > 0 && diffArts.every(a => a.hash === diffArts[0].hash)
+    const scale = typeof regionsEv?.scale === 'number' && regionsEv.scale > 0 ? regionsEv.scale : 1
 
     const floorRaw = readJson(c, artOf('floor.json'))
     let floor = null
@@ -137,7 +145,7 @@ export function visualView(c, { caseId } = {}) {
       }
     }
 
-    return { kind: 'visual', regionsKnown, regions, anchorsFailed, pictures, floor, summary, search }
+    return { kind: 'visual', regionsKnown, regions, anchorsFailed, pictures, diff, diffShared, scale, floor, summary, search }
   } catch {
     return null
   }

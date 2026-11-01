@@ -410,6 +410,20 @@ img,svg{max-width:100%}
 .vrun-t{font-size:13px;margin-bottom:8px}
 .vrun-bar{height:6px;border-radius:4px;background:var(--panel-2);overflow:hidden}.vrun-bar>div{height:100%;width:0;background:#4aa3ff;transition:width .6s ease}
 .reg-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-top:8px}.reg-row .nm{font-weight:600}
+/* before and after: the candidate picture underneath, the good one on top clipped to the left of a handle the person drags */
+.cmp{position:relative;margin:10px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;user-select:none;touch-action:none}
+.cmp img{display:block;width:100%;height:auto}.cmp .cmp-top{position:absolute;inset:0}.cmp .cmp-top img{width:100%}
+.cmp .cmp-line{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--amber);box-shadow:0 0 0 1px rgba(0,0,0,.5);pointer-events:none}
+.cmp .cmp-line::after{content:"\25C0 \25B6";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--amber);color:#000;font-size:9px;letter-spacing:1px;padding:3px 5px;border-radius:10px;white-space:nowrap}
+.cmp .cmp-tag{position:absolute;top:6px;font:600 10px/1 ui-monospace,monospace;letter-spacing:.06em;padding:4px 6px;border-radius:4px;background:rgba(0,0,0,.72);pointer-events:none}
+.cmp .cmp-tag.l{left:6px;color:var(--emerald)}.cmp .cmp-tag.r{right:6px;color:var(--ruby)}
+.cmp input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}
+.cmp input[type=range]:focus-visible+.cmp-line{box-shadow:0 0 0 2px var(--amber)}
+/* the one diff picture, with the named regions outlined on it */
+.diffwrap{position:relative;display:block}.diffwrap .rbox{position:absolute;border:2px solid var(--amber);min-width:3px;min-height:3px;box-shadow:0 0 0 1px rgba(0,0,0,.45);pointer-events:none}
+.diffwrap .rbox i{position:absolute;left:-2px;bottom:100%;font:600 9px/1 ui-monospace,monospace;font-style:normal;letter-spacing:.05em;background:var(--amber);color:#000;padding:2px 4px;border-radius:3px 3px 0 0;white-space:nowrap}
+.diffwrap .rbox.low i{bottom:auto;top:-2px;border-radius:0 0 3px 0} /* a box at the top edge: the label sits inside its top left corner */
+.diffwrap .rbox.rt i{left:auto;right:-2px;border-radius:3px 0 0 3px} /* a box at the right edge: the label hangs to its left */
 .setup-link{margin-top:8px;width:100%}
 @media (prefers-reduced-motion: reduce){.runpick select{transition:none}}
 
@@ -1280,14 +1294,33 @@ function renderVisualBuilds(){
     const main=fig(i===0?V.pictures.good:V.pictures.candidate,"Settled picture of "+sides[i].ref); if(main) box.appendChild(main); else box.appendChild(mk("div","m-w","No picture was recorded."));
     const s=V.search;
     if(s&&s.found&&i===0){ const f=fig(V.pictures.parent,"The change just before the first difference"); if(f) box.appendChild(f); }
+    if(i===0&&V.pictures.good&&V.pictures.candidate){ box.appendChild(mk("div","m-h","Before and after")); box.appendChild(compareSlider(V.pictures.good,V.pictures.candidate,vm.goodRef,vm.candRef)); box.appendChild(mk("div","m-w","Drag the handle: "+vm.goodRef+" (good) is on the left of it, "+vm.candRef+" (candidate) on the right. Both are the settled pictures above, at the same size.")); }
     if(i===1){
       box.appendChild(mk("div","m-w",V.summary));
       if(V.floor) box.appendChild(mk("div","m-w","The old version differs from itself by up to "+V.floor.changed.toLocaleString()+" pixels over "+V.floor.loads+" loads: that is the noise."));
-      V.regions.filter(r=>r.differs).slice(0,3).forEach(r=>{ const row=mk("div","reg-row"); row.appendChild(mk("span","nm",label(r.name))); row.appendChild(mk("span",null,r.changed.toLocaleString()+" pixels differ (noise "+r.floor+")")); box.appendChild(row); const f=fig(r.diff,"Where "+label(r.name).toLowerCase()+" differs (changed pixels in red)"); if(f) box.appendChild(f); });
+      const differing=V.regions.filter(r=>r.differs);
+      differing.slice(0,6).forEach(r=>{ const row=mk("div","reg-row"); row.appendChild(mk("span","nm",label(r.name))); row.appendChild(mk("span",null,r.changed.toLocaleString()+" pixels differ (noise "+r.floor+")")); box.appendChild(row); });
+      const diffUrl=V.diff||(differing.find(r=>r.diff)||{}).diff;   // one whole-picture diff, saved by the check once per region: shown once, with the regions outlined
+      if(diffUrl){ const outlined=differing.filter(r=>r.box); const cap="Where the versions differ (changed pixels in red)"+(outlined.length?". Outlined: "+outlined.map(r=>label(r.name).toLowerCase()).join(", "):"")+(V.anchorsFailed&&V.anchorsFailed.length?". The anchor region"+(V.anchorsFailed.length>1?"s ":" ")+V.anchorsFailed.join(", ")+" also differ"+(V.anchorsFailed.length>1?"":"s")+" (not outlined: the record has no box for anchors)":"")+".";
+        const f=mk("figure","shot"), wrap=mk("div","diffwrap"), im=document.createElement("img"); im.src=diffUrl; im.alt=cap; wrap.appendChild(im);
+        const place=()=>{ const W=im.naturalWidth,H=im.naturalHeight; if(!W||!H) return; const k=V.scale||1; outlined.forEach(r=>{ const b=r.box, d=mk("div","rbox"+(b.y*k/H<0.06?" low":"")+(b.x*k/W>0.85?" rt":"")); d.style.left=(b.x*k/W*100)+"%"; d.style.top=(b.y*k/H*100)+"%"; d.style.width=(b.w*k/W*100)+"%"; d.style.height=(b.h*k/H*100)+"%"; d.appendChild(mk("i",null,label(r.name))); d.title=label(r.name)+": "+r.changed.toLocaleString()+" pixels differ"; wrap.appendChild(d); }); };
+        if(im.complete&&im.naturalWidth) place(); else im.addEventListener("load",place,{once:true});
+        f.appendChild(wrap); f.appendChild(mk("figcaption",null,cap)); box.appendChild(f); }
       if(s&&s.found){ const f=fig(V.pictures.first,"The first change: "+(s.subject||"")); if(f) box.appendChild(f); box.appendChild(mk("div","m-w",s.proven?"Found by search and verified: the change just before it matched the old picture, and it differed, every run.":"The search points here, but the runs were not clean, so treat it as a lead.")); }
     }
     m.replaceWith(box);
   });
+}
+/* a before/after slider: the candidate picture underneath, the good one on top, clipped to the left of the handle (a range input, so the keyboard works too) */
+function compareSlider(goodUrl,candUrl,goodRef,candRef){
+  const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
+  const c=mk("div","cmp"), under=document.createElement("img"), top=mk("div","cmp-top"), over=document.createElement("img"), line=mk("div","cmp-line"), range=document.createElement("input");
+  under.src=candUrl; under.alt="Settled picture of "+candRef+" (candidate)"; over.src=goodUrl; over.alt="Settled picture of "+goodRef+" (good)"; top.appendChild(over);
+  range.type="range"; range.min="0"; range.max="100"; range.value="50"; range.setAttribute("aria-label","Before and after: how much of the good picture to show, from the left");
+  const set=v=>{ top.style.clipPath="inset(0 "+(100-v)+"% 0 0)"; line.style.left=v+"%"; };
+  range.addEventListener("input",()=>set(+range.value)); set(50);
+  c.appendChild(under); c.appendChild(top); c.appendChild(mk("span","cmp-tag l",goodRef+" (good)")); c.appendChild(mk("span","cmp-tag r",candRef+" (candidate)")); c.appendChild(range); c.appendChild(line);
+  return c;
 }
 async function cancelRun(){
   const r=await fetch("/api/ui/runs/cancel",{ method:"POST", headers:{"Content-Type":"application/json"}, body:"{}" }), j=await r.json();
