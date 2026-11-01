@@ -40,7 +40,7 @@ The command and the Action, their inputs, exit codes and limits: [docs/ci.md](do
 ## What a report means
 
 - **SHIP**: nothing changed in the recorded steps, or every proven change is markup churn (generated ids, framework attributes, hashed asset names) that no person would notice.
-- **HOLD**: at least one change a person would notice was reproduced by a test: text, a link or form target, a control's state, the page scrolling differently. The test passed every run on the good version and failed every run on the candidate, each run on a fresh build. With `--bisect`, the first commit that makes it fail is named, and the commit before it is checked too.
+- **HOLD**: at least one change a person would notice was reproduced by a test: text, a link or form target, a control's state, the page scrolling differently, an element that is gone. The test passed every run on the good version and failed every run on the candidate, each run on a fresh build. With `--bisect`, the first commit that makes it fail is named, and the commit before it is checked too.
 - **REVIEW**: differences were seen but no test could reproduce them reliably, so a person has to look.
 - **Incomplete**: the noise filter could not be trusted, a build failed, or the run was cut short. Nothing is recommended on incomplete evidence.
 
@@ -50,7 +50,7 @@ Every run is an evidence case under `out/evidence/<case>/`: a hash-chained event
 
 ## Limits
 
-- Apps behind a login or needing seed data are mostly out of reach today; the crawl sees what an anonymous visitor sees.
+- Apps behind a login or needing data: a profile can declare a `login` step (the password comes from the environment, or a documented public default; it is never written to the record), `serve.prepare` commands that run before every start (migrations), and `seed` files for the sandbox's database sidecars. Without those, the crawl sees what an anonymous visitor sees. The seed-file path has not yet been run end to end.
 - Facts are attributes, text, scroll position and pictures. Console errors, failed requests and accessibility names are not recorded yet.
 - "Confirmed" means the test reproduces, not that the change matters. The class (a person would notice, or markup churn) is a rule, not a judgment; a person decides.
 - Third-party content (images and media from other hosts) is excluded from findings, since it changes on its own.
@@ -62,7 +62,7 @@ Every run is an evidence case under `out/evidence/<case>/`: a hash-chained event
 node --test $(find src -name "*.test.mjs" -not -path "*/senses/*")
 ```
 
-697 tests, no network, no model calls. The canvas senses have their own tests under `src/senses/`, which launch a browser.
+808 tests, no network, no model calls. The canvas senses have their own tests under `src/senses/`, which launch a browser.
 
 ## More
 
