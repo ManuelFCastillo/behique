@@ -12,6 +12,7 @@ const EXTRACT = () => {
   const walk = (el, path) => {
     if (SKIP.has(el.tagName)) return
     for (const a of el.attributes) if (ATTRS.has(a.name) || a.name.startsWith('data-')) out[path + '@' + a.name] = a.value.slice(0, 300)
+    if (el.tagName === 'CANVAS') out[path + '@canvas'] = `${el.width}x${el.height}` // a drawing has no facts: this marks the step so its pixels get compared
     if (el.checkVisibility && el.checkVisibility({ visibilityProperty: true })) {
       const own = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim()
       if (own) out[path + '#text'] = own.slice(0, 300)
@@ -24,6 +25,23 @@ const EXTRACT = () => {
   return out
 }
 
+/**
+ * Evaluate in the page, and when the page navigated while the script ran (the context is destroyed: a late redirect, a reload
+ * fired by the app, a slow host finishing a load mid-record), wait for the new page to settle and try again. Any other error
+ * is thrown unchanged. `waitFor` is the settle step, replaceable in tests.
+ */
+const TRANSIENT = /Execution context was destroyed|Cannot find context with specified id|Frame was detached/i
+export async function evaluateSettled(page, fn, { tries = 3, waitFor = null } = {}) {
+  const settle = waitFor ?? (async () => { await page.waitForLoadState('load').catch(() => {}); await page.waitForLoadState('networkidle').catch(() => {}) })
+  for (let n = 1; ; n++) {
+    try { return await page.evaluate(fn) }
+    catch (e) {
+      if (n >= tries || !TRANSIENT.test(String(e.message ?? e))) throw e
+      await settle(n)
+    }
+  }
+}
+
 /** Open the build, record facts, perform each action and record again. Returns [{ label, facts }]. */
 /** readOnly: no request but GET or HEAD gets through, so every step sees the app exactly as it was seeded (a click that would mark something read, or save, changes nothing). */
 export async function recordRun(base, actions, { viewport = { width: 1280, height: 900 }, readOnly = false } = {}) {
@@ -31,9 +49,9 @@ export async function recordRun(base, actions, { viewport = { width: 1280, heigh
   const steps = []
   try {
     await s.open()
-    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort()))
+    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) || s.writesAllowed ? route.continue() : route.abort()))
     await s.page.waitForLoadState('networkidle').catch(() => {})
-    steps.push({ label: 'start', facts: await s.page.evaluate(EXTRACT) })
+    steps.push({ label: 'start', facts: await evaluateSettled(s.page, EXTRACT) })
     for (const [i, a] of actions.entries()) {
       // A `goto /` between flows (the crawl writes one) starts the app over, exactly like a test that opens a new browser: cookies and
       // storage are cleared, so a flow does not see what an earlier flow changed (a view setting, a filter, a session).
@@ -41,7 +59,7 @@ export async function recordRun(base, actions, { viewport = { width: 1280, heigh
       let failed = null
       try { await s.act(a) } catch (e) { failed = String(e.message ?? e).split('\n')[0].slice(0, 100) } // a click that cannot be made (the element is gone in this version) is itself a difference worth recording
       await s.page.waitForLoadState('networkidle').catch(() => {})
-      const facts = await s.page.evaluate(EXTRACT)
+      const facts = await evaluateSettled(s.page, EXTRACT)
       if (failed) facts['step@error'] = failed
       steps.push({ label: `${i + 1}:${a.type} ${a.selector ?? a.path ?? ''}`.slice(0, 80), facts })
     }

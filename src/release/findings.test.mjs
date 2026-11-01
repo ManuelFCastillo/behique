@@ -2,7 +2,7 @@
 // Run: node --test src/release/findings.test.mjs
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { factToFinding, selectFindings, judgeFindings, firstConfirmed, summarize } from './findings.mjs'
+import { factToFinding, selectFindings, judgeFindings, firstConfirmed, summarize, vanishedRoots } from './findings.mjs'
 
 const actions = [
   { type: 'click', selector: 'a.one' },
@@ -165,13 +165,15 @@ describe('selectFindings', () => {
     assert.deepEqual(skipped, [{ key: 'body/div[1]/span[1]/a[1]/img[1]@src', i: 1, why: "third-party content (content loaded from srv.carbonads.net, not the app's own)" }])
   })
 
-  it('ignores added, removed and moved facts', () => {
+  it('ignores added and moved facts; a removed fact is tested as a vanished element', () => {
     const changed = [
       { i: 1, step: 's', key: 'body/div[1]/a[1]@href', kind: 'added', was: null, now: 'x' },
       { i: 1, step: 's', key: 'body/div[1]/a[2]@href', kind: 'removed', was: 'x', now: null },
       { i: 1, step: 's', key: 'body/div[1]/a[3]@href', kind: 'moved', was: 'x', now: 'x' },
     ]
-    assert.deepEqual(selectFindings(changed, actions, start, emptyBaseline), { findings: [], skipped: [] })
+    const { findings, skipped } = selectFindings(changed, actions, start, emptyBaseline)
+    assert.deepEqual(skipped, [])
+    assert.deepEqual(findings.map(f => [f.id, f.fact.key, f.fact.removed, f.actual]), [['R1', 'body/div[1]/a[2]@href', true, 'missing on the candidate']])
   })
 
   it('returns empty for empty input', () => {
@@ -303,4 +305,49 @@ describe('history of a step in a crawled flow', () => {
     const odd = [{ type: 'click', selector: 'a' }, { type: 'goto', path: '/about' }, { type: 'click', selector: 'b' }]
     assert.equal(factToFinding({ ...d, i: 3 }, odd, '/', { stable: {} }).history.length, 3)
   })
+})
+
+describe('a vanished element becomes a test', () => {
+  const gone = (i, key, was) => ({ i, step: `s${i}`, key, kind: 'removed', was, now: null })
+
+  it('tests the old value, so the test fails whether the element or only its text is gone', () => {
+    const f = factToFinding(gone(2, 'body/div[1]/p[1]#text', 'Share'), actions, start, emptyBaseline)
+    assert.equal(f.assert.kind, 'own_text'); assert.equal(f.assert.value, 'Share'); assert.equal(f.assert.selector, 'xpath=/html/body/div[1]/p[1]')
+    assert.equal(f.title, 'text of div[1]/p[1] after step 2 is still there, as on the previous release')
+    assert.equal(f.expected, JSON.stringify('Share')); assert.equal(f.actual, 'missing on the candidate')
+    const a = factToFinding(gone(1, 'body/div[1]/a[2]@href', '/share'), actions, start, emptyBaseline)
+    assert.equal(a.assert.kind, 'attr'); assert.equal(a.assert.name, 'href'); assert.equal(a.assert.value, '/share')
+  })
+
+  it('never tests the scroll position or a failed step as vanished', () => {
+    assert.equal(factToFinding(gone(1, 'window@scrollY', 10), actions, start, emptyBaseline), null)
+    assert.equal(factToFinding(gone(1, 'step@error', 'x'), actions, start, emptyBaseline), null)
+  })
+
+  it('collapses a vanished subtree to its root and keeps the fact a person would miss first', () => {
+    const diffs = [
+      gone(1, 'body/div[1]/a[2]@class', 'btn'), gone(1, 'body/div[1]/a[2]@href', '/share'), gone(1, 'body/div[1]/a[2]#text', 'Share'),
+      gone(1, 'body/div[1]/a[2]/span[1]@class', 'ico'), gone(1, 'body/div[1]/a[2]/span[1]#text', '*'),
+      gone(1, 'body/div[1]/p[3]@class', 'x'), // a second element, attribute only
+      gone(2, 'body/div[1]/a[2]#text', 'Share'), // the same element at the next step
+      gone(1, 'window@scrollY', 0), gone(1, 'step@error', 'x'),
+      { i: 1, step: 's1', key: 'body/div[1]/h1[1]#text', kind: 'changed', was: 'a', now: 'b' },
+    ]
+    const roots = vanishedRoots(diffs)
+    assert.deepEqual(roots.map(r => [r.i, r.key, r.vanished]), [[1, 'body/div[1]/a[2]#text', 5], [1, 'body/div[1]/p[3]@class', 1], [2, 'body/div[1]/a[2]#text', 1]])
+    assert.ok(roots.every(r => r.kind === 'removed'))
+  })
+
+  it('selectFindings takes vanished roots after changed facts, with a notice, and marks them', () => {
+    const changed = { i: 1, step: 's1', key: 'body/div[1]/h1[1]@data-reactid', kind: 'changed', was: 'a', now: 'b' }
+    const roots = vanishedRoots([gone(1, 'body/div[1]/a[2]#text', 'Share'), gone(1, 'body/div[1]/a[2]@href', '/share')])
+    const { findings, skipped } = selectFindings([changed, ...roots], actions, start, emptyBaseline)
+    assert.equal(findings.length, 2); assert.equal(skipped.length, 0)
+    const v = findings.find(f => f.fact.removed)
+    assert.equal(v.id, 'R1', 'text a person reads ranks before a framework attribute') // visible before churn
+    assert.deepEqual([v.fact.key, v.fact.vanished, v.notice.cls], ['body/div[1]/a[2]#text', 2, 'visible'])
+    assert.equal(findings.find(f => !f.fact.removed).notice.cls, 'churn')
+  })
+
+  it('vanishedRoots of nothing is nothing', () => { assert.deepEqual(vanishedRoots([]), []); assert.deepEqual(vanishedRoots(null), []) })
 })

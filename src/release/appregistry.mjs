@@ -16,20 +16,27 @@ export const profileApp = p => ({
   defaults: p.defaults ?? null, regions: Object.keys(p.regions ?? {}),
 })
 
-export const githubApp = r => ({
+/** `cloned` is the folder the repo was already cloned into (by the page, or by hand), or null: it changes the wording, not the status. */
+export const githubApp = (r, cloned = null) => ({
   id: `github:${r.fullName}`, kind: 'github', label: r.name, owner: r.owner, fullName: r.fullName,
-  subtitle: [r.private ? 'private' : 'public', r.language, r.fork ? 'fork' : null].filter(Boolean).join(' · '),
+  subtitle: [r.private ? 'private' : 'public', r.language, r.fork ? 'fork' : null, cloned ? 'cloned' : null].filter(Boolean).join(' · '),
   description: r.description, private: r.private, fork: r.fork, archived: r.archived, language: r.language,
-  pushedAt: r.pushedAt, defaultBranch: r.defaultBranch, url: r.url,
+  pushedAt: r.pushedAt, defaultBranch: r.defaultBranch, url: r.url, cloned: cloned || null,
   runnable: false, status: 'needs-setup',
-  statusText: 'Needs setup: Behique does not yet know how to install, start or click through this repo, so no check can run on it.',
+  statusText: cloned
+    ? 'Cloned, needs setup: the repo is in the apps folder, but Behique does not yet know how to install, start or click through it. Use Set up an app.'
+    : 'Needs setup: Behique does not yet know how to install, start or click through this repo, so no check can run on it.',
 })
 
-/** The sidebar's list: built-in apps first, then the connected account's repos (if any), plus the connection state. */
-export async function listApps({ github, refresh = false, profiles = [] } = {}) {
+/**
+ * The sidebar's list: built-in apps first, then the connected account's repos (if any), plus the connection state.
+ * `cloned(name)` answers with the folder a repo of that name is already cloned into, or null (the page never guesses from the name).
+ */
+export async function listApps({ github, refresh = false, profiles = [], cloned = () => null } = {}) {
   const g = github ? await github.repos({ refresh }) : { connected: false, login: null, repos: [], error: null, fetchedAt: null }
+  const clonedOf = r => { try { return cloned(r.name) ?? null } catch { return null } }
   return {
-    apps: [...builtinApps(), ...profiles.map(profileApp), ...(g.connected ? g.repos.map(githubApp) : [])],
+    apps: [...builtinApps(), ...profiles.map(profileApp), ...(g.connected ? g.repos.map(r => githubApp(r, clonedOf(r))) : [])],
     github: { connected: g.connected, login: g.login, error: g.error, fetchedAt: g.fetchedAt, count: g.repos.length },
   }
 }

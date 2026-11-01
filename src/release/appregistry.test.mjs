@@ -43,3 +43,13 @@ test('an app Behique set up itself is listed as ready, and its visual reports ar
   assert.equal(appOfOpened({ kind: 'visual', adapter: 'visual-musicblocks' }), 'musicblocks')
   assert.equal(appOfOpened({ kind: 'visual', adapter: 'visual-../x' }), null, 'only plain names')
 })
+
+test('a repo already cloned into the apps folder says so, and still needs setup', async () => {
+  const { apps } = await listApps({ github: gh([r('alpha'), r('beta')]), cloned: name => (name === 'alpha' ? '/apps/alpha' : null) })
+  const alpha = apps.find(a => a.label === 'alpha'), beta = apps.find(a => a.label === 'beta')
+  assert.equal(alpha.cloned, '/apps/alpha'); assert.equal(alpha.runnable, false); assert.equal(alpha.status, 'needs-setup')
+  assert.match(alpha.statusText, /^Cloned, needs setup/); assert.equal(alpha.subtitle, 'private · Go · cloned')
+  assert.equal(beta.cloned, null); assert.match(beta.statusText, /^Needs setup/)
+  const { apps: safe } = await listApps({ github: gh([r('alpha')]), cloned: () => { throw new Error('disk') } })
+  assert.equal(safe.find(a => a.label === 'alpha').cloned, null, 'a failing lookup never breaks the list')
+})

@@ -2,9 +2,32 @@
 //   node --test src/release/facts.test.mjs
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildBaseline, diffFacts, widenMask } from './facts.mjs'
+import { buildBaseline, diffFacts, evaluateSettled, widenMask } from './facts.mjs'
 
 const run = (...facts) => facts.map((f, i) => ({ label: `s${i}`, facts: f }))
+
+describe('evaluateSettled', () => {
+  const page = (...outcomes) => { let n = 0; return { calls: () => n, evaluate: async () => { const o = outcomes[n++]; if (o instanceof Error) throw o; return o } } }
+  const destroyed = () => new Error('page.evaluate: Execution context was destroyed, most likely because of a navigation')
+
+  it('returns the first result when the page is still', async () => {
+    const p = page({ a: 1 })
+    assert.deepEqual(await evaluateSettled(p, () => 0, { waitFor: async () => {} }), { a: 1 }); assert.equal(p.calls(), 1)
+  })
+  it('waits and tries again when the page navigated while the script ran', async () => {
+    const p = page(destroyed(), destroyed(), { a: 2 }), waited = []
+    assert.deepEqual(await evaluateSettled(p, () => 0, { waitFor: async n => waited.push(n) }), { a: 2 })
+    assert.equal(p.calls(), 3); assert.deepEqual(waited, [1, 2])
+  })
+  it('gives up after the last try, with the page error', async () => {
+    const p = page(destroyed(), destroyed(), destroyed())
+    await assert.rejects(evaluateSettled(p, () => 0, { waitFor: async () => {} }), /Execution context was destroyed/); assert.equal(p.calls(), 3)
+  })
+  it('does not retry any other error', async () => {
+    const p = page(new Error('ReferenceError: x is not defined'), { a: 3 })
+    await assert.rejects(evaluateSettled(p, () => 0, { waitFor: async () => {} }), /ReferenceError/); assert.equal(p.calls(), 1)
+  })
+})
 
 describe('widenMask', () => {
   const a = run({ 'body/p[1]#text': 'one', 'body/h1[1]#text': 'Title' })

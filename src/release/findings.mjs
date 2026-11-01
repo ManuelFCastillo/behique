@@ -19,6 +19,8 @@ function historyFor(actions, i) {
 
 export function factToFinding(d, actions, start, baseline, id = 'R1') {
   if (d.key === 'step@error') return null // a step that could not be performed is reported, but there is no element to test
+  const removed = d.kind === 'removed'
+  if (removed && d.key === 'window@scrollY') return null // the scroll position is always recorded; it cannot vanish
   if (d.key === 'window@scrollY') {
     const before = baseline.stable[`${d.i - 1}|${d.key}`]
     if (d.i < 1 || typeof before !== 'number' || typeof d.was !== 'number') return null
@@ -38,16 +40,53 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
     ? { kind: 'attr', selector, name: attr, op: long ? 'contains' : 'equals', value: d.was }
     : { kind: 'own_text', selector, op: long ? 'contains' : 'equals', value: d.was } // the fact is the element's own text, cut at 300 characters: compare it exactly, or a longer new text still contains the old one
   const what = attr ? `${attr} of ${m[1].split('/').slice(-2).join('/')}` : `text of ${m[1].split('/').slice(-2).join('/')}`
+  // A vanished fact is tested with the same assertion: the old value is expected, so the test fails on the candidate whether the
+  // whole element is gone (the locator finds nothing) or only its attribute or text is.
   return {
     id, start,
-    title: `${what} after step ${d.i} keeps the previous release's value`,
-    expected: JSON.stringify(d.was), actual: JSON.stringify(d.now),
+    title: removed ? `${what} after step ${d.i} is still there, as on the previous release` : `${what} after step ${d.i} keeps the previous release's value`,
+    expected: JSON.stringify(d.was), actual: removed ? 'missing on the candidate' : JSON.stringify(d.now),
     history: historyFor(actions, d.i), assert,
   }
 }
 
+const PREFERRED = ['#text', '@href', '@value', '@src', '@alt', '@title', '@placeholder', '@aria-label', '@action']
+const elementOf = key => key.replace(/(@[^/]+|#text)$/, '')
+const suffixOf = key => (key.match(/(@[^/]+|#text)$/) ?? ['', ''])[1]
+
 /**
- * Turn the ranked changed facts into at most max findings, earliest step per key first.
+ * One fact per vanished element. An element that disappears takes every attribute and text of itself and its descendants with it,
+ * so the removed facts of one step are collapsed to the elements whose ancestors are all still there (the roots of what vanished),
+ * and for each root the fact a person would miss first is kept: its text, then a link, a value, a picture.
+ * Takes the ranked diff list; returns removed diffs only, in step order, each marked `vanished: n` with how many facts it stands for.
+ */
+export function vanishedRoots(diffs) {
+  const removed = (Array.isArray(diffs) ? diffs : []).filter(d => d && d.kind === 'removed' && typeof d.key === 'string' && d.key !== 'step@error' && d.key !== 'window@scrollY')
+  const bySteps = new Map()
+  for (const d of removed) { if (!bySteps.has(d.i)) bySteps.set(d.i, []); bySteps.get(d.i).push(d) }
+  const out = []
+  for (const [, list] of [...bySteps.entries()].sort((a, b) => a[0] - b[0])) {
+    const elements = new Set(list.map(d => elementOf(d.key)))
+    const isRoot = el => ![...elements].some(o => o !== el && el.startsWith(o + '/'))
+    const roots = new Map()
+    for (const d of list) {
+      const el = elementOf(d.key)
+      if (!isRoot(el)) continue
+      if (!roots.has(el)) roots.set(el, [])
+      roots.get(el).push(d)
+    }
+    for (const [el, facts] of roots) {
+      const under = list.filter(d => elementOf(d.key) === el || elementOf(d.key).startsWith(el + '/')).length
+      const rank = d => { const i = PREFERRED.indexOf(suffixOf(d.key)); return i < 0 ? PREFERRED.length : i }
+      const pick = [...facts].sort((a, b) => rank(a) - rank(b))[0]
+      out.push({ ...pick, vanished: under })
+    }
+  }
+  return out
+}
+
+/**
+ * Turn the ranked changed facts (and the vanished elements from vanishedRoots) into at most max findings, earliest step per key first.
  * Each finding carries `notice` ({ cls, why }: would a person notice it, see notice.mjs). Findings are ordered by that class,
  * visible before churn, so the cap keeps what a person would notice and R1 is the most noticeable; the given order holds inside a
  * class. Third-party content (an ad, a widget loaded from another host) never becomes a finding: it is skipped and listed as such.
@@ -56,7 +95,7 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
  */
 export function selectFindings(changed, actions, start, baseline, { max = 5, origin = null } = {}) {
   if (!Array.isArray(changed)) return { findings: [], skipped: [] }
-  const list = changed.filter(d => d && d.kind === 'changed' && typeof d.key === 'string')
+  const list = changed.filter(d => d && (d.kind === 'changed' || d.kind === 'removed') && typeof d.key === 'string')
   if (list.length === 0) return { findings: [], skipped: [] }
   const limit = Number(max)
   const cap = Number.isFinite(limit) && limit >= 0 ? Math.floor(limit) : 5
@@ -98,7 +137,7 @@ export function selectFindings(changed, actions, start, baseline, { max = 5, ori
       skipped.push({ key: d.key, i: d.i, why: 'cannot be written as a test' })
       continue
     }
-    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now } })
+    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now, ...(d.kind === 'removed' ? { removed: true, vanished: d.vanished ?? 1 } : {}) } })
   }
   const findings = []
   for (const f of rankFindings(testable)) {
