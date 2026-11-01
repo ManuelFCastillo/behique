@@ -35,8 +35,8 @@
 </head>
 <body>
 <main>
-  <div class="top"><a href="/">&larr; Back to the demo</a><label class="muted">Report <select id="pick"></select></label></div>
-  <div id="empty" class="card" hidden><b>No reports yet.</b> Go back to the demo and press <i>Run the check</i>. Each run saves one report.</div>
+  <div class="top"><a id="back" href="/dashboard">&larr; Back to the dashboard</a><label class="muted">Report <select id="pick"></select></label></div>
+  <div id="empty" class="card" hidden><b>No reports yet.</b> Go back to the dashboard and press <i>New run</i>. Each run saves one report.</div>
 
   <div id="page" hidden>
     <div class="hero">
@@ -207,6 +207,7 @@ $('askBtn').onclick = async () => {
 
 async function load(which) {
   id = which
+  $('back').href = '/dashboard?case=' + encodeURIComponent(id) // the dashboard opens this report's app and this report
   const r = await fetch('/api/case?id=' + encodeURIComponent(id)); if (!r.ok) return
   render(await r.json()); await loadAsk()
 }

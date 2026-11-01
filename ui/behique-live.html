@@ -1513,14 +1513,15 @@ function selectApp(id,opts){
   document.querySelector(".page").classList.toggle("repo-mode", !a.runnable);
   renderApps();
   if(!a.runnable){ stopPolling(); renderRepoPanel(a); return; }
-  ensureReport();
+  ensureReport(opts && opts.caseId);
 }
-async function ensureReport(){   // back on a runnable app: show one of its reports
+async function ensureReport(prefer){   // back on a runnable app: show one of its reports (`prefer`, a report id from the URL, when it is this app's)
   let list=[]; try{ list=await fetch("/api/ui/cases").then(r=>r.json()); }catch(e){ return; }
   fillPicker(list);
   const mine=list.filter(c=>c.app===APPS_UI.selected);
-  const keep=LIVE.vm && mine.some(c=>c.id===LIVE.vm.id) ? LIVE.vm.id : (mine[0] && mine[0].id);
+  const keep=prefer && mine.some(c=>c.id===prefer) ? prefer : LIVE.vm && mine.some(c=>c.id===LIVE.vm.id) ? LIVE.vm.id : (mine[0] && mine[0].id);
   if(!keep){ showNoReport(); return; }
+  if(keep===prefer){ const u=new URLSearchParams(location.search); u.set("case",keep); history.replaceState(null,"","?"+u.toString()+location.hash); }
   $("runPick").value=keep;
   if(!LIVE.vm || LIVE.vm.id!==keep) await loadLive(keep); else if(LIVE.vm.verdict==="running") startPolling(keep);
 }
@@ -1628,9 +1629,12 @@ async function testSettingsUi(){
 (async function init(){
   initEvents(); initRunUi(); initAppsUi(); renderApps(); initViews();
   fetch("/api/ui/runs/current").then(r=>r.json()).then(c=>{ if(c&&c.running&&(c.kind==="visual"||c.kind==="crawl")) watchVisualRun(); }).catch(()=>{});
-  const qp=new URLSearchParams(location.search); let want=qp.get("app"); try{ want=want||localStorage.getItem(APP_KEY); }catch(e){}
+  const qp=new URLSearchParams(location.search); let want=qp.get("app"), wantCase=qp.get("case"); try{ want=want||localStorage.getItem(APP_KEY); }catch(e){}
   const apps=loadApps(false);                       // slow (it asks GitHub): it never holds up the reports
-  if(want && want!=="freshrss"){ await apps; if(appById(want)){ selectApp(want,{remember:false}); return; } }
+  if(wantCase){                                     // a link to one report (the full report page's way back): its app wins over the remembered one
+    try{ const c=(await fetch("/api/ui/cases").then(r=>r.json())).find(x=>x.id===wantCase); if(c && c.app) want=c.app; }catch(e){}
+  }
+  if(want && want!=="freshrss"){ await apps; if(appById(want)){ selectApp(want,{remember:false,caseId:wantCase}); return; } }
   try{
     const list=await fetch("/api/ui/cases").then(r=>r.json());
     fillPicker(list);
