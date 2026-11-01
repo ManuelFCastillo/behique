@@ -22,6 +22,7 @@ import adapter from '../src/release/adapters/freshrss.mjs'
 import { ENV, PROVIDERS } from '../src/llm.mjs'
 import { validateVisualRun, visualArgv, visualProgress, caseIdOf } from '../src/release/ui/visual-run.mjs'
 import { listCandidates, listRefs, onboardPreview, onboardPropose, onboardVerify } from '../src/release/ui/onboard-flow.mjs'
+import { createSetupState, repoOfProposal } from '../src/release/ui/setup-state.mjs'
 import { crawlProgress } from '../src/release/ui/crawl-run.mjs'
 import { cloneRun, clonePreview } from '../src/release/ui/clone-flow.mjs'
 import { applySettings, loadSettings, needsSandbox, saveSettings, validateSettings, SANDBOX_REQUIRED } from '../src/release/ui/settings.mjs'
@@ -78,6 +79,11 @@ const cloneDeps = () => ({
   exec: (command, { timeoutMs }) => new Promise(resolve => execFile(command[0], command.slice(1), { timeout: timeoutMs, env: { ...process.env, GIT_TERMINAL_PROMPT: '0' } }, (err, stdout, stderr) => resolve({ code: err ? (typeof err.code === 'number' ? err.code : 1) : 0, stderr: String(stderr ?? '') }))),
 })
 let onboarding = false // one paid proposal or verification at a time; verification uses the builds' ports
+const setupState = createSetupState({ // the step in progress and the last result per repo, for every page (out/onboard/state.json)
+  readFile: async path => readFileSync(join(ROOT, path), 'utf8'),
+  writeFile: async (path, text) => { const f = join(ROOT, path); mkdirSync(dirname(f), { recursive: true }); writeFileSync(f, text, 'utf8') },
+})
+const repoOfApp = name => { try { return repoOfProposal(JSON.parse(readFileSync(join(ROOT, 'out', 'onboard', String(name) + '.proposed.json'), 'utf8'))) } catch { return null } } // the folder a saved proposal came from
 const onboardDeps = () => ({
   appsRoot: APPS_ROOT, isGitRepo: async p => { try { return statSync(join(p, '.git')).isDirectory() } catch { return false } }, /* a real clone only: a build worktree has a .git file instead */ readdir: async d => readdirSync(d), listProfiles: async () => profileNames(),
   inspectRepo, skillText: defaultSkillText(), buildMessages, projectCost, provider: 'meta', keyPresent: Boolean(ENV[PROVIDERS.meta.keyEnv]),
@@ -353,11 +359,18 @@ createServer(async (req, res) => {
       const r = await onboardPreview(JSON.parse(await readBody(req) || '{}'), onboardDeps())
       return send(res, r.ok ? 200 : r.status ?? 400, r)
     }
+    if (u.pathname === '/api/ui/onboard/state') return send(res, 200, await setupState.view()) // the set-up step in progress and the last result per repo; read only
     if (u.pathname === '/api/ui/onboard/propose' && req.method === 'POST') { // the paid call: only with the fingerprint of the text that was shown
       const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
       if (onboarding) return send(res, 409, { error: 'Another set-up step is running.' })
       onboarding = true
-      try { const r = await onboardPropose(JSON.parse(await readBody(req) || '{}'), onboardDeps()); return send(res, r.ok ? 200 : r.status ?? 400, r) } finally { onboarding = false }
+      const input = JSON.parse(await readBody(req) || '{}')
+      const began = (await setupState.begin({ repo: input.repo, name: input.name, step: 'propose', good: input.good, cand: input.cand })).ok
+      try {
+        const r = await onboardPropose(input, onboardDeps())
+        if (began) await setupState.end({ ok: r.ok, error: r.error, usd: r.usd })
+        return send(res, r.ok ? 200 : r.status ?? 400, r)
+      } finally { onboarding = false }
     }
     if (u.pathname === '/api/ui/onboard/verify' && req.method === 'POST') { // build both versions, take pictures, measure noise; saves the profile only if all of it passed
       const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
@@ -365,7 +378,13 @@ createServer(async (req, res) => {
       if (live.size) return send(res, 409, { error: 'The hand-test versions are running. Stop them first: verification reuses their ports.' })
       if (onboarding) return send(res, 409, { error: 'Another set-up step is running.' })
       onboarding = true
-      try { const r = await onboardVerify(JSON.parse(await readBody(req) || '{}'), { ...onboardDeps(), log: () => {} }); return send(res, r.ok ? 200 : r.status ?? 400, r) } finally { onboarding = false }
+      const input = JSON.parse(await readBody(req) || '{}')
+      const began = (await setupState.begin({ repo: repoOfApp(input.name), name: input.name, step: 'verify', good: input.good, cand: input.cand })).ok
+      try {
+        const r = await onboardVerify(input, { ...onboardDeps(), log: () => {} })
+        if (began) await setupState.end({ ok: r.ok, saved: r.saved, checks: r.checks, error: r.error })
+        return send(res, r.ok ? 200 : r.status ?? 400, r)
+      } finally { onboarding = false }
     }
 
     if (u.pathname === '/api/ui/rules') { // may this actor write this kind of claim? answered by the record's own rule; writes nothing

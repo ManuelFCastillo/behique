@@ -319,6 +319,10 @@ img,svg{max-width:100%}
 .app-row .s{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .app-row .c{font-size:10px;font-weight:700;letter-spacing:.04em;border:1px solid var(--line);border-radius:99px;padding:0 7px;color:var(--muted);margin-top:2px}
 .app-row .c.ready{color:var(--emerald);border-color:rgba(47,217,138,.45)}.app-row .c.setup{color:var(--amber);border-color:rgba(255,166,61,.4)}
+.app-row .c.busy{color:var(--text);border-color:var(--text);animation:setupPulse 1.4s ease-in-out infinite}.app-row .c.failed{color:var(--ruby);border-color:rgba(255,77,87,.5)}
+@keyframes setupPulse{0%,100%{opacity:1}50%{opacity:.45}}
+.rp-setup{border:1px solid var(--line);border-radius:12px;padding:14px 18px;background:var(--panel-2);max-width:70ch}.rp-setup h3{margin:0 0 6px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.rp-setup .chk-ok,.rp-setup .chk-bad{font:12px ui-monospace,monospace;margin:3px 0}.rp-setup .chk-ok{color:var(--emerald)}.rp-setup .chk-bad{color:var(--ruby)}.rp-setup .busy{animation:setupPulse 1.4s ease-in-out infinite}
 .repo-panel{grid-column:2/4;grid-row:1/3;padding:26px;display:none;flex-direction:column;gap:14px;align-self:start;min-width:0}
 .page.repo-mode .repo-panel{display:flex}
 .page.repo-mode .center,.page.repo-mode .rightcol,.page.repo-mode .bottombar,.page.repo-mode #reasonWrap,.page.repo-mode .runpick{display:none}
@@ -1313,8 +1317,10 @@ async function reviewSetup(){
 }
 async function sendSetup(){
   if(!SETUP.preview||SETUP.busy) return; SETUP.busy=true; setupErr(""); const b=$("setupSend"); b.disabled=true; b.textContent="Waiting for the model...";
+  setTimeout(loadSetupState,300); // the card and the sidebar show the step while it runs
   try{
     const {ok,status,j}=await postJson("/api/ui/onboard/propose",{ ...setupInput(), confirm:SETUP.preview.confirm });
+    loadSetupState();
     if(!ok){ setupErr(j.error||"The proposal failed."); if(j.stale){ SETUP.preview=null; $("setupPreview").hidden=true; } else { b.disabled=false; } return; }
     $("setupProfile").textContent=JSON.stringify(j.profile,null,2);
     $("setupProblems").textContent=j.problems.length?"Problems the checker found: "+j.problems.join("; "):"";
@@ -1325,8 +1331,10 @@ async function sendSetup(){
 }
 async function verifySetup(){
   if(SETUP.busy) return; SETUP.busy=true; setupErr(""); const b=$("setupVerify"); b.disabled=true; b.textContent="Verifying (builds both versions)...";
+  setTimeout(loadSetupState,300);
   try{
     const i=setupInput(), {ok,j}=await postJson("/api/ui/onboard/verify",{ name:i.name, good:i.good, cand:i.cand, approveCommands:$("setupApprove").checked });
+    loadSetupState();
     const box=$("setupChecks"); box.textContent=""; $("setupResult").hidden=false;
     (j.checks||[]).forEach(c=>{ const d=document.createElement("div"); d.className=c.ok?"chk-ok":"chk-bad"; d.textContent=(c.ok?"ok  ":"FAILED  ")+c.name+": "+c.detail; box.appendChild(d); });
     if(!ok){ setupErr(j.error||"Verification did not pass, so nothing was saved."); return; }
@@ -1359,6 +1367,29 @@ function rememberApp(id){
   try{ localStorage.setItem(APP_KEY,id); }catch(e){}
   const u=new URLSearchParams(location.search); u.set("app",id); if(id!=="freshrss") u.delete("case"); history.replaceState(null,"","?"+u.toString()+location.hash);
 }
+// ---- set-up state: the step in progress and the last result per repo, read from the server like a run ----
+const SETUP_STATE={ view:null, poll:null };
+const folderOf=a=>a&&a.cloned?String(a.cloned).split("/").pop():null;
+function setupSummary(repo){ // mirrors setupSummary in src/release/ui/setup-state.mjs, for the card and the sidebar
+  const v=SETUP_STATE.view; if(!v||!repo) return null;
+  const run=v.running;
+  if(run&&run.repo===repo) return { state:"running", text:"Setting up: "+(run.step==="propose"?"asking the model for a profile":"verifying "+(run.good||"?")+" against "+(run.cand||"?"))+". Started "+Math.max(0,Math.round((Date.now()-run.startedAt)/1000))+" s ago.", last:null };
+  const l=v.last&&v.last[repo]; if(!l) return null;
+  if(l.step==="propose") return l.ok?{ state:"proposed", text:"A profile was proposed"+(l.usd!=null?" (cost about $"+l.usd.toFixed(4)+")":"")+" and not yet verified. Open Set up this app to verify and save it.", last:l }:{ state:"failed", text:"The proposal failed: "+(l.error||"no reason given")+".", last:l };
+  const passed=l.checks.filter(c=>c.ok).length;
+  if(l.ok&&l.saved) return { state:"saved", text:"Verified and saved: "+passed+" of "+l.checks.length+" checks passed.", last:l };
+  return { state:"failed", text:"Verification failed: "+passed+" of "+l.checks.length+" checks passed, nothing saved."+(l.error?" "+l.error:""), last:l };
+}
+async function loadSetupState(){
+  let v; try{ v=await fetch("/api/ui/onboard/state").then(r=>{ if(!r.ok) throw new Error("HTTP "+r.status); return r.json(); }); }catch(e){ return; }
+  const was=SETUP_STATE.view&&SETUP_STATE.view.running, wasRepo=was?was.repo:null;
+  SETUP_STATE.view=v;
+  if(v.running&&!SETUP_STATE.poll) SETUP_STATE.poll=setInterval(loadSetupState,2000);
+  if(!v.running&&SETUP_STATE.poll){ clearInterval(SETUP_STATE.poll); SETUP_STATE.poll=null; }
+  renderApps();
+  const sel=appById(APPS_UI.selected); if(sel&&!sel.runnable) renderRepoPanel(sel);
+  if(was&&!v.running&&wasRepo){ const s=setupSummary(wasRepo); if(s) showToast(s.text, s.state==="saved"?"green":"red"); if(s&&s.state==="saved"){ RUN.apps=[]; loadApps(false); } }
+}
 function renderApps(){
   const list=$("appsList"); list.textContent="";
   const q=APPS_UI.query.trim().toLowerCase();
@@ -1369,7 +1400,10 @@ function renderApps(){
     b.setAttribute("aria-current", a.id===APPS_UI.selected ? "true" : "false"); b.title=a.statusText||"";
     const n=document.createElement("span"); n.className="n"; n.textContent=a.label;
     const sub=document.createElement("span"); sub.className="s"; sub.textContent=a.subtitle||"";
-    const c=document.createElement("span"); c.className="c "+(a.runnable?"ready":"setup"); c.textContent=a.runnable?"ready":"needs setup";
+    const s=a.runnable?null:setupSummary(folderOf(a));
+    const c=document.createElement("span"); c.className="c "+(a.runnable?"ready":s&&s.state==="running"?"busy":s&&s.state==="failed"?"failed":"setup");
+    c.textContent=a.runnable?"ready":s&&s.state==="running"?"setting up":s&&s.state==="failed"?"set-up failed":s&&s.state==="proposed"?"proposed":"needs setup";
+    if(s) b.title=s.text;
     b.append(n,sub,c); b.addEventListener("click",()=>selectApp(a.id)); return b;
   };
   builtin.forEach(a=>list.appendChild(row(a)));
@@ -1396,15 +1430,24 @@ function renderRepoPanel(a){
   [a.private?"private":"public", a.language, a.fork?"fork":null, a.archived?"archived":null, a.defaultBranch?"default branch "+a.defaultBranch:null, ageText(a.pushedAt)].filter(Boolean).forEach(t=>chips.appendChild(mk("span","rp-chip",t)));
   p.appendChild(chips);
   p.appendChild(mk("p","rp-desc",a.description||"No description on GitHub."));
+  const su=setupSummary(folderOf(a));
   const box=mk("div","rp-status");
-  box.appendChild(mk("div","rp-badge",a.cloned?"CLONED, NEEDS SETUP":"NEEDS SETUP"));
+  box.appendChild(mk("div","rp-badge",su&&su.state==="running"?"SETTING UP":su&&su.state==="failed"?"CLONED, SET-UP FAILED":su&&su.state==="proposed"?"CLONED, PROPOSED":a.cloned?"CLONED, NEEDS SETUP":"NEEDS SETUP"));
   box.appendChild(mk("p",null,"Behique cannot run a check on this repo yet. To compare two versions of an app it has to know:"));
   const ul=mk("ul"); ["how to install it","how to start it, and on which port","seed data, so every run starts from the same state","the clicks to replay","which versions to compare (tags, branches or commits)"].forEach(t=>ul.appendChild(mk("li",null,t)));
   box.appendChild(ul);
   if(a.cloned) box.appendChild(mk("p","rp-note","Cloned to "+a.cloned+". Nothing from it has been run. Set up this app: Behique inspects the clone and a model proposes how to install, start and check it; you see the exact text before it is sent and approve each command."));
   else box.appendChild(mk("p","rp-note","Nothing has been cloned or run. Behique has only read this repo's name and details from GitHub. To set it up, clone it first (Behique shows the exact command and asks before it runs), then set it up from this card."));
   p.appendChild(box);
+  if(su){ // what set-up did, visible on every page, like a run
+    const sb=mk("div","rp-setup"); sb.appendChild(mk("h3",null,su.state==="running"?"Set-up in progress":"Last set-up step"));
+    sb.appendChild(mk("p",su.state==="running"?"rp-note busy":"rp-note",su.text));
+    if(su.last){ const when=new Date(su.last.finishedAt); sb.appendChild(mk("p","rp-note",(su.last.step==="verify"?"Verification":"Proposal")+" for app "+su.last.name+(su.last.good?", "+su.last.good+" against "+su.last.cand:"")+", finished "+when.toLocaleString()+"."));
+      (su.last.checks||[]).forEach(c=>sb.appendChild(mk("div",c.ok?"chk-ok":"chk-bad",(c.ok?"ok  ":"FAILED  ")+c.name+": "+c.detail))); }
+    p.appendChild(sb);
+  }
   const act=mk("div","rp-clone"); p.appendChild(act);
+  if(su&&su.state==="running") return; // nothing to press while a step runs
   if(a.cloned){
     const folder=String(a.cloned).split("/").pop(), slug=String(a.label||folder).toLowerCase().replace(/[^a-z0-9-]+/g,"-").replace(/^-+|-+$/g,"").slice(0,40);
     const b=mk("button","mini-btn","Set up this app"); b.type="button"; b.title="Opens Set up an app with this repository chosen. Nothing is sent or run until you approve it."; b.addEventListener("click",()=>openSetup({ repo:folder, name:slug })); act.appendChild(b);
@@ -1434,6 +1477,7 @@ async function loadApps(refresh){
     APPS_UI.apps=d.apps; APPS_UI.github=d.github;
   }catch(e){ APPS_UI.github={ connected:false, login:null, count:0, error:"could not ask the server ("+e.message+")" }; }
   if(!appById(APPS_UI.selected)) selectApp("freshrss",{remember:false}); else renderApps();
+  loadSetupState();
 }
 function selectApp(id,opts){
   const a=appById(id)||appById("freshrss"); APPS_UI.selected=a.id;
