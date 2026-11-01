@@ -588,7 +588,7 @@ img,svg{max-width:100%}
 <div class="err" id="setupErr" role="alert"></div>
 <div class="btns"><button class="mini-btn" id="setupClose" type="button">Close</button></div>
 </div></div>
-<div id="modalOverlay"><div id="modal" role="dialog" aria-modal="true" aria-label="Confirm ship"><h3>A reproduced failure exists. Ship anyway?</h3><p id="modalHint">A reproduced failure is on record. Add a reason of at least 10 characters to override.</p><div class="mrow"><button class="mini-btn" id="modalCancel" type="button">Cancel</button><button class="mini-btn" id="modalShip" type="button">Ship anyway</button></div></div></div>
+<div id="modalOverlay"><div id="modal" role="dialog" aria-modal="true" aria-label="Confirm ship"><h3>A reproduced failure exists. Ship anyway?</h3><p id="modalHint">A reproduced failure is on record. Shipping records your reason as a decision against the HOLD.</p><div class="mrow"><button class="mini-btn" id="modalCancel" type="button">Cancel</button><button class="mini-btn" id="modalShip" type="button">Ship anyway</button></div></div></div>
 <div id="demoTab" tabindex="0" role="button" aria-expanded="false">Demo controls</div>
 <div id="demoDrawer" aria-label="Demo controls">
 <div class="label">Demo controls</div>
@@ -880,6 +880,8 @@ function openReasonRow(choice){
   $("reasonConfirm").textContent = choice==="SHIP" ? "Confirm SHIP" : "Confirm HOLD";
   $("reasonInput").focus();
 }
+/* the override dialog opens only after a reason of 10 or more characters was typed, so it shows that reason instead of asking for one */
+function overrideHint(reason){ return "A reproduced failure is on record. Shipping records your reason “"+reason+"” as a decision against the HOLD, permanently, in the evidence chain."+($("reasonWho").value.trim() ? " Signed "+$("reasonWho").value.trim()+"." : ""); }
 function closeReasonRow(){ const w=$("reasonWrap"); w.classList.remove("open"); clearTimeout(w._h); w._h=setTimeout(()=>{ if(!w.classList.contains("open")) w.hidden=true; },260); pendingChoice=null; }
 async function confirmDecision(){
   if(!pendingChoice || LIVE.saving) return;
@@ -887,7 +889,7 @@ async function confirmDecision(){
   const against=pendingChoice==="SHIP" && state.verdict==="hold";   // shipping against a proven change is an override
   const need=against?10:3;                                           // mirrored here for a quick answer; the server enforces them
   if(reason.length<need){ showToast("Reason needs at least "+need+" characters","red"); return; }
-  if(against && !$("modalOverlay").classList.contains("open")){ $("modalHint").textContent="A reproduced failure is on record. Add a reason of at least 10 characters to override."; $("modalOverlay").classList.add("open"); return; }
+  if(against && !$("modalOverlay").classList.contains("open")){ $("modalHint").textContent=overrideHint(reason); $("modalOverlay").classList.add("open"); return; }
   LIVE.saving=true;
   try{
     const who=$("reasonWho").value.trim();
