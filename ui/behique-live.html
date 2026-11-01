@@ -947,7 +947,9 @@ function renderAsk(){
   $("askCount").textContent = m.guesses + " of " + m.limit + " guesses used" + (m.calls ? " . spent " + usd(m.costUsd) : "");
   const reason = vm.verdict === "running" ? "Available once the run has finished."
     : m.guesses >= m.limit ? "Limit reached: " + m.guesses + " of " + m.limit + " guesses. Nothing more can be asked of this report."
-    : !(vm.bisect && vm.bisect.commit) ? "Nothing to explain: this report has no first bad change on record, so there is no code change to show a model."
+    : vm.verdict === "pass" ? "Nothing to explain: nothing changed between these versions."
+    : !vm.bisect ? "Nothing to explain yet: no search was run for this check, so there is no code change to show a model. Start a new run with the search box ticked."
+    : !vm.bisect.commit ? "Nothing to explain: the search did not settle on one first bad change, so there is no code change to show a model."
     : null;
   if(reason){ note.textContent = reason; open.hidden = true; if(vm.verdict === "running") hideAskReview(); return; }
   open.hidden = !!ASK.preview || ASK.busy;
