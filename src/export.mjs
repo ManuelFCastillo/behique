@@ -68,7 +68,15 @@ function assertionCode(spec, ctx = null) {
     case 'count': return [`const count = await page.locator(${q(spec.selector)}).count()`, cmp('count', spec.op ?? 'eq', spec.value)]
     case 'style': return [el, attached, `const style = await el.evaluate((e, p) => getComputedStyle(e)[p], ${q(String(spec.property))})`, cmp('style', spec.op, spec.value, ctx)]
     case 'class_list': return [el, attached, "const classes = await el.evaluate(e => [...new Set((e.getAttribute('class') ?? '').split(/\\s+/).filter(Boolean))].sort().join(' '))", cmp('classes', spec.op, spec.value, ctx)] // the recorded fact is the sorted class list
-    case 'scrolls': return [el, attached, "const scrolls = await el.evaluate(e => e.clientHeight > 0 && e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))", 'expect(scrolls).toBe(true)'] // the area could scroll on the old version
+    case 'scrolls': return [el, attached, // the area could scroll on the old version: the test turns the wheel over it (so a recording shows the attempt) and also asks the element
+      '// Try to scroll the area with the mouse wheel, as a person would; then ask the element whether it can scroll at all.',
+      'await el.scrollIntoViewIfNeeded().catch(() => {})',
+      'const box = await el.boundingBox()',
+      'const topBefore = await el.evaluate(e => e.scrollTop)',
+      'if (box) { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 240); await page.waitForTimeout(400) }',
+      'const moved = (await el.evaluate(e => e.scrollTop)) > topBefore',
+      "const scrolls = await el.evaluate(e => e.clientHeight > 0 && e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))",
+      'expect(scrolls || moved).toBe(true)']
     case 'attr': return spec.op === 'absent'
       ? [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).toBeNull()'] // absent: the old version had no such attribute
       : [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).not.toBeNull()', cmp('attr', spec.op, spec.value, ctx)]
@@ -133,20 +141,32 @@ ${indent([
 export function writeExport(dir, findings) {
   mkdirSync(dir, { recursive: true })
   writeFileSync(join(dir, 'playwright.config.js'),
-    `import { defineConfig } from '@playwright/test'\nexport default defineConfig({ testDir: '.', workers: 1, timeout: 60000, expect: { timeout: 5000 }, reporter: [['json']], use: { baseURL: process.env.BASE_URL, viewport: { width: 1280, height: 900 } } })\n`)
+    `import { defineConfig } from '@playwright/test'\n// BEHIQUE_VIDEO=1 records every run (Behique keeps one passing and one failing recording per reproduced failure as evidence).\nexport default defineConfig({ testDir: '.', workers: 1, timeout: 60000, expect: { timeout: 5000 }, reporter: [['json']], use: { baseURL: process.env.BASE_URL, viewport: { width: 1280, height: 900 }, video: process.env.BEHIQUE_VIDEO === '1' ? 'on' : 'off' } })\n`)
   for (const f of findings) writeFileSync(join(dir, `${f.id}.spec.js`), specSource(f))
 }
 
+/** The runner's arguments and environment. `video`: record each run; its files land in `output`, a folder of its own per run, so runs in flight at once never share one. */
+export function runnerArgs(dir, baseUrl, { only = null, video = false } = {}) {
+  const output = video ? join(dir, 'test-results', `${only ?? 'all'}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`) : null
+  return {
+    args: ['test', ...(only ? [`${only}.spec.js`] : []), ...(output ? ['--output', output] : [])],
+    env: { ...process.env, BASE_URL: baseUrl, CI: '1', ...(video ? { BEHIQUE_VIDEO: '1' } : {}) },
+    output,
+  }
+}
+
 /** Run an exported folder with Playwright's own runner against a running app. Returns { results: { F1: true, ... } } (true = test passed). */
-export function runExported(dir, baseUrl, { only = null } = {}) { // only: run just <only>.spec.js, so each finding can get its own fresh build
-  const r = spawnSync(join(ROOT, 'node_modules/.bin/playwright'), ['test', ...(only ? [`${only}.spec.js`] : [])], { cwd: dir, env: { ...process.env, BASE_URL: baseUrl, CI: '1' }, encoding: 'utf8', timeout: 300_000 })
+export function runExported(dir, baseUrl, opts = {}) { // only: run just <only>.spec.js, so each finding can get its own fresh build
+  const { args, env } = runnerArgs(dir, baseUrl, opts)
+  const r = spawnSync(join(ROOT, 'node_modules/.bin/playwright'), args, { cwd: dir, env, encoding: 'utf8', timeout: 300_000 })
   return parseRun(r)
 }
 
 /** The same as runExported, without blocking: several runs (each against its own build) can be in flight at once. */
-export function runExportedAsync(dir, baseUrl, { only = null } = {}) {
+export function runExportedAsync(dir, baseUrl, opts = {}) {
+  const { args, env } = runnerArgs(dir, baseUrl, opts)
   return new Promise(resolve => {
-    const child = spawn(join(ROOT, 'node_modules/.bin/playwright'), ['test', ...(only ? [`${only}.spec.js`] : [])], { cwd: dir, env: { ...process.env, BASE_URL: baseUrl, CI: '1' } })
+    const child = spawn(join(ROOT, 'node_modules/.bin/playwright'), args, { cwd: dir, env })
     let stdout = '', stderr = ''
     child.stdout.on('data', d => { stdout += d })
     child.stderr.on('data', d => { stderr += d })
@@ -156,19 +176,22 @@ export function runExportedAsync(dir, baseUrl, { only = null } = {}) {
   })
 }
 
-function parseRun(r) {
+export function parseRun(r) {
   let j
   try { j = JSON.parse(r.stdout) } catch { return { error: (r.stderr || r.stdout || 'no output').slice(0, 300), results: {} } }
-  const results = {}, errors = {} // errors: first failure message per test (ANSI colours removed)
+  const results = {}, errors = {}, videos = {} // errors: first failure message per test (ANSI colours removed); videos: the recording's path, when one was made
   const walk = s => {
     (s.specs ?? []).forEach(sp => {
       const id = String(sp.file).replace(/\.spec\.js$/, '')
       results[id] = sp.ok
-      const msg = (sp.tests ?? []).flatMap(t => t.results ?? []).map(x => x.error?.message ?? x.errors?.[0]?.message).find(Boolean)
+      const runs = (sp.tests ?? []).flatMap(t => t.results ?? [])
+      const msg = runs.map(x => x.error?.message ?? x.errors?.[0]?.message).find(Boolean)
       if (msg) errors[id] = msg.replace(/\u001b\[[0-9;]*m/g, '')
+      const vid = runs.flatMap(x => x.attachments ?? []).find(a => a?.name === 'video' && typeof a.path === 'string' && a.path.endsWith('.webm'))
+      if (vid) videos[id] = vid.path
     })
     ;(s.suites ?? []).forEach(walk)
   }
   ;(j.suites ?? []).forEach(walk)
-  return { results, errors }
+  return { results, errors, videos }
 }

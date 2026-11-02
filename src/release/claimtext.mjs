@@ -11,7 +11,7 @@ const cut = (v, n) => { const t = JSON.stringify(v); return t.length > n ? t.sli
 export function changesText(changed, { max = 4 } = {}) {
   const groups = new Map()
   for (const d of changed) {
-    const line = d.kind === 'removed' ? `${short(d.key)} (was ${cut(d.was, 90)}) is gone`
+    const line = d.kind === 'removed' ? `${short(d.key)} (was ${cut(d.was, 90)}) is ${d.stillThere ? 'dropped' : 'gone'}`
       : d.kind === 'added' ? `${short(d.key)} is newly set to ${cut(d.now, 90)}`
         : `${short(d.key)} was ${cut(d.was, 90)}, now ${cut(d.now, 90)}`
     const same = `${d.kind}|${d.key.split('/').pop()}|${d.was}|${d.now}`
@@ -45,13 +45,15 @@ export function plainClaim(text) {
   const parts = summary.split(/, and /).map(p => p
     .replace(/^(\d+) recorded values?$/, '$1 changed')
     .replace(/^(\d+) state attributes? newly set on \S+ \(([^)]*)\)$/, '$1 newly set ($2)')
-    .replace(/^(\d+) elements? present on \S+ (?:is|are) missing \((\d+) recorded facts?\)$/, '$1 gone'))
+    .replace(/^(\d+) elements? present on \S+ (?:is|are) missing \((\d+) recorded facts?\)$/, '$1 gone')
+    .replace(/^(\d+) recorded facts? dropped from elements? still there \(([^)]*)\)$/, '$1 dropped ($2)'))
   const items = list.split(/; (?=\S)/).map(line => {
     const n = line.match(/ \((\d+) places\)$/)
     const places = n ? ` in ${n[1]} places` : ''
     const body = n ? line.slice(0, -n[0].length) : line
     let x
     if ((x = body.match(/^(\S+) \(was (.+)\) is gone$/))) { const e = element(x[1]); return e.what === 'scrolling' ? `${article(e.tag)} can no longer scroll${places}` : `${article(e.tag)} is gone (its ${e.what} was ${q(x[2])})${places}` }
+    if ((x = body.match(/^(\S+) \(was (.+)\) is dropped$/))) { const e = element(x[1]); return `${e.what} dropped from ${article(e.tag)} (was ${q(x[2])})${places}` }
     if ((x = body.match(/^(\S+) is newly set to (.+)$/))) { const e = element(x[1]); return `${e.what} newly set on ${article(e.tag)}${places}` }
     if ((x = body.match(/^(\S+) was (.+), now (.+)$/))) { const e = element(x[1]); return `${e.what} of ${article(e.tag)}: ${q(x[2])} to ${q(x[3])}${places}` }
     return body

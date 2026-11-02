@@ -80,6 +80,7 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 .chip.green{background:rgba(47,217,138,.15);color:var(--emerald);border:1px solid rgba(47,217,138,.5)}
 .claim.purple .chip.green{background:rgba(179,136,255,.15);color:var(--purple);border:1px solid rgba(179,136,255,.5)}
 .builds{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.compare-card{grid-column:1/-1}.compare-card .m-h{margin-top:12px}.compare-card .cmp{max-width:1100px}
 .build{padding:14px}
 .build-head{display:flex;align-items:center;gap:8px}
 .status{width:10px;height:10px;border-radius:50%}
@@ -413,8 +414,8 @@ img,svg{max-width:100%}
 .cmp img{display:block;width:100%;height:auto}.cmp .cmp-top{position:absolute;inset:0}.cmp .cmp-top img{width:100%}
 .cmp .cmp-line{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--amber);box-shadow:0 0 0 1px rgba(0,0,0,.5);pointer-events:none}
 .cmp .cmp-line::after{content:"\25C0 \25B6";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--amber);color:#000;font-size:9px;letter-spacing:1px;padding:3px 5px;border-radius:10px;white-space:nowrap}
-.cmp .cmp-tag{position:absolute;top:6px;font:600 10px/1 ui-monospace,monospace;letter-spacing:.06em;padding:4px 6px;border-radius:4px;background:rgba(0,0,0,.72);pointer-events:none}
-.cmp .cmp-tag.l{left:6px;color:var(--emerald)}.cmp .cmp-tag.r{right:6px;color:var(--ruby)}
+.cmp .cmp-tag{position:absolute;top:6px;padding:3px;border-radius:999px;background:rgba(0,0,0,.72);pointer-events:none;display:inline-flex}
+.cmp .cmp-tag.l{left:6px}.cmp .cmp-tag.r{right:6px}
 .cmp input[type=range]{position:absolute;inset:0;width:100%;height:100%;margin:0;opacity:0;cursor:ew-resize}
 .cmp input[type=range]:focus-visible+.cmp-line{box-shadow:0 0 0 2px var(--amber)}
 /* the one diff picture, with the named regions outlined on it */
@@ -479,6 +480,8 @@ img,svg{max-width:100%}
 .culprit-tag{position:static;transform:none;justify-self:center;max-width:100%;white-space:normal;text-align:center}
 /* a claim reads as a lead line and short items; the exact recorded sentence (what the hash covers) stays in the details */
 .claim-items{margin:6px 0 0 16px;padding:0;font-size:12.5px;color:var(--text)}
+.claim-videos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:700px){.claim-videos{grid-template-columns:1fr}}
+.vid{margin:0}.vid video{display:block;width:100%;aspect-ratio:1280/900;border:1px solid var(--line);border-radius:8px;background:#000}.vid figcaption{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .claim-items li{margin:3px 0;overflow-wrap:anywhere}
 .claim-details .rec{white-space:normal;word-break:normal;overflow-wrap:anywhere;margin-top:6px}
 /* narrow screens: a top bar (logo, views, one capsule naming the app) and then the hero; the apps list opens from the capsule */
@@ -562,6 +565,7 @@ img,svg{max-width:100%}
 <div class="measured good"><div class="m-h">Measured on the good version</div><div class="m-w">Nothing loaded yet. What the check recorded on the good version shows here: the facts that differ, what the masking hides, and screenshots at the steps where a change shows.</div></div></article>
 <article class="build card reveal" style="--d:280ms"><div class="build-head"><span class="status r"></span><h2>Candidate build</h2></div><div class="build-sub">Candidate version</div>
 <div class="measured cand"><div class="m-h">Measured on the candidate</div><div class="m-w">Nothing loaded yet. The same facts on the candidate show here, each one labelled by whether a person would notice the change.</div></div></article>
+<article class="build card reveal compare-card" id="compareCard" style="--d:330ms" hidden><div class="build-head"><span class="status"></span><h2>Before and after</h2></div><div class="m-w" id="compareHint"></div><div id="compareBody"></div></article>
 </div>
 </div>
 <div class="rightcol">
@@ -757,6 +761,17 @@ function renderHero(){
   gem.dataset.v=state.verdict;
 }
 // A version as a capsule: the ref in mono, its role (good, candidate) in small caps. The candidate turns red only when the check went against it.
+/* a sentence that names the two versions, with each name as a capsule; a "(good)" or "(candidate)" right after a name is folded into the capsule */
+function withChips(text, vm){
+  const frag=document.createDocumentFragment(), t=String(text??"");
+  const refs=[vm&&vm.goodRef, vm&&vm.candRef].filter(Boolean);
+  if(!refs.length){ frag.append(t); return frag; }
+  const esc=x=>x.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+  const re=new RegExp("("+refs.map(esc).join("|")+")(?: \\((?:good|candidate)\\))?","g");
+  let last=0, m;
+  while((m=re.exec(t))){ frag.append(t.slice(last,m.index)); const good=m[1]===vm.goodRef; frag.appendChild(verChip(m[1], good?"good":"candidate", !good && vm.verdict!=="ship")); last=m.index+m[0].length; }
+  frag.append(t.slice(last)); return frag;
+}
 function verChip(ref, role, bad){
   const s=document.createElement("span"); s.className="ver "+(role==="good"?"good":"cand"+(bad?" bad":"")); s.textContent=String(ref)+" ";
   const sm=document.createElement("small"); sm.textContent=role; s.appendChild(sm); return s;
@@ -864,7 +879,13 @@ function renderClaims(){
     c.chips.forEach(ch=>{
       const s=document.createElement("span"); s.className="chip "+(c.cls==="gold"?"gold":"green"); s.textContent=ch; foot.appendChild(s); foot.appendChild(document.createTextNode(" "));
     });
-    card.appendChild(top); card.appendChild(p); if(items) card.appendChild(items); card.appendChild(foot);
+    card.appendChild(top); card.appendChild(p); if(items) card.appendChild(items);
+    if(c.videos&&c.videos.length){ // one recorded run each way: the test passing on the good version, failing on the candidate
+      const vw=document.createElement("div"); vw.className="claim-videos"; vw.addEventListener("click",ev=>ev.stopPropagation()); vw.addEventListener("keydown",ev=>ev.stopPropagation());
+      c.videos.forEach(v=>{ const fg=document.createElement("figure"); fg.className="vid"; const vd=document.createElement("video"); vd.controls=true; vd.muted=true; vd.playsInline=true; vd.preload="metadata"; vd.src=v.url; fg.appendChild(vd);
+        const fc=document.createElement("figcaption"); const good=v.which==="good"; const ref=LIVE.vm ? (good?LIVE.vm.goodRef:LIVE.vm.candRef) : null; if(ref) fc.appendChild(verChip(ref, good?"good":"candidate", !good&&candIsBad())); fc.append(good?"the test passes":"the test fails"); fg.appendChild(fc); vw.appendChild(fg); });
+      card.appendChild(vw); }
+    card.appendChild(foot);
     if(c.kind==="ai_hypothesis" && !LIVE.vm){
       const btn=document.createElement("button"); btn.className="mini-btn"; btn.type="button"; btn.id="askBtn-"+c.id;
       const isClean = c.text==="Nothing to explain";
@@ -1206,11 +1227,27 @@ function renderBuilds(){
       const img=document.createElement("img"); img.src=url; img.alt="Screenshot of "+sides[i].ref+" after step "+pic.step;
       const cap=document.createElement("figcaption"); cap.textContent="Screenshot after step "+pic.step+(pic.label?" ("+String(pic.label).replace(/^\d+:/,"")+")":"");
       fig.appendChild(img); fig.appendChild(cap); box.appendChild(fig);
-      if(i===1){ const t=document.createElement("div"); t.className="m-w"; t.textContent=pic.text; box.appendChild(t);
+      if(i===1){ const t=document.createElement("div"); t.className="m-w"; t.appendChild(withChips(pic.text,vm)); box.appendChild(t);
         if(pic.differs&&pic.diff){ const d=document.createElement("figure"); d.className="shot"; const di=document.createElement("img"); di.src=pic.diff; di.alt="Where the two screenshots differ"; const dc=document.createElement("figcaption"); dc.textContent="Difference (changed pixels in red)"; d.appendChild(di); d.appendChild(dc); box.appendChild(d); } }
     });
     m.replaceWith(box);
   });
+  // the screenshots of good and candidate at the same step, one on top of the other with a handle: the comparison a person makes by eye
+  const cc=$("compareCard"), body=$("compareBody"); body.textContent="";
+  const pics=(vm.pictures||[]).filter(p=>p.good&&p.candidate).slice(0,3);
+  cc.hidden=!pics.length;
+  if(pics.length){
+    // a slider only where the pictures differ; where they are the same, say so in a line instead of showing two identical screenshots
+    const differing=pics.filter(p=>p.differs), stepsOf=list=>(list.length>1?"steps ":"step ")+list.map(p=>p.step).join(", ");
+    const hint=$("compareHint"); hint.textContent="";
+    if(differing.length) hint.appendChild(withChips("Drag the handle: "+vm.goodRef+" (good) is on the left of it, "+vm.candRef+" (candidate) on the right. Screenshots at the steps where a change shows, at the same size.", vm));
+    else hint.appendChild(withChips("No visible difference: after "+stepsOf(pics)+" the pages of "+vm.goodRef+" (good) and "+vm.candRef+" (candidate) look the same, pixel for pixel. What changed is behaviour a still picture does not show; each reproduced failure below says what"+((vm.claims||[]).some(c=>c.videos&&c.videos.length)?", and carries a recording of its test on both versions.":"."), vm));
+    pics.forEach(pic=>{
+      if(!pic.differs){ if(differing.length&&pic.text){ const t=document.createElement("div"); t.className="m-w"; t.appendChild(withChips(pic.text,vm)); body.appendChild(t); } return; }
+      const h=document.createElement("div"); h.className="m-h"; h.textContent="After step "+pic.step+(pic.label?" ("+String(pic.label).replace(/^\d+:/,"")+")":""); body.appendChild(h);
+      body.appendChild(compareSlider(pic.good,pic.candidate,vm.goodRef,vm.candRef,vm.verdict!=="ship"));
+      if(pic.text){ const t=document.createElement("div"); t.className="m-w"; t.appendChild(withChips(pic.text,vm)); body.appendChild(t); } });
+  }
 }
 function renderBisectChrome(){
   const vm=LIVE.vm, b=vm.bisect, tag=$("culpritTag");
@@ -1379,6 +1416,7 @@ function heroRunning(cur,text,el){   // a visual or crawl run has no report yet:
   $("verdictSub").textContent=text+(el?" . "+el:"")+(cur.kind==="crawl"?" . The report appears here once the comparison starts.":" . The report appears here when the run finishes.");
 }
 function renderVisualBuilds(){
+  $("compareCard").hidden=true; // the visual run's slider sits in its good card
   const vm=LIVE.vm, V=vm.visual, panes=document.querySelectorAll(".build .measured"), subs=document.querySelectorAll(".build .build-sub"), dots=document.querySelectorAll(".build .status");
   const sides=[{ref:vm.goodRef,tag:"good",cls:"good"},{ref:vm.candRef,tag:"candidate",cls:"cand"}];
   subs.forEach((el,i)=>{ el.textContent=""; el.appendChild(verChip(sides[i].ref, sides[i].tag, i===1 && vm.verdict!=="ship")); });
@@ -1391,7 +1429,7 @@ function renderVisualBuilds(){
     const main=fig(i===0?V.pictures.good:V.pictures.candidate,"Settled picture of "+sides[i].ref); if(main) box.appendChild(main); else box.appendChild(mk("div","m-w","No picture was recorded."));
     const s=V.search;
     if(s&&s.found&&i===0){ const f=fig(V.pictures.parent,"The change just before the first difference"); if(f) box.appendChild(f); }
-    if(i===0&&V.pictures.good&&V.pictures.candidate){ box.appendChild(mk("div","m-h","Before and after")); box.appendChild(compareSlider(V.pictures.good,V.pictures.candidate,vm.goodRef,vm.candRef)); box.appendChild(mk("div","m-w","Drag the handle: "+vm.goodRef+" (good) is on the left of it, "+vm.candRef+" (candidate) on the right. Both are the settled pictures above, at the same size.")); }
+    if(i===0&&V.pictures.good&&V.pictures.candidate){ box.appendChild(mk("div","m-h","Before and after")); box.appendChild(compareSlider(V.pictures.good,V.pictures.candidate,vm.goodRef,vm.candRef,vm.verdict!=="ship")); const hint=mk("div","m-w"); hint.appendChild(withChips("Drag the handle: "+vm.goodRef+" (good) is on the left of it, "+vm.candRef+" (candidate) on the right. Both are the settled pictures above, at the same size.",vm)); box.appendChild(hint); }
     if(i===1){
       box.appendChild(mk("div","m-w",V.summary));
       if(V.floor) box.appendChild(mk("div","m-w","The old version differs from itself by up to "+V.floor.changed.toLocaleString()+" pixels over "+V.floor.loads+" loads: that is the noise."));
@@ -1409,14 +1447,15 @@ function renderVisualBuilds(){
   });
 }
 /* a before/after slider: the candidate picture underneath, the good one on top, clipped to the left of the handle (a range input, so the keyboard works too) */
-function compareSlider(goodUrl,candUrl,goodRef,candRef){
+function compareSlider(goodUrl,candUrl,goodRef,candRef,candBad){
   const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
+  const tag=(cls,chip)=>{ const t=mk("span","cmp-tag "+cls); t.appendChild(chip); return t; };
   const c=mk("div","cmp"), under=document.createElement("img"), top=mk("div","cmp-top"), over=document.createElement("img"), line=mk("div","cmp-line"), range=document.createElement("input");
   under.src=candUrl; under.alt="Settled picture of "+candRef+" (candidate)"; over.src=goodUrl; over.alt="Settled picture of "+goodRef+" (good)"; top.appendChild(over);
   range.type="range"; range.min="0"; range.max="100"; range.value="50"; range.setAttribute("aria-label","Before and after: how much of the good picture to show, from the left");
   const set=v=>{ top.style.clipPath="inset(0 "+(100-v)+"% 0 0)"; line.style.left=v+"%"; };
   range.addEventListener("input",()=>set(+range.value)); set(50);
-  c.appendChild(under); c.appendChild(top); c.appendChild(mk("span","cmp-tag l",goodRef+" (good)")); c.appendChild(mk("span","cmp-tag r",candRef+" (candidate)")); c.appendChild(range); c.appendChild(line);
+  c.appendChild(under); c.appendChild(top); c.appendChild(tag("l",verChip(goodRef,"good",false))); c.appendChild(tag("r",verChip(candRef,"candidate",candBad===true))); c.appendChild(range); c.appendChild(line);
   return c;
 }
 async function cancelRun(){

@@ -228,6 +228,19 @@ createServer(async (req, res) => {
       res.writeHead(200, { 'Content-Type': 'image/png', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store' })
       return res.end(buf)
     }
+    if (u.pathname === '/api/artifact-video') { // a saved recording of a test run; only files recorded as video/webm whose bytes really are WebM (EBML header)
+      const c = caseOf(u.searchParams.get('id')), hash = u.searchParams.get('hash') ?? ''
+      const p = c?.artifactPath(hash)
+      const meta = p && c.read().find(e => e.type === 'artifact' && e.data.hash === hash)?.data
+      const buf = p && meta?.mediaType === 'video/webm' ? readFileSync(p) : null
+      if (!buf || buf.length < 4 || buf.readUInt32BE(0) !== 0x1a45dfa3) return send(res, 404, { error: 'no such recording' })
+      const range = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range ?? '') // the player seeks with range requests
+      const start = range?.[1] ? Math.min(Number(range[1]), buf.length - 1) : 0, end = range?.[2] ? Math.min(Number(range[2]), buf.length - 1) : buf.length - 1
+      const head = { 'Content-Type': 'video/webm', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-store', 'Accept-Ranges': 'bytes', 'Content-Length': end - start + 1 }
+      if (range) res.writeHead(206, { ...head, 'Content-Range': `bytes ${start}-${end}/${buf.length}` })
+      else res.writeHead(200, head)
+      return res.end(buf.subarray(start, end + 1))
+    }
     if (u.pathname === '/api/artifact') { // evidence files are served as plain text so they can never run as a page
       const c = caseOf(u.searchParams.get('id')), hash = u.searchParams.get('hash') ?? ''
       const p = c?.artifactPath(hash)

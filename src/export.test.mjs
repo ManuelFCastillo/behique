@@ -1,7 +1,10 @@
 // node --test src/export.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { specSource } from './export.mjs'
+import { parseRun, runnerArgs, specSource, writeExport } from './export.mjs'
+import { mkdtempSync, readFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const ORIGIN = 'http://127.0.0.1:8300'
 const finding = (value, extra = {}) => ({
@@ -46,5 +49,22 @@ test('a class list is compared sorted, and a scroll area is asked whether it can
   assert.ok(cls.includes('expect(String(classes)).toBe("!overflow-auto flex")'))
   const sc = specSource(finding('y', { assert: { kind: 'scrolls', selector: 'xpath=/html/body/main[1]' } }))
   assert.ok(sc.includes("e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)"))
-  assert.ok(sc.includes('expect(scrolls).toBe(true)'), 'a toBe failure, which the bisect reads as bad')
+  assert.ok(sc.includes('page.mouse.wheel(0, 240)'), 'the test turns the wheel over the area first, so a recording shows the attempt')
+  assert.ok(sc.includes('expect(scrolls || moved).toBe(true)'), 'a toBe failure, which the bisect reads as bad')
+})
+
+test('runs can be recorded: a folder of their own per run, the video flag for the config, and the recording path read back from the report', () => {
+  const plain = runnerArgs('/tmp/x', 'http://127.0.0.1:1', { only: 'R1' })
+  assert.deepEqual(plain.args, ['test', 'R1.spec.js']); assert.equal(plain.output, null); assert.equal(plain.env.BEHIQUE_VIDEO, undefined)
+  const rec = runnerArgs('/tmp/x', 'http://127.0.0.1:1', { only: 'R1', video: true })
+  assert.equal(rec.env.BEHIQUE_VIDEO, '1'); assert.equal(rec.env.BASE_URL, 'http://127.0.0.1:1')
+  assert.match(rec.output, /^\/tmp\/x\/test-results\/R1-[a-z0-9]+-[a-z0-9]+$/)
+  assert.deepEqual(rec.args.slice(0, 3), ['test', 'R1.spec.js', '--output']); assert.equal(rec.args[3], rec.output)
+  assert.notEqual(runnerArgs('/tmp/x', 'http://127.0.0.1:1', { only: 'R1', video: true }).output, rec.output, 'two runs in flight never share a folder')
+  const report = { suites: [{ specs: [{ file: 'R1.spec.js', ok: false, tests: [{ results: [{ error: { message: 'expect(x).toBe(true)' }, attachments: [{ name: 'video', contentType: 'video/webm', path: '/tmp/x/test-results/R1-a-b/video.webm' }] }] }] }, { file: 'R2.spec.js', ok: true, tests: [{ results: [{ attachments: [] }] }] }] }] }
+  const r = parseRun({ stdout: JSON.stringify(report), stderr: '' })
+  assert.deepEqual(r.results, { R1: false, R2: true })
+  assert.deepEqual(r.videos, { R1: '/tmp/x/test-results/R1-a-b/video.webm' })
+  const dir = mkdtempSync(join(tmpdir(), 'exp-')); writeExport(dir, [])
+  assert.ok(readFileSync(join(dir, 'playwright.config.js'), 'utf8').includes("video: process.env.BEHIQUE_VIDEO === '1' ? 'on' : 'off'"), 'recording is off unless Behique asks for it')
 })

@@ -50,3 +50,13 @@ describe('plainClaim', () => {
     assert.equal(plainClaim(''), null)
   })
 })
+
+describe('a fact dropped from an element still there', () => {
+  it('is written as dropped, not gone, and read back that way', () => {
+    const text = changesText([{ kind: 'removed', key: 'body/div[1]/div[2]@data-v-abc', was: '', now: null, stillThere: true }, { kind: 'removed', key: 'body/aside[1]#text', was: 'Menu', now: null }])
+    assert.equal(text, 'div[1]/div[2]@data-v-abc (was "") is dropped; body/aside[1]#text (was "Menu") is gone')
+    const p = plainClaim(`2.0 differs from 1.0 in 1 element present on 1.0 is missing (2 recorded facts), and 1 recorded fact dropped from elements still there (data-v-abc): ${text}.`)
+    assert.equal(p.lead, '2.0 against 1.0: 1 gone, 1 dropped (data-v-abc)')
+    assert.deepEqual(p.items, ['data-v-abc dropped from a block (was empty)', 'a sidebar is gone (its text was "Menu")'])
+  })
+})

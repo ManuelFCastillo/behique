@@ -183,6 +183,19 @@ test('screenshots recorded for a case come out as picture links, and only real h
   assert.deepEqual(growing().vm().pictures, [], 'a report with no screenshots has none')
 })
 
+test('a reproduced failure carries its recordings as playable links, one each way, and other evidence stays text', () => {
+  const { c, vm } = growing()
+  const spec = c.artifact('R1.spec.js', '// test', 'text/javascript')
+  const good = c.artifact('R1.good.webm', Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3, 4]), 'video/webm')
+  const bad = c.artifact('R1.candidate.webm', Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 4, 3, 2, 1]), 'video/webm')
+  c.claim('reproduced_failure', 'The test R1 passed 3 of 3 runs on 1.0 and failed 3 of 3 runs on 2.0.', { evidence: [spec, good, bad] })
+  const rec = vm().claims.find(x => x.kind === 'reproduced_failure')
+  assert.deepEqual(rec.videos.map(v => [v.name, v.which]), [['R1.good.webm', 'good'], ['R1.candidate.webm', 'candidate']])
+  assert.match(rec.videos[0].url, /^\/api\/artifact-video\?id=.+&hash=[0-9a-f]{64}$/)
+  assert.equal(rec.links.length, 3, 'the recordings are evidence files like any other')
+  assert.deepEqual(vm().claims.filter(x => x.kind !== 'reproduced_failure').map(x => x.videos ?? []).flat(), [], 'no other record has a recording')
+})
+
 test('while a search is running only the commits actually tested are drawn, with no culprit yet', () => {
   const { c, vm } = growing()
   c.event('builds.compared', { good: { ref: '1.0', sha: 'a'.repeat(40) }, candidate: { ref: '2.0', sha: 'b'.repeat(40) } })

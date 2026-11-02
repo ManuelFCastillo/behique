@@ -4,7 +4,7 @@
 // every run on the good build and FAIL every run on the candidate; every run of every test starts from its own freshly seeded build, so tests
 // cannot change each other's state. Anything else (flaky, or passes on both) is not a confirmed regression. --bisect searches for the
 // first bad change of the first confirmed test only.
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runExportedAsync, writeExport } from '../export.mjs'
 import { appearedStates, firstConfirmed, judgeFindings, selectFindings, summarize, vanishedRoots } from './findings.mjs'
@@ -131,7 +131,7 @@ if (canvasSteps.length) {
 }
 // An element that is on the good version and gone from the candidate is a difference like any other: each vanished element (the
 // root of what disappeared, not every attribute under it) becomes a test that expects the old value, so it fails on the candidate.
-const vanished = vanishedRoots(cand)
+const vanished = vanishedRoots(cand, baseline) // with the baseline, a fact dropped from an element the candidate still has is its own entry, not a vanished element
 // A state attribute newly set on an element both versions have (inert, disabled, hidden) is a change a person feels at once, and it
 // becomes a test that expects the attribute absent, as on the good version.
 const appeared = appearedStates(cand, baseline)
@@ -149,15 +149,18 @@ const valueChanges = cand.filter(d => d.kind === 'changed')
 const changed = [...valueChanges, ...appeared, ...vanished] // ranked: value changes first, then states newly set, then vanished elements
 const short = k => k.split('/').slice(-2).join('/')
 const attrName = k => (k.match(/@([^/@]+)$/) ?? [])[1] ?? k
-const nGone = vanished.reduce((a, d) => a + (d.vanished ?? 1), 0)
+const gone = vanished.filter(d => !d.stillThere), dropped = vanished.filter(d => d.stillThere) // gone: elements (and scroll areas) missing; dropped: facts lost from elements still there
+const nGone = gone.reduce((a, d) => a + (d.vanished ?? 1), 0)
 const parts = [
   valueChanges.length ? `${valueChanges.length} recorded value${valueChanges.length === 1 ? '' : 's'}` : null,
   appeared.length ? `${appeared.length} state attribute${appeared.length === 1 ? '' : 's'} newly set on ${candRef} (${[...new Set(appeared.map(d => attrName(d.key)))].slice(0, 4).join(', ')})` : null,
-  vanished.length ? `${vanished.length} element${vanished.length === 1 ? '' : 's'} present on ${goodRef} ${vanished.length === 1 ? 'is' : 'are'} missing (${nGone} recorded fact${nGone === 1 ? '' : 's'})` : null,
+  gone.length ? `${gone.length} element${gone.length === 1 ? '' : 's'} present on ${goodRef} ${gone.length === 1 ? 'is' : 'are'} missing (${nGone} recorded fact${nGone === 1 ? '' : 's'})` : null,
+  dropped.length ? `${dropped.length} recorded fact${dropped.length === 1 ? '' : 's'} dropped from element${dropped.length === 1 ? '' : 's'} still there (${[...new Set(dropped.map(d => attrName(d.key)))].slice(0, 4).join(', ')})` : null,
 ].filter(Boolean)
 ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${parts.join(', and ')}: ${changesText(changed)}.`, { evidence: [diffH] }) // identical changes are counted once, so four copies of a version label do not hide the one state attribute
 if (appeared.length) console.log(`${appeared.length} state attribute${appeared.length === 1 ? '' : 's'} newly set on ${candRef}: ${appeared.slice(0, 3).map(d => short(d.key)).join(', ')}`)
-if (vanished.length) console.log(`${vanished.length} element${vanished.length === 1 ? '' : 's'} vanished on ${candRef} (${nGone} facts): ${vanished.slice(0, 3).map(d => short(d.key)).join(', ')}`)
+if (gone.length) console.log(`${gone.length} element${gone.length === 1 ? '' : 's'} vanished on ${candRef} (${nGone} facts): ${gone.slice(0, 3).map(d => short(d.key)).join(', ')}`)
+if (dropped.length) console.log(`${dropped.length} fact${dropped.length === 1 ? '' : 's'} dropped from elements still there on ${candRef}: ${dropped.slice(0, 3).map(d => short(d.key)).join(', ')}`)
 
 const probe = await startBuild({ adapter, ref: goodRef, port })
 const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pathname
@@ -179,8 +182,8 @@ writeExport(dir, findings)
 const specH = {}
 for (const f of findings) {
   specH[f.id] = ev.artifact(`${f.id}.spec.js`, readFileSync(join(dir, f.id + '.spec.js'), 'utf8'), 'text/javascript')
-  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice, ...(f.fact.removed ? { removed: true, vanished: f.fact.vanished } : {}), ...(f.fact.appeared ? { appeared: true } : {}) })
-  console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}\n  class: ${LABEL[f.notice?.cls] ?? 'unknown'} (${f.notice?.why ?? ''})`)
+  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice, ...(f.alike?.length ? { alike: f.alike } : {}), ...(f.fact.removed ? { removed: true, vanished: f.fact.vanished } : {}), ...(f.fact.appeared ? { appeared: true } : {}) })
+  console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}\n  class: ${LABEL[f.notice?.cls] ?? 'unknown'} (${f.notice?.why ?? ''})${f.alike?.length ? `\n  the same change on ${f.alike.length} other element${f.alike.length === 1 ? '' : 's'}: ${f.alike.map(k => k.split('/').slice(-2).join('/').replace(/@class$/, '')).join(', ')}` : ''}`)
 }
 if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.length === 1 ? '' : 's'} not tested separately (${[...new Set(skipped.map(k => k.why.replace(/ \d+/, ' N')))].join('; ')})`)
 
@@ -191,7 +194,7 @@ const originFor = b => new URL(b.base).origin
 const runsOf = { [goodRef]: {}, [candRef]: {} }, runLog = []
 const jobs = []
 for (const ref of [goodRef, candRef]) for (const f of findings) { runsOf[ref][f.id] = []; for (let n = 0; n < runs; n++) jobs.push({ ref, f, n }) }
-const ran = await runPool(jobs, ({ ref, f }, slot) => onBuild(ref, slot, b => runExportedAsync(dir, originFor(b), { only: f.id })), { size: pool })
+const ran = await runPool(jobs, ({ ref, f }, slot) => onBuild(ref, slot, b => runExportedAsync(dir, originFor(b), { only: f.id, video: true })), { size: pool }) // video: every run is recorded; one passing and one failing recording per reproduced failure are kept
 for (let i = 0; i < jobs.length; i++) { // recorded in job order, so the log reads the same whatever ran first
   const { ref, f, n } = jobs[i], got = ran[i]
   const r = got.ok ? got.value.value : { error: got.error, results: {} }
@@ -202,14 +205,28 @@ for (let i = 0; i < jobs.length; i++) { // recorded in job order, so the log rea
   ev.event('test.run', { id: f.id, ref, sha, n: n + 1, outcome })
   console.log(`  run ${f.id} ${ref} ${n + 1}/${runs}: ${outcome}`)
 }
-const judged = findings.map(f => ({ ...judgeFindings([f], runsOf[goodRef][f.id], runsOf[candRef][f.id])[0], notice: f.notice }))
+const judged = findings.map(f => ({ ...judgeFindings([f], runsOf[goodRef][f.id], runsOf[candRef][f.id])[0], notice: f.notice, alike: f.alike ?? [] }))
 const runsH = ev.artifact('test-runs.json', runLog, 'application/json')
+// A recording of one passing run on the good version and one failing run on the candidate, saved with the reproduced failure so a
+// person can watch the test do what it does. The other recordings are deleted with the run folder below.
+const recordingOf = (ref, id, passed) => {
+  const r = runsOf[ref][id].find(x => x.results?.[id] === passed && x.videos?.[id] && existsSync(x.videos[id]))
+  if (!r) return null
+  const buf = readFileSync(r.videos[id])
+  return buf.length > 8 ? ev.artifact(`${id}.${ref === goodRef ? 'good' : 'candidate'}.webm`, buf, 'video/webm') : null
+}
 for (const j of judged) {
-  ev.event('test.judged', { id: j.id, verdict: j.verdict, goodPassed: j.goodPassed, candFailed: j.candFailed, runs, notice: j.notice })
+  ev.event('test.judged', { id: j.id, verdict: j.verdict, goodPassed: j.goodPassed, candFailed: j.candFailed, runs, notice: j.notice, ...(j.alike.length ? { alike: j.alike } : {}) })
   console.log(`\n${j.id}: ${goodRef} (good) passed ${j.goodPassed}/${runs}, ${candRef} (candidate) failed ${j.candFailed}/${runs}: ${j.verdict}`)
-  if (j.verdict === 'confirmed') ev.claim('reproduced_failure', `The test ${j.id} passed ${runs} of ${runs} runs on ${goodRef} and failed ${runs} of ${runs} runs on ${candRef}, each run on a freshly seeded build. ${noticePhrase(j.notice)}`.trim(), { evidence: [specH[j.id], runsH] })
+  if (j.verdict === 'confirmed') {
+    const vids = [recordingOf(goodRef, j.id, true), recordingOf(candRef, j.id, false)].filter(Boolean)
+    const alikeText = j.alike.length ? ` The same change is on ${j.alike.length} other element${j.alike.length === 1 ? '' : 's'}, not tested separately.` : ''
+    ev.claim('reproduced_failure', `The test ${j.id} passed ${runs} of ${runs} runs on ${goodRef} and failed ${runs} of ${runs} runs on ${candRef}, each run on a freshly seeded build. ${noticePhrase(j.notice)}${alikeText}`.trim(), { evidence: [specH[j.id], runsH, ...vids] })
+    if (vids.length) console.log(`  recordings saved: ${vids.length} (one run each way)`)
+  }
   else ev.claim('statistical', `The test ${j.id} passed ${j.goodPassed} of ${runs} runs on ${goodRef} and failed ${j.candFailed} of ${runs} on ${candRef}. That is not consistent enough to call a regression.`, { evidence: [runsH] })
 }
+rmSync(join(dir, 'test-results'), { recursive: true, force: true }) // the other recordings
 const ns = noticeSummary(judged)
 console.log(`\n${summarize(judged, skipped)}${ns.confirmed ? `; ${ns.visible} a person would notice, ${ns.churn} markup churn` : ''}`)
 const first = firstConfirmed(judged) // the most noticeable confirmed finding, since findings are ranked

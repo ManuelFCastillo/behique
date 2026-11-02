@@ -1,7 +1,7 @@
 // Pure logic for turning changed facts into findings and judging them.
 // Run offline: node --test src/release/findings.test.mjs
 // A person wires this into confirm.mjs afterwards.
-import { noticeOf, rankFindings } from './notice.mjs'
+import { classChange, noticeOf, rankFindings } from './notice.mjs'
 
 /**
  * A changed fact as a finding the exporter understands, or null if it cannot be turned into a test.
@@ -106,17 +106,32 @@ const suffixOf = key => (key.match(/(@[^/]+|#text|#scrolls)$/) ?? ['', ''])[1]
  * so the removed facts of one step are collapsed to the elements whose ancestors are all still there (the roots of what vanished),
  * and for each root the fact a person would miss first is kept: its text, then a link, a value, a picture.
  * Takes the ranked diff list; returns removed diffs only, in step order, each marked `vanished: n` with how many facts it stands for.
+ * With the baseline (its `stable` facts, keyed `step|key`), an element that kept any other recorded fact on the candidate is still
+ * there: a fact dropped from it (a scoped-style attribute that moved, say) is its own entry, marked `stillThere`, and never a root that
+ * swallows the facts beneath it. Without the baseline every removed fact counts as its element vanishing, as before.
  */
-export function vanishedRoots(diffs) {
+export function vanishedRoots(diffs, baseline = null) {
   const removed = (Array.isArray(diffs) ? diffs : []).filter(d => d && d.kind === 'removed' && typeof d.key === 'string' && d.key !== 'step@error' && d.key !== 'window@scrollY')
   const bySteps = new Map()
   for (const d of removed) { if (!bySteps.has(d.i)) bySteps.set(d.i, []); bySteps.get(d.i).push(d) }
+  const alive = new Set() // `step|element` of every element with a recorded fact the candidate still has
+  if (baseline?.stable && typeof baseline.stable === 'object') {
+    const gone = new Set(removed.map(d => `${d.i}|${d.key}`))
+    for (const k of Object.keys(baseline.stable)) {
+      if (gone.has(k)) continue
+      const bar = k.indexOf('|'); if (bar < 0) continue
+      const key = k.slice(bar + 1); if (key === 'window@scrollY' || key === 'step@error') continue
+      alive.add(`${k.slice(0, bar)}|${elementOf(key)}`)
+    }
+  }
   const out = []
-  for (const [, all] of [...bySteps.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const [step, all] of [...bySteps.entries()].sort((a, b) => a[0] - b[0])) {
     // An area that lost its ability to scroll is still there, so its loss is its own entry and never a root that swallows the facts
-    // beneath it; it is left out only when the whole element is under a root that vanished.
+    // beneath it; it is left out only when the whole element is under a root that vanished. The same goes for a fact dropped from an
+    // element the candidate still has.
     const scrollLoss = all.filter(d => d.key.endsWith('#scrolls'))
-    const list = all.filter(d => !d.key.endsWith('#scrolls'))
+    const dropped = all.filter(d => !d.key.endsWith('#scrolls') && alive.has(`${step}|${elementOf(d.key)}`))
+    const list = all.filter(d => !d.key.endsWith('#scrolls') && !dropped.includes(d))
     const elements = new Set(list.map(d => elementOf(d.key)))
     const isRoot = el => ![...elements].some(o => o !== el && el.startsWith(o + '/'))
     const roots = new Map()
@@ -132,11 +147,9 @@ export function vanishedRoots(diffs) {
       const pick = [...facts].sort((a, b) => rank(a) - rank(b))[0]
       out.push({ ...pick, vanished: under })
     }
-    for (const d of scrollLoss) {
-      const el = elementOf(d.key)
-      if ([...roots.keys()].some(r => el === r || el.startsWith(r + '/'))) continue
-      out.push({ ...d, vanished: 1 })
-    }
+    const underRoot = el => [...roots.keys()].some(r => el === r || el.startsWith(r + '/'))
+    for (const d of dropped) if (!underRoot(elementOf(d.key))) out.push({ ...d, vanished: 1, stillThere: true })
+    for (const d of scrollLoss) if (!underRoot(elementOf(d.key))) out.push({ ...d, vanished: 1 })
   }
   return out
 }
@@ -195,17 +208,34 @@ export function selectFindings(changed, actions, start, baseline, { max = 5, ori
       skipped.push({ key: d.key, i: d.i, why: 'cannot be written as a test' })
       continue
     }
-    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now, ...(d.kind === 'removed' ? { removed: true, vanished: d.vanished ?? 1 } : {}), ...(d.kind === 'added' ? { appeared: true } : {}) } })
+    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now, ...(d.kind === 'removed' ? { removed: true, vanished: d.vanished ?? 1, ...(d.stillThere ? { stillThere: true } : {}) } : {}), ...(d.kind === 'added' ? { appeared: true } : {}) } })
   }
   const findings = []
+  const alike = new Map() // the same class change on several elements (one stylesheet edit, many panes) is one finding; the others are listed on it
   for (const f of rankFindings(testable)) {
+    const sig = classSignature(f.fact), same = sig ? alike.get(sig) : null
+    if (same) {
+      same.alike.push(f.fact.key)
+      skipped.push({ key: f.fact.key, i: f.fact.i, why: `the same class change as ${same.id}` })
+      continue
+    }
     if (findings.length >= cap) {
       skipped.push({ key: f.fact.key, i: f.fact.i, why: `over the limit of ${cap} findings` })
       continue
     }
-    findings.push({ ...f, id: `R${findings.length + 1}` })
+    const out = { ...f, id: `R${findings.length + 1}`, alike: [] }
+    findings.push(out)
+    if (sig) alike.set(sig, out)
   }
   return { findings, skipped }
+}
+
+/** What a class change is, regardless of the element: the classes that came and went. Null for anything but a changed @class fact. */
+function classSignature(fact) {
+  if (!fact || fact.removed || fact.appeared || !String(fact.key).endsWith('@class')) return null
+  const { added, removed } = classChange(fact.was, fact.now)
+  if (!added.length && !removed.length) return null
+  return `${[...added].sort().join(' ')}|${[...removed].sort().join(' ')}`
 }
 
 /**

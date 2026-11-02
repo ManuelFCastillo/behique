@@ -397,6 +397,18 @@ describe('a vanished element becomes a test', () => {
     assert.equal(findings.find(f => !f.fact.removed).notice.cls, 'churn')
   })
 
+  it('with the baseline, a fact dropped from an element the candidate still has is its own entry and swallows nothing beneath it', () => {
+    // a scoped-style attribute moved off a parent and its children; the parent kept its class, and the scroll area under it stopped scrolling
+    const diffs = [gone(9, 'body/div[1]@data-v-abc', ''), gone(9, 'body/div[1]/div[2]@data-v-abc', ''), gone(9, 'body/div[1]/div[2]/div[1]#scrolls', 'y'),
+      gone(9, 'body/div[1]/aside[1]#text', 'Menu'), gone(9, 'body/div[1]/aside[1]/a[1]@href', '/x')] // the aside really vanished: nothing of it survives
+    const stable = { '9|body/div[1]@data-v-abc': '', '9|body/div[1]@class': 'app', '9|body/div[1]/div[2]@data-v-abc': '', '9|body/div[1]/div[2]@class': 'pane', '9|body/div[1]/div[2]/div[1]#scrolls': 'y', '9|body/div[1]/aside[1]#text': 'Menu', '9|body/div[1]/aside[1]/a[1]@href': '/x' }
+    const roots = vanishedRoots(diffs, { stable })
+    assert.deepEqual(roots.map(r => [r.key, r.vanished, r.stillThere === true]), [['body/div[1]/aside[1]#text', 2, false], ['body/div[1]@data-v-abc', 1, true], ['body/div[1]/div[2]@data-v-abc', 1, true], ['body/div[1]/div[2]/div[1]#scrolls', 1, false]])
+    assert.deepEqual(vanishedRoots(diffs).map(r => [r.key, r.vanished]), [['body/div[1]@data-v-abc', 4]], 'without the baseline the old rule holds: the first removed fact is a vanished root over everything beneath (the scroll loss under it is not counted)')
+    const { findings } = selectFindings(roots, actions, '/', { stable, volatile: {} })
+    assert.ok(findings.some(f => f.fact.key.endsWith('#scrolls')), 'the scroll loss is testable now')
+    assert.ok(findings.find(f => f.fact.key === 'body/div[1]@data-v-abc').fact.stillThere, 'the finding says the element is still there')
+  })
   it('vanishedRoots of nothing is nothing', () => { assert.deepEqual(vanishedRoots([]), []); assert.deepEqual(vanishedRoots(null), []) })
 })
 
@@ -423,6 +435,19 @@ describe('an area that stops scrolling, and a class list', () => {
     assert.equal(findings.length, 2)
     assert.equal(findings[0].notice.cls, 'visible')
     assert.equal(findings[1].notice.cls, 'churn')
+  })
+  it('the same class change on several elements is one finding, with the others listed on it', () => {
+    const swap = (key, i = 1) => ({ i, key, kind: 'changed', was: '!overflow-auto flex pane', now: '!overflow-hidden flex pane' })
+    const diffs = [swap('body/div[1]/div[1]@class'), swap('body/div[1]/div[3]@class'), swap('body/div[2]/div[1]@class', 2),
+      { i: 1, key: 'body/div[3]@class', kind: 'changed', was: 'open', now: 'closed' }, // a different change: its own finding
+      { i: 1, key: 'body/div[4]@class', kind: 'changed', was: 'pane !overflow-auto', now: 'pane !overflow-hidden' }] // the same change, classes in another order
+    const { findings, skipped } = selectFindings(diffs, actions, '/', baseline)
+    assert.deepEqual(findings.map(f => [f.id, f.fact.key]), [['R1', 'body/div[1]/div[1]@class'], ['R2', 'body/div[3]@class']])
+    assert.deepEqual(findings[0].alike, ['body/div[1]/div[3]@class', 'body/div[2]/div[1]@class', 'body/div[4]@class'])
+    assert.deepEqual(findings[1].alike, [])
+    assert.deepEqual(skipped.map(k => [k.key, k.why]), [['body/div[1]/div[3]@class', 'the same class change as R1'], ['body/div[2]/div[1]@class', 'the same class change as R1'], ['body/div[4]@class', 'the same class change as R1']])
+    const lost = selectFindings([swap('body/div[1]/div[1]@class'), { i: 1, key: 'body/div[9]@class', kind: 'removed', was: '!overflow-auto flex pane', now: null }], actions, '/', baseline)
+    assert.equal(lost.findings.length, 2, 'a vanished class list is not the same change as a swapped one')
   })
   it('selectFindings and vanishedRoots take #scrolls keys', () => {
     const diffs = [{ i: 1, key: 'body/div[1]/main[1]#scrolls', kind: 'removed', was: 'y', now: null }, { i: 1, key: 'body/div[1]/main[1]/p[1]#text', kind: 'removed', was: 'hello', now: null }]

@@ -120,6 +120,8 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const o = s.opened ?? {}
   const art = name => { const a = Object.values(s.artifacts).find(x => x.name === name); return a ? JSON.parse(readFileSync(c.artifactPath(a.hash), 'utf8')) : null }
   const urlOf = h => `/api/artifact?id=${encodeURIComponent(caseId)}&hash=${h}`
+  const videoUrl = h => `/api/artifact-video?id=${encodeURIComponent(caseId)}&hash=${h}`
+  const videosOf = evidence => evidence.filter(h => s.artifacts[h]?.mediaType === 'video/webm').map(h => ({ name: s.artifacts[h].name, which: /\.good\.webm$/.test(s.artifacts[h].name) ? 'good' : 'candidate', url: videoUrl(h) })) // recordings of one run each way
   const verdict = verdictOf(events, s, now)
   const app = o.kind === 'visual' ? String(o.adapter ?? '').replace(/^visual-/, '') : APP_NAMES[String(o.adapter ?? '').split('-')[0]] ?? o.adapter ?? 'App'
   const builds = events.find(e => e.type === 'builds.compared')?.data
@@ -157,7 +159,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
       id: 'c' + e.seq, kind: d.label, ...k, text: d.text, plain: plainClaim(d.text), ...link, // `text` is what the hash covers; `plain` is the same facts for a quick read, or null
       foot: ai ? (d.source === 'canvas-vision' ? 'a model\'s guess about what is on the screen . not proof' : `${d.grounded ? 'quote verified in the change' : 'quote NOT found in the change'} . confidence ${d.confidence}`) : names.length ? `${names.length} evidence file${names.length === 1 ? '' : 's'}` : 'no evidence cited',
       chips: ai ? ['hypothesis', 'unproven'] : d.label === 'verified_fact' ? ['verified'] : [],
-      links: names, linkUrls: d.evidence.map(h => (/^[0-9a-f]{64}$/.test(h) ? urlOf(h) : null)),
+      links: names, linkUrls: d.evidence.map(h => (/^[0-9a-f]{64}$/.test(h) ? urlOf(h) : null)), videos: videosOf(d.evidence),
       ...(ai ? { model: d.model, quote: d.quote, howToCheck: d.howToCheck, grounded: d.grounded, estUsd: d.estUsd } : {}),
       isCulprit: d.label === 'reproduced_failure' && Boolean(bisectArt) && d.evidence.includes(bisectArt),
     }
