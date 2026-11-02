@@ -98,6 +98,34 @@ export function testSentence(t, { label = null, goodRef = 'the good version', ca
   return `Checks that ${step} ${subject} ${plural ? 'are' : 'is'} ${q(t.good)}, as on ${goodRef}. On ${candRef} ${plural ? 'they were' : 'it was'} ${q(t.candidate)}.`
 }
 
+// The classes this check can read (scroll, hide or show, disable, display, position), without their variant prefixes.
+const KNOWN_CLASS = /^(?:overflow(?:-[xy])?-(?:auto|scroll|hidden|clip)|hidden|invisible|sr-only|opacity-0|d-none|visually-hidden|collapse|collapsed|visible|not-sr-only|opacity-100|block|inline|inline-block|inline-flex|flex|grid|contents|d-block|d-flex|d-inline|d-inline-block|disabled|pointer-events-none|pointer-events-auto|fixed|absolute|sticky|static|relative)$/
+const known = list => list.filter(c => KNOWN_CLASS.test(c.replace(/^!?(?:[a-z-]+:)*/, '')))
+
+/**
+ * What each recording shows: the test passing on the good version and failing on the candidate, said as what was found, not as
+ * "passes" and "fails" alone. Returns { pass, fail }, each one short sentence that opens with the test id and the version.
+ */
+export function outcomeText(t, { goodRef = 'the good version', candRef = 'the candidate', id = null } = {}) {
+  if (!t || typeof t.fact !== 'string') return null
+  const e = element(t.fact), named = nameFromClasses(t.good, t.candidate)
+  const who = e.what === 'classes' && named ? named : article(e.tag)
+  const the = who.replace(/^an? /, 'the ')
+  const P = `${id ?? 'The test'} passes on ${goodRef}: `, F = `${id ?? 'The test'} fails on ${candRef}: `
+  if (t.fact === 'window@scrollY') return { pass: `${P}${unq(t.good)}.`, fail: `${F}${unq(t.candidate)}.` }
+  if (e.what === 'scrolling') return { pass: `${P}${the} scrolls when the mouse wheel turns over it.`, fail: `${F}${the} does not move when the mouse wheel turns over it.` }
+  if (t.appeared) return { pass: `${P}${the} has no ${e.what} attribute.`, fail: `${F}${the} is ${STATE_WORDS[e.what] ?? `marked ${e.what}`}.` }
+  if (t.removed && t.stillThere) return { pass: `${P}${the} carries the ${e.what} attribute.`, fail: `${F}the ${e.what} attribute is gone from ${the}.` }
+  if (t.removed) return { pass: `${P}${the} is there${e.what === 'text' ? `, reading ${q(t.good)}` : ''}.`, fail: `${F}${the} is missing.` }
+  if (e.what === 'classes') {
+    const { added, removed } = classChange(unq(t.good), unq(t.candidate))
+    const [was, now] = known(removed).length || known(added).length ? [known(removed), known(added)] : [removed, added] // the classes this check can read come first; else the whole change, cut short
+    return { pass: `${P}${the} still has the class${was.length === 1 ? '' : 'es'} ${few(was)}.`, fail: `${F}${the} has ${few(now)} instead of ${few(was)}.` }
+  }
+  if (e.what === 'text') return { pass: `${P}${the} reads ${q(t.good)}.`, fail: `${F}${the} reads ${q(t.candidate)}.` }
+  return { pass: `${P}the ${e.what} of ${the} is ${q(t.good)}.`, fail: `${F}the ${e.what} of ${the} is ${q(t.candidate)}.` }
+}
+
 // A word a person would use for the element, read from its class names (a split pane, a sidebar, a dialog), else from its tag.
 const CLASS_WORDS = [['splitpanes', 'a split pane'], ['pane', 'a pane'], ['sidebar', 'a sidebar'], ['navbar', 'a navigation bar'], ['nav', 'a navigation bar'], ['modal', 'a dialog'], ['dialog', 'a dialog'], ['dropdown', 'a dropdown menu'], ['menu', 'a menu'], ['tooltip', 'a tooltip'], ['toolbar', 'a toolbar'], ['tabs', 'a tab bar'], ['tab', 'a tab'], ['panel', 'a panel'], ['drawer', 'a drawer'], ['header', 'a header'], ['footer', 'a footer'], ['card', 'a card'], ['table', 'a table'], ['editor', 'an editor'], ['toggle', 'a toggle'], ['switch', 'a switch'], ['btn', 'a button'], ['button', 'a button'], ['input', 'an input'], ['form', 'a form'], ['list', 'a list'], ['badge', 'a badge'], ['banner', 'a banner'], ['overlay', 'an overlay'], ['spinner', 'a spinner'], ['avatar', 'an avatar']]
 export function nameFromClasses(...lists) {

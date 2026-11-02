@@ -1,7 +1,7 @@
 // node --test src/release/claimtext.test.mjs   (offline)
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { changesText, nameFromClasses, plainClaim, regressionText, testSentence } from './claimtext.mjs'
+import { changesText, nameFromClasses, outcomeText, plainClaim, regressionText, testSentence } from './claimtext.mjs'
 
 describe('changesText', () => {
   it('counts identical changes once, keeps the first-seen order, and stops at max', () => {
@@ -101,5 +101,20 @@ describe('regressionText says what the regression is for a person', () => {
     assert.equal(regressionText({ fact: 'body/h1[1]#text', i: 0, good: '"Settings"', candidate: '"Options"', notice: { cls: 'visible', why: 'x' } }, refs), 'On the start page on 2.0, the text of a heading reads "Options", where 1.0 reads "Settings".')
     assert.equal(regressionText({ fact: 'body/a[1]@href', i: 2, good: '"/x"', candidate: '"/y"', notice: { cls: 'visible', why: 'x' } }, refs), 'After step 2 on 2.0, the href of a link is "/y", where 1.0 has "/x".')
     assert.equal(regressionText(null), null)
+  })
+})
+
+describe('outcomeText says what each recording shows', () => {
+  const refs = { goodRef: '1.0', candRef: '2.0', id: 'R1' }
+  it('classes, a scroll area, a state, a dropped attribute, a missing element, text, an attribute', () => {
+    assert.deepEqual(outcomeText({ fact: 'body/div[1]/div[3]@class', i: 0, good: '"!overflow-auto flex splitpanes__pane"', candidate: '"!overflow-hidden flex splitpanes__pane"' }, refs), { pass: 'R1 passes on 1.0: the split pane still has the class !overflow-auto.', fail: 'R1 fails on 2.0: the split pane has !overflow-hidden instead of !overflow-auto.' })
+    assert.deepEqual(outcomeText({ fact: 'body/main[1]#scrolls', i: 9, good: 'can scroll', candidate: 'cannot scroll on the candidate', removed: true }, refs), { pass: 'R1 passes on 1.0: the main area scrolls when the mouse wheel turns over it.', fail: 'R1 fails on 2.0: the main area does not move when the mouse wheel turns over it.' })
+    assert.deepEqual(outcomeText({ fact: 'body/aside[1]@inert', i: 1, good: 'absent', candidate: '""', appeared: true }, refs), { pass: 'R1 passes on 1.0: the sidebar has no inert attribute.', fail: 'R1 fails on 2.0: the sidebar is inert: it cannot be clicked, focused or typed into.' })
+    assert.deepEqual(outcomeText({ fact: 'body/div[1]@data-v-abc', i: 0, good: '""', candidate: 'missing', removed: true, stillThere: true }, refs), { pass: 'R1 passes on 1.0: the block carries the data-v-abc attribute.', fail: 'R1 fails on 2.0: the data-v-abc attribute is gone from the block.' })
+    assert.deepEqual(outcomeText({ fact: 'body/nav[1]/a[2]#text', i: 1, good: '"Share"', candidate: 'missing', removed: true }, refs), { pass: 'R1 passes on 1.0: the link is there, reading "Share".', fail: 'R1 fails on 2.0: the link is missing.' })
+    assert.deepEqual(outcomeText({ fact: 'body/h1[1]#text', i: 0, good: '"Settings"', candidate: '"Options"' }, refs), { pass: 'R1 passes on 1.0: the heading reads "Settings".', fail: 'R1 fails on 2.0: the heading reads "Options".' })
+    assert.deepEqual(outcomeText({ fact: 'body/a[1]@href', i: 2, good: '"/x"', candidate: '"/y"' }, refs), { pass: 'R1 passes on 1.0: the href of the link is "/x".', fail: 'R1 fails on 2.0: the href of the link is "/y".' })
+    assert.deepEqual(outcomeText({ fact: 'body/div[1]@class', i: 9, good: '"-mx-1 cursor-pointer inline-flex px-1 rounded"', candidate: '"flex"' }, refs), { pass: 'R1 passes on 1.0: the block still has the class inline-flex.', fail: 'R1 fails on 2.0: the block has flex instead of inline-flex.' })
+    assert.equal(outcomeText(null), null)
   })
 })

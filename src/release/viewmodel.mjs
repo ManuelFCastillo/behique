@@ -16,7 +16,7 @@ import { appOfOpened } from './appregistry.mjs'
 import { visualView } from './ui/visual-view.mjs'
 import { sha, summarize } from './evidence.mjs'
 import { LABEL, RANK, maskedSentence, noticeSummary } from './notice.mjs'
-import { plainClaim, regressionText, testSentence } from './claimtext.mjs'
+import { outcomeText, plainClaim, regressionText, testSentence } from './claimtext.mjs'
 
 const STALE_MS = 15 * 60 * 1000
 const APP_NAMES = { freshrss: 'FreshRSS' }
@@ -123,7 +123,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const videoUrl = h => `/api/artifact-video?id=${encodeURIComponent(caseId)}&hash=${h}`
   const exported = new Map(events.filter(e => e.type === 'test.exported').map(e => [e.data.id, e.data])) // what each test checks, for the record that cites it
   const labels = art('baseline.json')?.labels ?? []
-  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, plain: regressionText(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }) } : null } // plain: the regression for a person; text: what the test does
+  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, plain: regressionText(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), ...outcomeText(t, { id, goodRef: o.goodRef, candRef: o.candRef }) } : null } // plain: the regression for a person; text: what the test does; pass/fail: what each recording shows
   const videosOf = evidence => evidence.filter(h => s.artifacts[h]?.mediaType === 'video/webm').map(h => ({ name: s.artifacts[h].name, which: /\.good\.webm$/.test(s.artifacts[h].name) ? 'good' : 'candidate', url: videoUrl(h) })) // recordings of one run each way
   const verdict = verdictOf(events, s, now)
   const app = o.kind === 'visual' ? String(o.adapter ?? '').replace(/^visual-/, '') : APP_NAMES[String(o.adapter ?? '').split('-')[0]] ?? o.adapter ?? 'App'
