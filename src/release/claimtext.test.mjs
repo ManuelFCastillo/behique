@@ -1,7 +1,7 @@
 // node --test src/release/claimtext.test.mjs   (offline)
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { changesText, plainClaim, testSentence } from './claimtext.mjs'
+import { changesText, nameFromClasses, plainClaim, regressionText, testSentence } from './claimtext.mjs'
 
 describe('changesText', () => {
   it('counts identical changes once, keeps the first-seen order, and stops at max', () => {
@@ -75,5 +75,31 @@ describe('testSentence says what an exported test checks', () => {
     assert.equal(testSentence({ id: 'R8', fact: 'body/h1[1]#text', i: 14, good: '"Settings"', candidate: '"Options"' }, { label: '14:goto /settings', ...refs }), 'Checks that after step 14 (load /settings) the text of a heading at body/h1[1] is "Settings", as on 1.0. On 2.0 it was "Options".')
     assert.equal(testSentence({ id: 'R9', fact: 'body/h1[1]#text', i: 3, good: '"a"', candidate: '"b"' }, { label: '3:click role=button[name="Save"]', ...refs }), 'Checks that after step 3 (click role=button[name=\\"Save\\"]) the text of a heading at body/h1[1] is "a", as on 1.0. On 2.0 it was "b".')
     assert.equal(testSentence(null), null); assert.equal(testSentence({ id: 'R7' }), null)
+  })
+})
+
+describe('regressionText says what the regression is for a person', () => {
+  const refs = { goodRef: '1.0', candRef: '2.0' }
+  it('names the element from its classes and reads layout classes', () => {
+    assert.equal(nameFromClasses('"!overflow-auto flex splitpanes__pane"'), 'a split pane')
+    assert.equal(nameFromClasses('flex items-center', 'sidebar-item'), 'a sidebar')
+    assert.equal(nameFromClasses('flex py-4'), null)
+    const t = { fact: 'body/div[1]/div[3]@class', i: 0, good: '"!overflow-auto flex flex-1 splitpanes__pane"', candidate: '"!overflow-hidden flex flex-1 splitpanes__pane"', notice: { cls: 'visible', why: 'x' } }
+    assert.equal(regressionText(t, refs), 'On the start page on 2.0, a split pane that could scroll can no longer scroll: content taller than it is cut off (!overflow-auto to !overflow-hidden).')
+    assert.equal(regressionText({ fact: 'body/section[1]/div[1]@class', i: 9, good: '"inline-flex items-center px-1 group hover:x focus:y rounded"', candidate: '"flex"', notice: { cls: 'visible', why: 'x' } }, { ...refs, label: '9:click css=x' }), 'After a click on 2.0, a block is laid out differently (inline-flex to flex): its contents may wrap, align or size differently.')
+    assert.equal(regressionText({ fact: 'body/div[1]@class', i: 1, good: '"panel"', candidate: '"panel hidden"', notice: { cls: 'visible', why: 'x' } }, refs), 'After step 1 on 2.0, a panel that was shown is now hidden (nothing to hidden).')
+    assert.equal(regressionText({ fact: 'body/section[1]/div[3]@class', i: 9, good: '"flex items-center py-4"', candidate: '"flex flex-col py-4 space-y-4"', notice: { cls: 'churn', why: 'a style class this check cannot read (items-center flex-col space-y-4); a general style change shows in the pictures' } }, refs),
+      'After step 9 on 2.0, the style classes of a block changed (items-center to flex-col space-y-4). This is markup churn (a style class this check cannot read (items-center flex-col space-y-4); a general style change shows in the pictures): a person would not notice it, and it is here so the record is complete.')
+    assert.equal(regressionText({ fact: 'body/div[1]@class', i: 0, good: '"a b c d e f g"', candidate: '"x"', notice: { cls: 'churn', why: 'w' } }, refs), 'On the start page on 2.0, the style classes of a block changed (a b c d and 3 more to x). This is markup churn (w): a person would not notice it, and it is here so the record is complete.')
+  })
+  it('a scroll area, an appearing state, a dropped attribute, a vanished element, a text and an attribute', () => {
+    assert.equal(regressionText({ fact: 'body/div[1]/main[1]#scrolls', i: 9, good: 'can scroll', candidate: 'cannot scroll on the candidate', removed: true, notice: { cls: 'visible', why: 'x' } }, { ...refs, label: '9:click css=x' }), 'After a click on 2.0, a main area cannot be scrolled: the mouse wheel over it does nothing, so anything below its edge is out of reach. On 1.0 it scrolls.')
+    assert.equal(regressionText({ fact: 'body/aside[1]@inert', i: 14, good: 'absent', candidate: '""', appeared: true, notice: { cls: 'visible', why: 'x' } }, { ...refs, label: '14:goto /guide' }), 'After load /guide on 2.0, a sidebar is inert: it cannot be clicked, focused or typed into. On 1.0 it is not.')
+    assert.equal(regressionText({ fact: 'body/div[1]/div[1]@data-v-f947af81', i: 0, good: '""', candidate: 'missing', removed: true, stillThere: true, notice: { cls: 'churn', why: 'a framework attribute (data-v-f947af81)' } }, refs), 'On the start page on 2.0, the data-v-f947af81 attribute dropped off a block; the element itself is still there. This is markup churn (a framework attribute (data-v-f947af81)): a person would not notice it, and it is here so the record is complete.')
+    assert.equal(regressionText({ fact: 'body/nav[1]/a[2]#text', i: 1, good: '"Share"', candidate: 'missing', removed: true, notice: { cls: 'visible', why: 'x' } }, refs), 'After step 1 on 2.0, a link is missing: on 1.0 it is there, reading "Share".')
+    assert.equal(regressionText({ fact: 'body/div[1]/div[1]@data-v-f947af81', i: 0, good: '""', candidate: 'missing', removed: true, notice: { cls: 'churn', why: 'a framework attribute (data-v-f947af81)' } }, refs), 'On the start page on 2.0, a block is missing: on 1.0 it is there, carrying the data-v-f947af81 attribute. This is markup churn (a framework attribute (data-v-f947af81)): a person would not notice it, and it is here so the record is complete.')
+    assert.equal(regressionText({ fact: 'body/h1[1]#text', i: 0, good: '"Settings"', candidate: '"Options"', notice: { cls: 'visible', why: 'x' } }, refs), 'On the start page on 2.0, the text of a heading reads "Options", where 1.0 reads "Settings".')
+    assert.equal(regressionText({ fact: 'body/a[1]@href', i: 2, good: '"/x"', candidate: '"/y"', notice: { cls: 'visible', why: 'x' } }, refs), 'After step 2 on 2.0, the href of a link is "/y", where 1.0 has "/x".')
+    assert.equal(regressionText(null), null)
   })
 })

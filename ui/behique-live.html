@@ -480,6 +480,11 @@ img,svg{max-width:100%}
 .culprit-tag{position:static;transform:none;justify-self:center;max-width:100%;white-space:normal;text-align:center}
 /* a claim reads as a lead line and short items; the exact recorded sentence (what the hash covers) stays in the details */
 .claim-items{margin:6px 0 0 16px;padding:0;font-size:12.5px;color:var(--text)}
+.claim-plain{margin:8px 0 0;padding:8px 10px;border-left:3px solid var(--amber);font-size:15.5px;line-height:1.45;color:var(--text)}.claim-plain b{display:block;font:600 10.5px/1.4 var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--amber);margin-bottom:3px}
+.copy-btn{background:transparent;border:1px solid var(--line);color:var(--muted);border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;cursor:pointer;margin-left:8px;white-space:nowrap}.copy-btn:hover{color:var(--text);border-color:var(--text)}
+/* every picture carries a download control in its lower right corner */
+.pic{position:relative;display:block}.dl{position:absolute;right:6px;bottom:6px;z-index:5;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;font-weight:600;text-decoration:none;line-height:1;pointer-events:auto}.dl:hover{background:rgba(0,0,0,.9)}.dl-group{position:absolute;right:6px;bottom:6px;z-index:5;display:flex;gap:4px}.dl-group .dl{position:static}
+.r-legend{font-size:12px;color:var(--muted);margin:4px 0 8px}
 .claim-test{margin:8px 0 0;padding:7px 10px;border-left:2px solid var(--line);font-size:12.5px;color:var(--text)}.claim-test b{display:block;font:600 10.5px/1.4 var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
 .claim-videos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:700px){.claim-videos{grid-template-columns:1fr}}
 .vid{margin:0}.vid video{display:block;width:100%;aspect-ratio:1280/900;border:1px solid var(--line);border-radius:8px;background:#000}.vid figcaption{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -570,7 +575,7 @@ img,svg{max-width:100%}
 </div>
 </div>
 <div class="rightcol">
-<section class="evidence card reveal" id="evidenceCard" style="--d:350ms"><div class="ev-head"><h2>Evidence chain</h2><div style="display:flex;gap:8px;align-items:center"><button class="mini-btn" id="verifyBtn" type="button">Verify chain</button><button class="tiny-link" id="tamperLink" type="button">Simulate tampering (this page only)</button></div></div>
+<section class="evidence card reveal" id="evidenceCard" style="--d:350ms"><div class="ev-head"><h2>Evidence chain</h2><div style="display:flex;gap:8px;align-items:center"><button class="mini-btn" id="verifyBtn" type="button">Verify chain</button><button class="mini-btn" id="copyChainBtn" type="button" title="Copy every record as text">Copy chain</button><button class="tiny-link" id="tamperLink" type="button">Simulate tampering (this page only)</button></div></div>
 <div id="verifyStatus" style="font-size:12px;margin-bottom:6px"></div>
 <div id="failBanner" class="fail-banner" hidden>Candidate build failed, evidence incomplete</div>
 <div id="claimsList"></div>
@@ -715,6 +720,13 @@ function shortHash(h){ if(!h) return "...."; return h.slice(0,4) + "..." + h.sli
 function nowTime(){ const d=new Date(); const h=String(d.getHours()).padStart(2,"0"); const m=String(d.getMinutes()).padStart(2,"0"); return h+":"+m; }
 function parseCost(s){ const m=/\$([0-9.]+)/.exec(String(s)); return m?parseFloat(m[1]):0; }
 function animateCost(target){ const el=$("modelCost"); const from=parseCost(el.textContent); const to=parseCost(target); if(from===to){ el.textContent=target; return; } if(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches){ el.textContent=target; return; } const dur=600; let start=null; function step(ts){ if(!start) start=ts; const p=Math.min((ts-start)/dur,1); const v=from+(to-from)*p; el.textContent="model cost $"+v.toFixed(3); if(p<1) requestAnimationFrame(step); else el.textContent=target; } requestAnimationFrame(step); }
+async function copyText(text, what){ try{ await navigator.clipboard.writeText(text); showToast("Copied "+what,"green"); }catch(e){ const ta=document.createElement("textarea"); ta.value=text; ta.style.position="fixed"; ta.style.opacity="0"; document.body.appendChild(ta); ta.select(); let ok=false; try{ ok=document.execCommand("copy"); }catch(_){} ta.remove(); showToast(ok?"Copied "+what:"Could not copy: "+e.message, ok?"green":"red"); } }
+function fileNameFor(url, label){ try{ const u=new URL(url, location.href); const id=u.searchParams.get("id")||"behique", h=(u.searchParams.get("hash")||"").slice(0,12); return (id+"-"+label+(h?"-"+h:"")).replace(/[^A-Za-z0-9._-]+/g,"_")+".png"; }catch(e){ return (label||"picture").replace(/[^A-Za-z0-9._-]+/g,"_")+".png"; } }
+function dlLink(url, label){ const a=document.createElement("a"); a.className="dl"; a.href=url; a.download=fileNameFor(url,label); a.title="Download "+label; a.setAttribute("aria-label","Download "+label); a.textContent="\u2913 "+(label.length>22?"save":label); a.addEventListener("click",ev=>ev.stopPropagation()); return a; }
+function picWrap(img, label){ const w=document.createElement("div"); w.className="pic"; w.appendChild(img); w.appendChild(dlLink(img.src,label)); return w; }
+// the text form of one record: what a person pastes into a ticket or a message; the hash is the one the chain carries
+function claimText(c){ const lines=[c.label+(c.id?" ("+c.id+")":"")+": "+(c.hash||""), "previous hash: "+(c.prevHash||"GENESIS"), "timestamp: "+c.timestamp+" . actor: "+c.actor, "", c.text]; if(c.test&&c.test.plain) lines.push("", "Regression "+c.test.id+": "+c.test.plain); if(c.test&&c.test.text) lines.push("What the test "+c.test.id+" does: "+c.test.text); if(c.links&&c.links.length) lines.push("", "evidence: "+c.links.map((nm,k)=>{ const u=(c.linkUrls||[])[k]; const h=u&&(u.match(/hash=([0-9a-f]{64})/)||[])[1]; return h?nm+" ("+h+")":nm; }).join(", ")); return lines.join("\n"); }
+function chainText(){ const head=["Behique evidence chain"+(LIVE.vm&&LIVE.vm.caseId?" for "+LIVE.vm.caseId:"")+": "+state.claims.length+" record"+(state.claims.length===1?"":"s")+(state.chainOk===true?", verified":state.chainOk===false?", BROKEN":"")]; return head.concat(state.claims.map(claimText)).join("\n\n"); }
 function showToast(msg, kind){ const t=$("toast"); t.textContent=msg; t.className=""; if(kind) t.classList.add(kind); void t.offsetWidth; t.classList.add("show"); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove("show"),3000); }
 async function hashClaim(prev, kind, text){
   const s = String(prev) + "|" + String(kind) + "|" + String(text);
@@ -872,6 +884,7 @@ function renderClaims(){
     const ct=document.createElement("span"); ct.className="ct"; ct.style.color=c.color; ct.textContent=c.label;
     const hs=document.createElement("span"); hs.className="hash mono"; hs.textContent=shortHash(c.hash);
     top.appendChild(ct); top.appendChild(hs);
+    const cp=document.createElement("button"); cp.className="copy-btn"; cp.type="button"; cp.textContent="Copy"; cp.title="Copy this record as text"; cp.addEventListener("click",ev=>{ ev.stopPropagation(); copyText(claimText(c), "record "+shortHash(c.hash)); }); top.appendChild(cp);
     const p=document.createElement("p");
     const plain = c.plain && !c.tampered ? c.plain : null;   // the quick read; the hash covers c.text, which the details show word for word
     p.textContent = plain ? plain.lead : c.text;
@@ -881,6 +894,7 @@ function renderClaims(){
       const s=document.createElement("span"); s.className="chip "+(c.cls==="gold"?"gold":"green"); s.textContent=ch; foot.appendChild(s); foot.appendChild(document.createTextNode(" "));
     });
     card.appendChild(top); card.appendChild(p);
+    if(c.test&&c.test.plain){ const t=document.createElement("div"); t.className="claim-plain"; const b=document.createElement("b"); b.textContent="Regression "+c.test.id+" in plain words"; t.appendChild(b); t.appendChild(LIVE.vm?withChips(c.test.plain,LIVE.vm):document.createTextNode(c.test.plain)); card.appendChild(t); } // R = regression test; this is what it means for a person
     if(c.test&&c.test.text){ const t=document.createElement("div"); t.className="claim-test"; const b=document.createElement("b"); b.textContent="What the test "+c.test.id+" does"; t.appendChild(b); t.appendChild(LIVE.vm?withChips(c.test.text,LIVE.vm):document.createTextNode(c.test.text)); card.appendChild(t); }
     if(items) card.appendChild(items);
     if(c.videos&&c.videos.length){ // one recorded run each way: the test passing on the good version, failing on the candidate
@@ -1200,6 +1214,7 @@ function initEvents(){
     confirmDecision();
   });
   $("verifyBtn").addEventListener("click",verifyChain);
+  $("copyChainBtn").addEventListener("click",()=>copyText(chainText(), "the chain ("+state.claims.length+" record"+(state.claims.length===1?"":"s")+")"));
   $("tamperLink").addEventListener("click",toggleTamper);
   $("askOpen").addEventListener("click",reviewAsk); $("askSend").addEventListener("click",sendAsk); $("askCancel").addEventListener("click",()=>{ hideAskReview(); renderAsk(); });
   $("forbiddenLink").addEventListener("click",async()=>{ try{ const r=await fetch("/api/ui/rules?actor=model&kind=verified_fact").then(x=>x.json()); showToast(r.allowed ? "Allowed" : "The record refuses: "+r.error,"red"); }catch(e){ showToast("Could not ask the record: "+e.message,"red"); } });
@@ -1220,7 +1235,8 @@ function renderBuilds(){
     const box=document.createElement("div"); box.className="measured "+sides[i].cls;
     const h=document.createElement("div"); h.className="m-h"; h.textContent="Measured on "+sides[i].ref; box.appendChild(h);
     if(!vm.facts.length){ const p=document.createElement("div"); p.className="m-w"; p.textContent=vm.verdict==="running"?"Waiting for the comparison...":"No differing facts were recorded."; box.appendChild(p); }
-    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; w.textContent=(f.id?f.id+": ":"")+f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"+(f.removed?" · the element is gone on the candidate ("+f.vanished+" recorded fact"+(f.vanished===1?"":"s")+" with it)":""); const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c);
+    else { const lg=document.createElement("div"); lg.className="r-legend"; lg.textContent="R1, R2, ... are the regression tests, one per fact that differs between the versions, ranked with the most noticeable first. Each test's record in the evidence chain says in plain words what the regression is."; box.appendChild(lg); }
+    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; const note=!f.removed?"":f.scrollLoss?" · the area can no longer scroll on the candidate":f.stillThere?" · dropped from an element that is still there":" · the element is gone on the candidate ("+f.vanished+" recorded fact"+(f.vanished===1?"":"s")+" with it)"; w.textContent=(f.id?f.id+": ":"")+f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"+note; const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c);
       if(f.label){ const k=document.createElement("div"); k.className="m-w notice notice-"+f.cls; k.textContent=f.label+(f.why?" ("+f.why+")":"")+(f.verdict&&f.verdict!=="confirmed"?" . "+f.verdict.replace(/_/g," "):""); r.appendChild(k); } // the class: would a person notice this change, and why
       box.appendChild(r); });
     if(i===0 && vm.masked && vm.masked.text){ const p=document.createElement("div"); p.className="m-w masked-note"; p.textContent="Not seen by this check: "+vm.masked.text; box.appendChild(p); } // what masking hides, said once under the good build
@@ -1229,9 +1245,9 @@ function renderBuilds(){
       const fig=document.createElement("figure"); fig.className="shot";
       const img=document.createElement("img"); img.src=url; img.alt="Screenshot of "+sides[i].ref+" after step "+pic.step;
       const cap=document.createElement("figcaption"); cap.textContent="Screenshot after step "+pic.step+(pic.label?" ("+String(pic.label).replace(/^\d+:/,"")+")":"");
-      fig.appendChild(img); fig.appendChild(cap); box.appendChild(fig);
+      fig.appendChild(picWrap(img,"step"+pic.step+"-"+sides[i].ref)); fig.appendChild(cap); box.appendChild(fig);
       if(i===1){ const t=document.createElement("div"); t.className="m-w"; t.appendChild(withChips(pic.text,vm)); box.appendChild(t);
-        if(pic.differs&&pic.diff){ const d=document.createElement("figure"); d.className="shot"; const di=document.createElement("img"); di.src=pic.diff; di.alt="Where the two screenshots differ"; const dc=document.createElement("figcaption"); dc.textContent="Difference (changed pixels in red)"; d.appendChild(di); d.appendChild(dc); box.appendChild(d); } }
+        if(pic.differs&&pic.diff){ const d=document.createElement("figure"); d.className="shot"; const di=document.createElement("img"); di.src=pic.diff; di.alt="Where the two screenshots differ"; const dc=document.createElement("figcaption"); dc.textContent=pic.shift?"Difference: new or changed in red, the same content moved in blue":"Difference (changed pixels in red)"; d.appendChild(picWrap(di,"step"+pic.step+"-difference")); d.appendChild(dc); box.appendChild(d); } }
     });
     m.replaceWith(box);
   });
@@ -1425,7 +1441,7 @@ function renderVisualBuilds(){
   subs.forEach((el,i)=>{ el.textContent=""; el.appendChild(verChip(sides[i].ref, sides[i].tag, i===1 && vm.verdict!=="ship")); });
   if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
   const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
-  const fig=(url,cap)=>{ if(!url) return null; const f=mk("figure","shot"), im=document.createElement("img"); im.src=url; im.alt=cap; f.appendChild(im); f.appendChild(mk("figcaption",null,cap)); return f; };
+  const fig=(url,cap)=>{ if(!url) return null; const f=mk("figure","shot"), im=document.createElement("img"); im.src=url; im.alt=cap; f.appendChild(picWrap(im,cap.replace(/^Settled picture of /,"").replace(/^The change just before.*/,"parent"))); f.appendChild(mk("figcaption",null,cap)); return f; };
   const label=n=>{ const t=String(n).replace(/-/g," "); return t.charAt(0).toUpperCase()+t.slice(1); };
   panes.forEach((m,i)=>{
     const box=mk("div","measured "+sides[i].cls); box.appendChild(mk("div","m-h","Settled picture of "+sides[i].ref));
@@ -1442,6 +1458,7 @@ function renderVisualBuilds(){
       if(diffUrl){ const outlined=differing.filter(r=>r.box); const cap="Where the versions differ (changed pixels in red)"+(outlined.length?". Outlined: "+outlined.map(r=>label(r.name).toLowerCase()).join(", "):"")+(V.anchorsFailed&&V.anchorsFailed.length?". The anchor region"+(V.anchorsFailed.length>1?"s ":" ")+V.anchorsFailed.join(", ")+" also differ"+(V.anchorsFailed.length>1?"":"s")+" (not outlined: the record has no box for anchors)":"")+".";
         const f=mk("figure","shot"), wrap=mk("div","diffwrap"), im=document.createElement("img"); im.src=diffUrl; im.alt=cap; wrap.appendChild(im);
         const place=()=>{ const W=im.naturalWidth,H=im.naturalHeight; if(!W||!H) return; const k=V.scale||1; outlined.forEach(r=>{ const b=r.box, d=mk("div","rbox"+(b.y*k/H<0.06?" low":"")+(b.x*k/W>0.85?" rt":"")); d.style.left=(b.x*k/W*100)+"%"; d.style.top=(b.y*k/H*100)+"%"; d.style.width=(b.w*k/W*100)+"%"; d.style.height=(b.h*k/H*100)+"%"; d.appendChild(mk("i",null,label(r.name))); d.title=label(r.name)+": "+r.changed.toLocaleString()+" pixels differ"; wrap.appendChild(d); }); };
+        wrap.appendChild(dlLink(diffUrl,"difference"));
         if(im.complete&&im.naturalWidth) place(); else im.addEventListener("load",place,{once:true});
         f.appendChild(wrap); f.appendChild(mk("figcaption",null,cap)); box.appendChild(f); }
       if(s&&s.found){ const f=fig(V.pictures.first,"The first change: "+(s.subject||"")); if(f) box.appendChild(f); box.appendChild(mk("div","m-w",s.proven?"Found by search and verified: the change just before it matched the old picture, and it differed, every run.":"The search points here, but the runs were not clean, so treat it as a lead.")); }
@@ -1460,7 +1477,8 @@ function compareSlider(goodUrl,candUrl,goodRef,candRef,candBad){
   const right=mk("div","cmp-right"); right.appendChild(tag("r",verChip(candRef,"candidate",candBad===true))); top.appendChild(tag("l",verChip(goodRef,"good",false)));
   const set=v=>{ top.style.clipPath="inset(0 "+(100-v)+"% 0 0)"; right.style.clipPath="inset(0 0 0 "+v+"%)"; line.style.left=v+"%"; };
   range.addEventListener("input",()=>set(+range.value)); set(50);
-  c.appendChild(under); c.appendChild(top); c.appendChild(right); c.appendChild(range); c.appendChild(line);
+  const dls=mk("div","dl-group"); dls.appendChild(dlLink(goodUrl,goodRef+"-good")); dls.appendChild(dlLink(candUrl,candRef+"-candidate")); dls.addEventListener("pointerdown",ev=>ev.stopPropagation());
+  c.appendChild(under); c.appendChild(top); c.appendChild(right); c.appendChild(range); c.appendChild(line); c.appendChild(dls);
   return c;
 }
 async function cancelRun(){

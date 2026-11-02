@@ -55,16 +55,79 @@ export function diff(a, b, { tolerance = 0, region = null, ignore = [] } = {}) {
   return { sizeMismatch: false, width, height, total, changed, ratio: changed / total, bbox: changed ? { x: x0, y: y0, w: x1 - x0 + 1, h: y1 - y0 + 1 } : null, inRegion: region ? inRegion : null }
 }
 
-/** A picture of the difference for the evidence tile: the after image faded, changed pixels in red. */
-export function diffImage(a, b, { tolerance = 0, ignore = [] } = {}) {
+/**
+ * Is the difference inside `box` the same content moved? Slides the after image over the before image (vertical offsets up to
+ * maxShift, then a small sideways correction) and counts the pixels of the box that still differ at each offset. Returns the best
+ * offset ({ dx, dy }: how far the content moved on the after image), `before` (differing pixels in the box with no shift), `remaining`
+ * (differing pixels at the best offset) and `newBox` (where those remaining pixels are on the after image: what is new or changed,
+ * not moved), or null when no offset explains more than `minGain` of the difference with at least `minMoved` pixels. The counts are taken both ways (after against
+ * before moved, and before against after moved back), so content that vanished is never reported as moved. A pixel whose source would fall outside the picture counts as
+ * differing. Equality is exact: a shifted copy of a rendered page matches pixel for pixel.
+ */
+export function shiftMatch(a, b, { box = null, maxShift = 160, maxSideways = 8, minGain = 0.5, minMoved = 50 } = {}) {
+  a = img(a); b = img(b)
+  if (a.width !== b.width || a.height !== b.height) return null
+  const { width, height } = a
+  const r = box ?? { x: 0, y: 0, w: width, h: height }
+  const x0 = Math.max(0, r.x), y0 = Math.max(0, r.y), x1 = Math.min(width, r.x + r.w), y1 = Math.min(height, r.y + r.h)
+  if (x1 <= x0 || y1 <= y0) return null
+  const same = (i, j) => a.data[j] === b.data[i] && a.data[j + 1] === b.data[i + 1] && a.data[j + 2] === b.data[i + 2] && a.data[j + 3] === b.data[i + 3]
+  const inside = (x, y) => x >= 0 && x < width && y >= 0 && y < height
+  // Counted both ways: the box on b against a moved by (dx, dy), and the box on a against b moved back. Content that vanished would
+  // otherwise look "moved" by any offset that pushes it out of the box (white against white).
+  // A pixel whose counterpart falls outside the picture (content pushed past the bottom edge) is not compared; each direction's count
+  // is scaled up to the whole box, and a direction that could compare less than half the box counts as all different.
+  const total = (x1 - x0) * (y1 - y0)
+  const count = (dx, dy, stopAt = Infinity) => {
+    let f = 0, fc = 0, k = 0, kc = 0 // forward mismatches and compared pixels; backward likewise
+    for (let y = y0; y < y1; y++) {
+      for (let x = x0; x < x1; x++) {
+        const i = (y * width + x) * 4
+        if (inside(x - dx, y - dy)) { fc++; if (!same(i, ((y - dy) * width + (x - dx)) * 4)) f++ }
+        if (inside(x + dx, y + dy)) { kc++; if (!same(((y + dy) * width + (x + dx)) * 4, i)) k++ }
+      }
+      if (f + k >= stopAt) return f + k
+    }
+    const scale = (m, c) => (c * 2 < total ? total : Math.round(m * total / c))
+    return scale(f, fc) + scale(k, kc)
+  }
+  const before = count(0, 0)
+  if (!before) return null
+  let best = { dx: 0, dy: 0, remaining: before }
+  const consider = (dx, dy) => { if (dx === 0 && dy === 0) return; const n = count(dx, dy, best.remaining); if (n < best.remaining) best = { dx, dy, remaining: n } }
+  for (let d = 1; d <= maxShift; d++) { consider(0, d); consider(0, -d) }
+  const dy = best.dy
+  for (let d = 1; d <= maxSideways; d++) { consider(d, dy); consider(-d, dy) }
+  if (best.remaining >= before * (1 - minGain) || before - best.remaining < minMoved) return null // the move must explain more than minGain of the difference, and a real number of pixels
+  let nx0 = width, ny0 = height, nx1 = -1, ny1 = -1 // where the picture still differs once the moved content is lined up
+  for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
+    const sx = x - best.dx, sy = y - best.dy
+    if (sx < 0 || sx >= width || sy < 0 || sy >= height || !same((y * width + x) * 4, (sy * width + sx) * 4)) { if (x < nx0) nx0 = x; if (x > nx1) nx1 = x; if (y < ny0) ny0 = y; if (y > ny1) ny1 = y }
+  }
+  return { dx: best.dx, dy: best.dy, before, remaining: best.remaining, newBox: best.remaining ? { x: nx0, y: ny0, w: nx1 - nx0 + 1, h: ny1 - ny0 + 1 } : null }
+}
+
+/**
+ * A picture of the difference for the evidence tile: the after image faded, changed pixels in red. With `shift` (from shiftMatch), a
+ * changed pixel that is the same content moved by that offset is blue instead, so what is new stays red.
+ */
+export function diffImage(a, b, { tolerance = 0, ignore = [], shift = null } = {}) {
   a = img(a); b = img(b)
   if (a.width !== b.width || a.height !== b.height) return encode(blank(b.width, b.height, [255, 0, 0, 255]))
   const out = { width: b.width, height: b.height, data: Buffer.alloc(b.data.length) }
+  const { width, height } = b
+  const moved = (x, y, i) => {
+    if (!shift || (!shift.dx && !shift.dy)) return false
+    const sx = x - shift.dx, sy = y - shift.dy
+    if (sx < 0 || sx >= width || sy < 0 || sy >= height) return false
+    const j = (sy * width + sx) * 4
+    return a.data[j] === b.data[i] && a.data[j + 1] === b.data[i + 1] && a.data[j + 2] === b.data[i + 2] && a.data[j + 3] === b.data[i + 3]
+  }
   for (let y = 0; y < b.height; y++) {
     for (let x = 0; x < b.width; x++) {
       const i = (y * b.width + x) * 4
       const hit = (Math.abs(a.data[i] - b.data[i]) > tolerance || Math.abs(a.data[i + 1] - b.data[i + 1]) > tolerance || Math.abs(a.data[i + 2] - b.data[i + 2]) > tolerance || Math.abs(a.data[i + 3] - b.data[i + 3]) > tolerance) && !ignore.some(g => inBox(x, y, g))
-      if (hit) out.data.set([255, 0, 0, 255], i)
+      if (hit) out.data.set(moved(x, y, i) ? [40, 110, 255, 255] : [255, 0, 0, 255], i)
       else { const g = Math.round((b.data[i] + b.data[i + 1] + b.data[i + 2]) / 3 * 0.35 + 255 * 0.65); out.data.set([g, g, g, 255], i) }
     }
   }

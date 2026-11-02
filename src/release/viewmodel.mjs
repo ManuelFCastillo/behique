@@ -16,7 +16,7 @@ import { appOfOpened } from './appregistry.mjs'
 import { visualView } from './ui/visual-view.mjs'
 import { sha, summarize } from './evidence.mjs'
 import { LABEL, RANK, maskedSentence, noticeSummary } from './notice.mjs'
-import { plainClaim, testSentence } from './claimtext.mjs'
+import { plainClaim, regressionText, testSentence } from './claimtext.mjs'
 
 const STALE_MS = 15 * 60 * 1000
 const APP_NAMES = { freshrss: 'FreshRSS' }
@@ -43,7 +43,7 @@ export function verdictOf(events, s, now = Date.now()) {
 }
 
 const whereOf = key => key.replace(/(@[^/]+|#text|#scrolls)$/, '').split('/').slice(-2).join('/')
-const whatOf = key => key.match(/@([^/]+)$/)?.[1] ?? (key === 'window@scrollY' ? 'scrollY' : 'text')
+const whatOf = key => key.match(/@([^/]+)$/)?.[1] ?? (key === 'window@scrollY' ? 'scrollY' : key.endsWith('#scrolls') ? 'scrolling' : 'text')
 const unquote = v => { try { return JSON.parse(v) } catch { return v } }
 
 /** The exported findings, most noticeable first: id, class, why, where, what, both values, step and verdict. Empty for older reports. */
@@ -51,7 +51,7 @@ export function findingsView(events) {
   const verdicts = new Map(events.filter(e => e.type === 'test.judged').map(e => [e.data.id, e.data.verdict]))
   const list = events.filter(e => e.type === 'test.exported' && typeof e.data.fact === 'string').map(e => {
     const d = e.data, cls = d.notice?.cls ?? null
-    return { id: d.id, cls, label: cls ? LABEL[cls] : null, why: d.notice?.why ?? null, where: whereOf(d.fact), what: whatOf(d.fact), was: d.appeared ? 'absent' : unquote(d.good), now: d.removed ? 'missing' : unquote(d.candidate), step: d.i ?? null, verdict: verdicts.get(d.id) ?? 'pending', ...(d.removed ? { removed: true, vanished: d.vanished ?? 1 } : {}), ...(d.appeared ? { appeared: true } : {}) }
+    return { id: d.id, cls, label: cls ? LABEL[cls] : null, why: d.notice?.why ?? null, where: whereOf(d.fact), what: whatOf(d.fact), was: d.appeared ? 'absent' : unquote(d.good), now: d.removed ? 'missing' : unquote(d.candidate), step: d.i ?? null, verdict: verdicts.get(d.id) ?? 'pending', ...(d.removed ? { removed: true, vanished: d.vanished ?? 1, ...(d.stillThere ? { stillThere: true } : {}), ...(d.fact.endsWith('#scrolls') ? { scrollLoss: true } : {}) } : {}), ...(d.appeared ? { appeared: true } : {}) }
   })
   return list.map((f, i) => [f, i]).sort((a, b) => (RANK[a[0].cls] ?? 9) - (RANK[b[0].cls] ?? 9) || a[1] - b[1]).map(([f]) => f)
 }
@@ -59,7 +59,7 @@ export function findingsView(events) {
 /** The build panes' rows: the findings when the report has them (ranked, with their class), else the first changed facts as before. */
 function factsView(events, changed) {
   const findings = findingsView(events)
-  if (findings.length) return findings.slice(0, 5).map(f => ({ where: f.where, what: f.what, was: f.was, now: f.now, step: f.step ?? '', id: f.id, cls: f.cls, label: f.label, why: f.why, verdict: f.verdict, ...(f.removed ? { removed: true, vanished: f.vanished } : {}) }))
+  if (findings.length) return findings.slice(0, 5).map(f => ({ where: f.where, what: f.what, was: f.was, now: f.now, step: f.step ?? '', id: f.id, cls: f.cls, label: f.label, why: f.why, verdict: f.verdict, ...(f.removed ? { removed: true, vanished: f.vanished, ...(f.stillThere ? { stillThere: true } : {}), ...(f.scrollLoss ? { scrollLoss: true } : {}) } : {}) }))
   return changed.slice(0, 4).map(d => ({ where: whereOf(d.key), what: whatOf(d.key), was: d.was, now: d.now, step: d.step }))
 }
 
@@ -123,7 +123,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const videoUrl = h => `/api/artifact-video?id=${encodeURIComponent(caseId)}&hash=${h}`
   const exported = new Map(events.filter(e => e.type === 'test.exported').map(e => [e.data.id, e.data])) // what each test checks, for the record that cites it
   const labels = art('baseline.json')?.labels ?? []
-  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }) } : null }
+  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, plain: regressionText(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }) } : null } // plain: the regression for a person; text: what the test does
   const videosOf = evidence => evidence.filter(h => s.artifacts[h]?.mediaType === 'video/webm').map(h => ({ name: s.artifacts[h].name, which: /\.good\.webm$/.test(s.artifacts[h].name) ? 'good' : 'candidate', url: videoUrl(h) })) // recordings of one run each way
   const verdict = verdictOf(events, s, now)
   const app = o.kind === 'visual' ? String(o.adapter ?? '').replace(/^visual-/, '') : APP_NAMES[String(o.adapter ?? '').split('-')[0]] ?? o.adapter ?? 'App'
@@ -173,7 +173,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
     bisect.verifiedText = m ? `verified ${m[1]}/${m[2]} and ${m[3]}/${m[4]}` : bisect.verified ? 'verified' : 'not verified'
   }
   const imgUrl = h => (/^[0-9a-f]{64}$/.test(h ?? '') ? `/api/artifact-image?id=${encodeURIComponent(caseId)}&hash=${h}` : null)
-  const pictures = events.filter(e => e.type === 'shots.recorded').map(e => ({ step: e.data.step, label: e.data.label, findings: e.data.findings ?? [], differs: Boolean(e.data.above), text: e.data.text, good: imgUrl(e.data.good), candidate: imgUrl(e.data.candidate), diff: imgUrl(e.data.diff) })) // screenshots of the step where a change shows; a lead for the eye, never the proof
+  const pictures = events.filter(e => e.type === 'shots.recorded').map(e => ({ step: e.data.step, label: e.data.label, findings: e.data.findings ?? [], differs: Boolean(e.data.above), shift: e.data.shift ?? null, text: e.data.text, good: imgUrl(e.data.good), candidate: imgUrl(e.data.candidate), diff: imgUrl(e.data.diff) })) // screenshots of the step where a change shows; a lead for the eye, never the proof
   const calls = events.filter(e => e.type === 'model.call')
   const changed = (art('facts-diff.json')?.candidate ?? []).filter(d => d.kind === 'changed')
   const judged = events.filter(e => e.type === 'test.judged') // newer reports judge each exported test; older ones have none

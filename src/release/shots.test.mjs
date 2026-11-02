@@ -42,6 +42,18 @@ describe('compareShots and describeShots', () => {
     assert.match(text, /looks the same/)
   })
 
+  it('a difference that is content moved down is said so, with what is new', () => {
+    const good = blank(60, 120), cand = blank(60, 120)
+    for (const [y, h, c] of [[20, 6, [0, 0, 0, 255]], [40, 3, [0, 90, 0, 255]], [55, 9, [0, 0, 120, 255]], [75, 4, [90, 90, 0, 255]]]) { paint(good, { x: 5, y, w: 40, h }, c); paint(cand, { x: 5, y: y + 12, w: 40, h }, c) }
+    paint(cand, { x: 5, y: 20, w: 40, h: 8 }, [200, 0, 0, 255])
+    const c = compareShots(pngOf(good), pngOf(cand))
+    assert.ok(c.above); assert.equal(c.shift.dy, 12)
+    const text = describeShots(c, { step: 9, label: 'click a', goodRef: 'v1', candRef: 'v2' })
+    assert.match(text, /Most of that is the same content moved 12 pixels down: once it is lined up, \d+ pixels still differ, in the box x 5, y 20, 40 by 8: that is what is new or changed\./)
+    const plain = compareShots(pngOf(good), pngOf(blank(60, 120)))
+    assert.equal(plain.shift, null); assert.doesNotMatch(describeShots(plain, { step: 1, label: 'x', goodRef: 'v1', candRef: 'v2' }), /moved/)
+  })
+
   it('a difference over the floor names the bbox', () => {
     const good = blank(20, 20, [255, 255, 255, 255])
     const floorImg = blank(20, 20, [255, 255, 255, 255])

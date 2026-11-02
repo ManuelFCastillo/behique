@@ -109,6 +109,10 @@ Same crawl, cached builds, 168 s. HOLD. The compare claim now reads "84 recorded
 
 Same crawl and builds after the generated tests learned to settle like the recorder and to hold the judged state while recording. Same five findings (R3 the pane that stops scrolling), same bisect to d67a85b in 5 steps, 195 s instead of 168 (the settle and the 1.5 s hold on each of 30 runs). Recordings run 3.0 s to 4.1 s and end on the drawn page rather than a loading shell. Each record now carries "What the test R1 does" in a sentence.
 
+### Run 2f: the regression in plain words, moved content told from new (2026-11-02, case `20261102T193523Z_2025.10.1-vs-2025.11.2`)
+
+Same crawl and builds, same five findings and the same bisect to d67a85b, 197 s. New on the record: every reproduced failure opens with "Regression R1 in plain words" ("On the start page on 2025.11.2, a split pane that could scroll can no longer scroll: content taller than it is cut off (!overflow-auto to !overflow-hidden)."; R3: "After a click on 2025.11.2, a block cannot be scrolled: the mouse wheel over it does nothing, so anything below its edge is out of reach. On 2025.10.1 it scrolls."), the Measured rows read R3 as "scrolling of div[1]/div[1] · the area can no longer scroll on the candidate", and the step-9 picture says that of its 13,867 differing pixels most are the same content moved 48 px down (the inserted "Enable Documentation" row), with 5,804 still different once lined up, in a 277 by 275 box; the diff image paints the row red and the moved rows blue. R5 is still read as a missing element rather than a dropped attribute: that block has no other recorded fact on the candidate, so the evidence cannot tell the two apart.
+
 ## Next
 
 Docusaurus #11213 is cloned (`~/dev/behique-apps/docusaurus`, 154 commits in range) for an overnight run.

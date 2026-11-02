@@ -3,6 +3,8 @@
 // reads a recorded claim back into a lead line and short items, so the dashboard can show it readably without touching the text
 // the hash covers. Both are pure.
 
+import { classChange } from './notice.mjs'
+
 const short = k => k.split('/').slice(-2).join('/')
 const cut = (v, n) => { const t = JSON.stringify(v); return t.length > n ? t.slice(0, n) + '...' : t } // shown shortened, never cut silently
 
@@ -95,3 +97,64 @@ export function testSentence(t, { label = null, goodRef = 'the good version', ca
   if (t.removed) return `Checks that ${step} ${subject} ${plural ? 'are' : 'is'} still ${q(t.good)}, as on ${goodRef}. On ${candRef} ${plural ? 'they were' : 'it was'} missing.`
   return `Checks that ${step} ${subject} ${plural ? 'are' : 'is'} ${q(t.good)}, as on ${goodRef}. On ${candRef} ${plural ? 'they were' : 'it was'} ${q(t.candidate)}.`
 }
+
+// A word a person would use for the element, read from its class names (a split pane, a sidebar, a dialog), else from its tag.
+const CLASS_WORDS = [['splitpanes', 'a split pane'], ['pane', 'a pane'], ['sidebar', 'a sidebar'], ['navbar', 'a navigation bar'], ['nav', 'a navigation bar'], ['modal', 'a dialog'], ['dialog', 'a dialog'], ['dropdown', 'a dropdown menu'], ['menu', 'a menu'], ['tooltip', 'a tooltip'], ['toolbar', 'a toolbar'], ['tabs', 'a tab bar'], ['tab', 'a tab'], ['panel', 'a panel'], ['drawer', 'a drawer'], ['header', 'a header'], ['footer', 'a footer'], ['card', 'a card'], ['table', 'a table'], ['editor', 'an editor'], ['toggle', 'a toggle'], ['switch', 'a switch'], ['btn', 'a button'], ['button', 'a button'], ['input', 'an input'], ['form', 'a form'], ['list', 'a list'], ['badge', 'a badge'], ['banner', 'a banner'], ['overlay', 'an overlay'], ['spinner', 'a spinner'], ['avatar', 'an avatar']]
+export function nameFromClasses(...lists) {
+  const tokens = new Set(lists.flatMap(l => unq(l ?? '').split(/\s+/)).flatMap(c => c.replace(/^!/, '').split(/[:_-]+|__/)).map(t => t.toLowerCase()).filter(Boolean))
+  for (const [tok, word] of CLASS_WORDS) if (tokens.has(tok)) return word
+  return null
+}
+
+// What a layout class means for a person. Returns a sentence for the classes that came and went, or null for classes this check cannot read.
+function classMeaning(removed, added, who) {
+  const bare = c => c.replace(/^!?(?:[a-z-]+:)*/, '')
+  const has = (list, re) => list.some(c => re.test(bare(c)))
+  const of = (list, re) => list.filter(c => re.test(bare(c)))
+  const SCROLL = /^overflow(?:-[xy])?-(?:auto|scroll)$/, CLIP = /^overflow(?:-[xy])?-(?:hidden|clip)$/
+  const HIDE = /^(?:hidden|invisible|sr-only|opacity-0|d-none|visually-hidden|collapse|collapsed)$/, SHOW = /^(?:visible|not-sr-only|opacity-100|block|inline-block|d-block|d-flex|d-inline|expanded)$/
+  const DISABLE = /^(?:disabled|pointer-events-none)$/, ENABLE = /^pointer-events-auto$/
+  const LAYOUT = /^(?:block|inline|inline-block|inline-flex|flex|grid|contents|d-block|d-flex|d-inline|d-inline-block)$/, POS = /^(?:fixed|absolute|sticky|static|relative)$/
+  const pair = re => `(${few(of(removed, re))} to ${few(of(added, re))})`
+  if (has(removed, SCROLL) && has(added, CLIP)) return `${who} that could scroll can no longer scroll: content taller than it is cut off ${pair(/overflow/)}.`
+  if (has(removed, CLIP) && has(added, SCROLL)) return `${who} that cut its content off can now scroll ${pair(/overflow/)}.`
+  if (has(added, HIDE) && !has(removed, HIDE)) return `${who} that was shown is now hidden ${pair(HIDE)}.`
+  if (has(removed, HIDE) && !has(added, HIDE)) return `${who} that was hidden is now shown ${pair(HIDE)}.`
+  if (has(added, DISABLE)) return `${who} can no longer be used: it is disabled or ignores clicks ${pair(DISABLE)}.`
+  if (has(removed, DISABLE) || has(added, ENABLE)) return `${who} that could not be used can be used again ${pair(new RegExp(DISABLE.source + '|' + ENABLE.source))}.`
+  if (has(removed, LAYOUT) || has(added, LAYOUT)) return `${who} is laid out differently ${pair(LAYOUT)}: its contents may wrap, align or size differently.`
+  if (has(removed, POS) || has(added, POS)) return `${who} is positioned differently on the page ${pair(POS)}.`
+  if (has(added, SHOW) || has(removed, SHOW)) return `${who} shows differently ${pair(SHOW)}.`
+  return null
+}
+
+const STATE_WORDS = { inert: 'inert: it cannot be clicked, focused or typed into', disabled: 'disabled', hidden: 'hidden', readonly: 'read-only', checked: 'checked', selected: 'selected', open: 'open', 'aria-hidden': 'hidden from assistive technology', 'aria-disabled': 'announced as disabled', 'aria-expanded': 'expanded', 'aria-busy': 'marked busy', 'aria-invalid': 'marked invalid' }
+
+/**
+ * The regression in plain words: one or two sentences a person reads first, from the exported test ({ fact, i, good, candidate, removed,
+ * appeared, stillThere, notice }) and the versions. The sentence names what changed for a person, not the test's mechanics.
+ */
+export function regressionText(t, { goodRef = 'the good version', candRef = 'the candidate', label = null } = {}) {
+  if (!t || typeof t.fact !== 'string') return null
+  const e = element(t.fact)
+  const named = nameFromClasses(t.good, t.candidate)
+  const who = e.what === 'classes' && named ? named : article(e.tag)
+  const when = Number.isFinite(Number(t.i)) && Number(t.i) > 0 ? `After ${label ? stepWords(label) : `step ${t.i}`}` : 'On the start page'
+  const churn = t.notice?.cls === 'churn' ? ` This is markup churn (${t.notice.why}): a person would not notice it, and it is here so the record is complete.` : ''
+  const lead = `${when} on ${candRef}, `
+  if (t.fact === 'window@scrollY') return `${lead}the page scrolls differently: ${unq(t.candidate)}, where ${goodRef} has ${unq(t.good)}.`
+  if (e.what === 'scrolling') return `${lead}${who} cannot be scrolled: the mouse wheel over it does nothing, so anything below its edge is out of reach. On ${goodRef} it scrolls.`
+  if (t.appeared) return `${lead}${who} is ${STATE_WORDS[e.what] ?? `marked ${e.what}`}. On ${goodRef} it is not.${churn}`
+  if (t.removed && t.stillThere) return `${lead}the ${e.what} attribute dropped off ${who}; the element itself is still there.${churn}`
+  if (t.removed) return `${lead}${who} is missing: on ${goodRef} it is there, ${e.what === 'text' ? `reading ${q(t.good)}` : e.what === 'classes' ? `with the classes ${q(t.good)}` : `carrying the ${e.what} attribute${unq(t.good) === '' ? '' : ` ${q(t.good)}`}`}.${churn}`
+  if (e.what === 'classes') {
+    const { added, removed } = classChange(unq(t.good), unq(t.candidate))
+    const meaning = classMeaning(removed, added, who)
+    if (meaning) return `${lead}${meaning}`
+    return `${lead}the style classes of ${who} changed (${few(removed)} to ${few(added)}).${churn}`
+  }
+  if (e.what === 'text') return `${lead}the text of ${who} reads ${q(t.candidate)}, where ${goodRef} reads ${q(t.good)}.${churn}`
+  return `${lead}the ${e.what} of ${who} is ${q(t.candidate)}, where ${goodRef} has ${q(t.good)}.${churn}`
+}
+const few = (list, n = 4) => (list.length ? list.slice(0, n).join(' ') + (list.length > n ? ` and ${list.length - n} more` : '') : 'nothing')
+const cap = s => s.charAt(0).toUpperCase() + s.slice(1)

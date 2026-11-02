@@ -191,7 +191,7 @@ test('a reproduced failure says what its test checks, from the exported test and
   c.claim('reproduced_failure', 'The test R1 passed 3 of 3 runs on 1.0 and failed 3 of 3 runs on 2.0.', { evidence: [spec] })
   c.claim('reproduced_failure', 'The first change that makes the test fail is abc1234.', { evidence: [spec] })
   const [r1, culprit] = vm().claims.filter(x => x.kind === 'reproduced_failure')
-  assert.deepEqual(r1.test, { id: 'R1', text: 'Checks that after step 1 (click a.one) the classes of a block at div[1]/div[3] are "!overflow-auto flex", as on 1.0. On 2.0 they were "!overflow-hidden flex".' })
+  assert.deepEqual(r1.test, { id: 'R1', plain: 'After click a.one on 2.0, a block that could scroll can no longer scroll: content taller than it is cut off (!overflow-auto to !overflow-hidden).', text: 'Checks that after step 1 (click a.one) the classes of a block at div[1]/div[3] are "!overflow-auto flex", as on 1.0. On 2.0 they were "!overflow-hidden flex".' })
   assert.equal(culprit.test, null, 'the culprit record names no test')
   assert.ok(vm().claims.filter(x => x.kind !== 'reproduced_failure').every(x => x.test === null))
 })
@@ -277,4 +277,12 @@ test('a vanished element shows as missing on the candidate, with how many facts 
   assert.equal(vm.verdict, 'hold')
   const f = vm.facts[0]
   assert.deepEqual([f.id, f.was, f.now, f.removed, f.vanished, f.cls], ['R1', 'Share', 'missing', true, 5, 'visible'])
+})
+
+test('the build panes read a lost scroll area and a dropped attribute for what they are', () => {
+  const { c, vm } = growing()
+  c.event('test.exported', { id: 'R1', fact: 'body/div[1]/main[1]#scrolls', i: 9, good: 'can scroll', candidate: 'cannot scroll on the candidate', removed: true, vanished: 1, notice: { cls: 'visible', why: 'whether an area can scroll' } })
+  c.event('test.exported', { id: 'R2', fact: 'body/div[1]@data-v-abc', i: 0, good: '""', candidate: 'missing', removed: true, vanished: 1, stillThere: true, notice: { cls: 'churn', why: 'a framework attribute (data-v-abc)' } })
+  const rows = vm().facts
+  assert.deepEqual(rows.map(r => [r.id, r.what, r.scrollLoss === true, r.stillThere === true]), [['R1', 'scrolling', true, false], ['R2', 'data-v-abc', false, true]])
 })

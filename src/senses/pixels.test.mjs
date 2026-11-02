@@ -1,7 +1,7 @@
 // node --test src/senses/pixels.test.mjs   (offline: synthetic images, no browser)
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { aboveFloor, blank, decode, diff, diffImage, emptiness, encode, noiseFloor, paint, scaleBox } from './pixels.mjs'
+import { aboveFloor, blank, decode, diff, diffImage, emptiness, encode, noiseFloor, paint, scaleBox, shiftMatch } from './pixels.mjs'
 
 const RED = [255, 0, 0, 255], BLUE = [0, 0, 255, 255]
 
@@ -85,4 +85,27 @@ test('emptiness is 1 over background, lower over ink, and a solid colour swatch 
   paint(a, { x: 60, y: 60, w: 30, h: 30 }, [58, 111, 209, 255]) // solid fill, no text
   assert.equal(emptiness(a, { x: 65, y: 65, w: 20, h: 20 }), 0)
   assert.equal(emptiness(a, { x: 500, y: 500, w: 5, h: 5 }), 1) // a box outside the image counts as empty
+})
+
+test('shiftMatch tells content that moved from content that is new, and says where the new part is', () => {
+  const BLK = [0, 0, 0, 255], RED = [200, 0, 0, 255]
+  const a = blank(60, 120), b = blank(60, 120)
+  const ROWS = [[20, 6, [0, 0, 0, 255]], [40, 3, [0, 90, 0, 255]], [55, 9, [0, 0, 120, 255]], [75, 4, [90, 90, 0, 255]]] // rows of different heights and colours, so only one offset lines them up
+  for (const [y, h, c] of ROWS) { paint(a, { x: 5, y, w: 40, h }, c); paint(b, { x: 5, y: y + 12, w: 40, h }, c) } // moved 12 px down
+  paint(b, { x: 5, y: 20, w: 40, h: 8 }, RED) // and a new row where the gap opened
+  const d = diff(encode(a), encode(b))
+  const m = shiftMatch(encode(a), encode(b), { box: d.bbox })
+  assert.equal(m.dy, 12); assert.equal(m.dx, 0)
+  assert.ok(m.remaining < m.before * 0.5, `the move explains most of the difference (${m.remaining} of ${m.before} left)`); assert.equal(m.before, 3600, 'counted both ways')
+  assert.deepEqual(m.newBox, { x: 5, y: 20, w: 40, h: 8 }, 'what is left is the new row')
+  assert.equal(shiftMatch(encode(a), encode(a), { box: { x: 0, y: 0, w: 60, h: 120 } }), null, 'nothing differs: nothing to explain')
+  const c = blank(60, 120); paint(c, { x: 5, y: 20, w: 40, h: 60 }, RED)
+  assert.equal(shiftMatch(encode(a), encode(c), { box: diff(encode(a), encode(c)).bbox }), null, 'a different picture is not a move')
+  const sideways = blank(60, 120); for (const [y, h, c] of ROWS) paint(sideways, { x: 9, y, w: 40, h }, c)
+  const sm = shiftMatch(encode(a), encode(sideways), { box: diff(encode(a), encode(sideways)).bbox })
+  assert.equal(sm.dx, 4); assert.equal(sm.dy, 0); assert.equal(sm.remaining, 0); assert.equal(sm.newBox, null)
+  const png = decode(diffImage(encode(a), encode(b), { shift: m }))
+  const at = (x, y) => [...png.data.subarray((y * 60 + x) * 4, (y * 60 + x) * 4 + 3)]
+  assert.deepEqual(at(10, 22), [255, 0, 0], 'the new row is red')
+  assert.deepEqual(at(10, 88), [40, 110, 255], 'a moved row is blue')
 })
