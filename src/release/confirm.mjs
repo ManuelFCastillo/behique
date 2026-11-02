@@ -8,6 +8,7 @@ import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runExportedAsync, writeExport } from '../export.mjs'
 import { appearedStates, firstConfirmed, judgeFindings, selectFindings, summarize, vanishedRoots } from './findings.mjs'
+import { changesText } from './claimtext.mjs'
 import { LABEL, maskedAreas, noticePhrase, noticeSummary } from './notice.mjs'
 import { captureShots, captureShotsWithCanvases, recordShots } from './shots.mjs'
 import { setTiming, startBuild, stopAll } from './build.mjs'
@@ -148,14 +149,13 @@ const valueChanges = cand.filter(d => d.kind === 'changed')
 const changed = [...valueChanges, ...appeared, ...vanished] // ranked: value changes first, then states newly set, then vanished elements
 const short = k => k.split('/').slice(-2).join('/')
 const attrName = k => (k.match(/@([^/@]+)$/) ?? [])[1] ?? k
-const cut = (v, n) => { const t = JSON.stringify(v); return t.length > n ? t.slice(0, n) + '...' : t } // shown shortened, never cut silently
 const nGone = vanished.reduce((a, d) => a + (d.vanished ?? 1), 0)
 const parts = [
   valueChanges.length ? `${valueChanges.length} recorded value${valueChanges.length === 1 ? '' : 's'}` : null,
   appeared.length ? `${appeared.length} state attribute${appeared.length === 1 ? '' : 's'} newly set on ${candRef} (${[...new Set(appeared.map(d => attrName(d.key)))].slice(0, 4).join(', ')})` : null,
   vanished.length ? `${vanished.length} element${vanished.length === 1 ? '' : 's'} present on ${goodRef} ${vanished.length === 1 ? 'is' : 'are'} missing (${nGone} recorded fact${nGone === 1 ? '' : 's'})` : null,
 ].filter(Boolean)
-ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${parts.join(', and ')}: ${changed.slice(0, 4).map(d => d.kind === 'removed' ? `${short(d.key)} (was ${cut(d.was, 90)}) is gone` : d.kind === 'added' ? `${short(d.key)} is newly set to ${cut(d.now, 90)}` : `${short(d.key)} was ${cut(d.was, 90)}, now ${cut(d.now, 90)}`).join('; ')}.`, { evidence: [diffH] })
+ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${parts.join(', and ')}: ${changesText(changed)}.`, { evidence: [diffH] }) // identical changes are counted once, so four copies of a version label do not hide the one state attribute
 if (appeared.length) console.log(`${appeared.length} state attribute${appeared.length === 1 ? '' : 's'} newly set on ${candRef}: ${appeared.slice(0, 3).map(d => short(d.key)).join(', ')}`)
 if (vanished.length) console.log(`${vanished.length} element${vanished.length === 1 ? '' : 's'} vanished on ${candRef} (${nGone} facts): ${vanished.slice(0, 3).map(d => short(d.key)).join(', ')}`)
 

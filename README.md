@@ -62,7 +62,7 @@ Every run is an evidence case under `out/evidence/<case>/`: a hash-chained event
 node --test $(find src -name "*.test.mjs" -not -path "*/senses/*")
 ```
 
-827 tests, no network, no model calls (the crawl's own test launches a browser against a local fake site and takes a few minutes). The canvas senses have their own tests under `src/senses/`, which launch a browser.
+829 tests, no network, no model calls (the crawl's own test launches a browser against a local fake site and takes a few minutes). The canvas senses have their own tests under `src/senses/`, which launch a browser.
 
 ## More
 

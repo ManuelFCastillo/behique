@@ -279,11 +279,6 @@ img,svg{max-width:100%}
 .bottombar{grid-column:1;height:auto;flex-wrap:wrap;padding:12px;row-gap:12px}
 #reasonWrap{grid-column:1}
 .builds{grid-template-columns:1fr}
-.timeline{padding:28px 16px 78px}
-.t-line{left:23px;right:23px}
-.end-label.left{left:16px}
-.end-label.right{right:16px}
-.culprit-tag{top:78px}
 .verdict{padding:16px}
 .verdict-text h1{font-size:40px}
 }
@@ -343,10 +338,8 @@ img,svg{max-width:100%}
 .side-foot{display:block}
 }
 @media(max-width:900px){
-.sidebar{flex-wrap:wrap}
-.apps{flex:0 0 100%;margin:8px 0 0;max-height:340px;min-height:0}
+.apps{min-height:0}
 .apps-list{flex:0 1 auto;max-height:240px}
-.runpick{flex:0 0 100%;margin:6px 0 0}
 .repo-panel{grid-column:1;grid-row:auto;padding:18px}
 }
 #reasonRow #reasonWho{flex:0 0 170px}
@@ -462,6 +455,53 @@ img,svg{max-width:100%}
 .set-msg.ok{color:var(--emerald)}.set-msg.bad{color:var(--ruby)}
 .empty-note{color:var(--muted);padding:18px 8px}
 </style>
+<style>
+/* At a glance: the two versions are capsules, not a sentence, and the hero names the app above them */
+.ver{display:inline-flex;align-items:center;gap:6px;font:600 12px/1 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;border:1px solid var(--line);border-radius:999px;padding:5px 10px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis;color:var(--text);vertical-align:middle}
+.ver small{font:700 9px/1 system-ui,sans-serif;letter-spacing:.1em;text-transform:uppercase;opacity:.75}
+.ver.good{color:var(--emerald);border-color:rgba(47,217,138,.5);background:rgba(47,217,138,.08)}
+.ver.cand{color:var(--amber);border-color:rgba(255,166,61,.5);background:rgba(255,166,61,.08)}
+.ver.cand.bad{color:var(--ruby);border-color:rgba(255,77,87,.5);background:rgba(255,77,87,.08)}
+.v-app{font-size:17px;font-weight:700;letter-spacing:.01em;overflow-wrap:anywhere}
+.v-vers{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:7px}
+.v-vs{font-size:10px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase}
+.build-sub{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.ev-head{flex-wrap:wrap}
+/* the bisect's ends and the culprit sit in the flow under the nodes, so nothing can overlap at any width */
+.timeline{padding:22px 40px 8px}
+.t-line{top:34px;left:47px;right:47px}
+.t-ends{display:grid;grid-template-columns:auto minmax(0,1fr) auto;align-items:start;gap:10px;margin-top:14px}
+.end-label{position:static}
+.culprit-tag{position:static;transform:none;justify-self:center;max-width:100%;white-space:normal;text-align:center}
+/* a claim reads as a lead line and short items; the exact recorded sentence (what the hash covers) stays in the details */
+.claim-items{margin:6px 0 0 16px;padding:0;font-size:12.5px;color:var(--text)}
+.claim-items li{margin:3px 0;overflow-wrap:anywhere}
+.claim-details .rec{white-space:normal;word-break:normal;overflow-wrap:anywhere;margin-top:6px}
+/* narrow screens: a top bar (logo, views, one capsule naming the app) and then the hero; the apps list opens from the capsule */
+.apps-toggle{display:none;align-items:center;gap:6px;margin-left:auto;max-width:46%;border:1px solid var(--line);border-radius:999px;padding:6px 10px;background:var(--panel-2);color:var(--text);font:600 12px system-ui,sans-serif;cursor:pointer}
+.apps-toggle .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.apps-toggle .car{font-size:9px;opacity:.7;transition:transform 200ms ease}
+.sidebar.apps-open .apps-toggle .car{transform:rotate(180deg)}
+@media(max-width:900px){
+.sidebar{flex-wrap:nowrap;gap:6px;padding:8px 10px}
+.logo-wrap img{width:40px;height:40px}
+.nav{flex:0 1 auto;gap:0;justify-content:flex-start}
+.nav a{padding:8px 6px;width:38px}
+.apps-toggle{display:inline-flex}
+.apps,.runpick{display:none}
+.sidebar.apps-open{flex-wrap:wrap}
+.sidebar.apps-open .apps{display:flex;flex:0 0 100%;margin:8px 0 0;max-height:340px}
+.sidebar.apps-open .runpick{display:block;flex:0 0 100%;margin:6px 0 0}
+.verdict{gap:14px;padding:14px}
+.gem{width:84px;height:84px}
+.gem::before{inset:7px}
+.verdict-text h1{font-size:36px}
+.timeline{padding:22px 16px 8px}
+.t-line{left:23px;right:23px}
+.t-ends{grid-template-columns:1fr 1fr;gap:8px}
+.t-ends .culprit-tag{grid-column:1/3;grid-row:2;justify-self:stretch}
+}
+</style>
 </head>
 <body>
 <div class="page">
@@ -474,6 +514,7 @@ img,svg{max-width:100%}
 <li><a href="#reports" data-view="reports"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/></svg>Reports</a></li>
 <li><a href="#settings" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>Settings</a></li>
 </ul>
+<button class="apps-toggle" id="appsToggle" type="button" aria-expanded="false" aria-controls="appsList" title="Apps and reports"><span class="nm" id="appsToggleName">Apps</span><span class="car" aria-hidden="true">&#9660;</span></button>
 <section class="apps" aria-label="Apps">
 <div class="apps-h"><span>Apps</span><button id="appsRefresh" type="button" title="Ask GitHub for your repos again">refresh</button></div>
 <div class="apps-gh" id="ghState">GitHub: checking...</div>
@@ -503,9 +544,11 @@ img,svg{max-width:100%}
 <div class="timeline">
 <div class="t-line"><div class="t-pulse" id="bisectPulse" aria-hidden="true"></div></div>
 <div class="t-nodes" id="bisectNodes"></div>
-<span class="end-label left mono" id="bisectLeft">1a2b3c4d (good)</span>
-<span class="end-label right mono" id="bisectRight">9f8e7d6c (bad)</span>
+<div class="t-ends">
+<span class="end-label left" id="bisectLeft"></span>
 <div class="culprit-tag" id="culpritTag"><div class="mono">1b7178a1 #9146</div><span class="chip green">verified 3/3 and 3/3</span></div>
+<span class="end-label right" id="bisectRight"></span>
+</div>
 </div>
 </section>
 <div class="vrun card" id="vrun" hidden><div class="vrun-t" id="vrunText">Starting</div><div class="vrun-bar"><div id="vrunFill"></div></div></div>
@@ -690,7 +733,7 @@ function renderHero(){
   else if(state.verdict==="running"){ gem.classList.add("gem-gray"); word.style.color="var(--muted)"; word.textContent="RUNNING"; $("verdictSub").textContent=DATA.subs.running; }
   else if(state.verdict==="inconclusive"){ gem.classList.add("gem-gray"); word.style.color="var(--blue)"; word.textContent="REVIEW"; $("verdictSub").textContent=DATA.subs.inconclusive; }
   else { word.style.color="var(--amber)"; word.textContent="HOLD"+lock; $("verdictSub").textContent=DATA.subs.hold; }
-  $("verdictTitle").textContent=DATA.title;
+  renderTitle();
   $("verdictLabel").textContent=({running:"Behique is checking",fail:"No recommendation"})[state.verdict]||"Behique recommends";
   // Once a person has decided, the case is closed and the hero says so: the big word is their decision, the label keeps Behique's
   // recommendation next to it, so an override reads as one. The evidence sentence below stays what the check found.
@@ -707,6 +750,30 @@ function renderHero(){
   $("culpritTag").style.display = (scenario==="clean") ? "none" : "";
   if(prevV && prevV!==state.verdict){ gem.classList.remove("shock"); void gem.offsetWidth; gem.classList.add("shock"); clearTimeout(gem._shockH); gem._shockH=setTimeout(()=>gem.classList.remove("shock"),750); }
   gem.dataset.v=state.verdict;
+}
+// A version as a capsule: the ref in mono, its role (good, candidate) in small caps. The candidate turns red only when the check went against it.
+function verChip(ref, role, bad){
+  const s=document.createElement("span"); s.className="ver "+(role==="good"?"good":"cand"+(bad?" bad":"")); s.textContent=String(ref)+" ";
+  const sm=document.createElement("small"); sm.textContent=role; s.appendChild(sm); return s;
+}
+function candIsBad(){ return state.verdict==="hold"||state.verdict==="fail"||state.verdict==="inconclusive"; }
+// The hero names what is being checked: the app on its own line, then the two versions as capsules. Older demo data keeps its title sentence.
+function renderTitle(){
+  const t=$("verdictTitle"); t.textContent="";
+  const vm=LIVE.vm;
+  if(!vm || !vm.goodRef){ t.textContent=DATA.title; return; }
+  const app=document.createElement("div"); app.className="v-app"; app.textContent=vm.app;
+  const row=document.createElement("div"); row.className="v-vers";
+  row.appendChild(verChip(vm.goodRef,"good"));
+  const vs=document.createElement("span"); vs.className="v-vs"; vs.textContent="vs"; row.appendChild(vs);
+  row.appendChild(verChip(vm.candRef,"candidate",candIsBad()));
+  t.appendChild(app); t.appendChild(row);
+}
+// "b4a8990 (good)" from the record becomes a capsule; anything else is shown as it is
+function endLabel(el, text){
+  el.textContent=""; const m=/^(\S+) \((good|bad)\)$/.exec(String(text||""));
+  if(!m){ el.textContent=text||""; el.classList.add("mono"); return; }
+  el.classList.remove("mono"); el.appendChild(verChip(m[1], m[2]==="good"?"good":"bad", m[2]==="bad"));
 }
 function bisectTipText(n){
   if(n.tested){ return "Step "+n.step+", "+n.hash+", "+n.verdict+", built and run"; }
@@ -735,8 +802,8 @@ function renderBisect(){
     el.addEventListener("keydown",(e)=>{ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); onNodeClick(n,el); } });
     wrap.appendChild(el);
   });
-  $("bisectLeft").textContent=DATA.ends.left;
-  $("bisectRight").textContent=DATA.ends.right;
+  endLabel($("bisectLeft"),DATA.ends.left);
+  endLabel($("bisectRight"),DATA.ends.right);
 }
 function showTip(el){
   const tip=$("bisectTip");
@@ -784,12 +851,15 @@ function renderClaims(){
     const ct=document.createElement("span"); ct.className="ct"; ct.style.color=c.color; ct.textContent=c.label;
     const hs=document.createElement("span"); hs.className="hash mono"; hs.textContent=shortHash(c.hash);
     top.appendChild(ct); top.appendChild(hs);
-    const p=document.createElement("p"); p.textContent=c.text;
+    const p=document.createElement("p");
+    const plain = c.plain && !c.tampered ? c.plain : null;   // the quick read; the hash covers c.text, which the details show word for word
+    p.textContent = plain ? plain.lead : c.text;
+    let items=null; if(plain && plain.items.length){ items=document.createElement("ul"); items.className="claim-items"; plain.items.forEach(s=>{ const li=document.createElement("li"); li.textContent=s; items.appendChild(li); }); }
     const foot=document.createElement("div"); foot.className="claim-foot"; foot.textContent=c.foot+" ";
     c.chips.forEach(ch=>{
       const s=document.createElement("span"); s.className="chip "+(c.cls==="gold"?"gold":"green"); s.textContent=ch; foot.appendChild(s); foot.appendChild(document.createTextNode(" "));
     });
-    card.appendChild(top); card.appendChild(p); card.appendChild(foot);
+    card.appendChild(top); card.appendChild(p); if(items) card.appendChild(items); card.appendChild(foot);
     if(c.kind==="ai_hypothesis" && !LIVE.vm){
       const btn=document.createElement("button"); btn.className="mini-btn"; btn.type="button"; btn.id="askBtn-"+c.id;
       const isClean = c.text==="Nothing to explain";
@@ -806,6 +876,7 @@ function renderClaims(){
     const f4=document.createElement("div"); f4.append("evidence: ");
     if(c.links.length){ c.links.forEach((nm,k)=>{ const u=(c.linkUrls||[])[k]; if(u){ const a=document.createElement("a"); a.href=u; a.target="_blank"; a.rel="noopener"; a.textContent=nm; a.addEventListener("click",ev=>ev.stopPropagation()); f4.appendChild(a); } else { f4.append(nm); } if(k<c.links.length-1) f4.append(", "); }); } else { f4.append("none"); }
     det.appendChild(f1); det.appendChild(f2); det.appendChild(f3); det.appendChild(f4);
+    if(plain){ const f5=document.createElement("div"); f5.className="rec"; f5.textContent="recorded as: "+c.text; det.appendChild(f5); }
     if(c.kind==="ai_hypothesis"){
       const ex=(label,val)=>{ if(!val) return; const d=document.createElement("div"); d.textContent=label+val; det.appendChild(d); };
       ex("model: ", c.model); ex("line it points to: ", c.quote); ex("how to check it: ", c.howToCheck);
@@ -1114,7 +1185,7 @@ function renderBuilds(){
   if(LIVE.vm && LIVE.vm.visual){ renderVisualBuilds(); return; }
   const vm=LIVE.vm, subs=document.querySelectorAll(".build .build-sub"), mocks=document.querySelectorAll(".build .measured"), dots=document.querySelectorAll(".build .status");
   const sides=[{ref:vm.goodRef,tag:"good",cls:"good",key:"was"},{ref:vm.candRef,tag:"candidate",cls:"cand",key:"now"}];
-  subs.forEach((el,i)=>{ el.textContent=vm.app+" "+sides[i].ref+" ("+sides[i].tag+")"; });
+  subs.forEach((el,i)=>{ el.textContent=""; el.appendChild(verChip(sides[i].ref, sides[i].tag, i===1 && vm.verdict!=="ship")); });   // the app is named in the hero; here the version is the thing
   if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
   mocks.forEach((m,i)=>{
     const box=document.createElement("div"); box.className="measured "+sides[i].cls;
@@ -1141,9 +1212,7 @@ function renderBisectChrome(){
   const none=$("bisectNone"); none.hidden=Boolean(b)||vm.verdict==="running"; none.textContent=vm.verdict==="pass" ? "Nothing changed between these versions, so there was nothing to search for." : "No search was run for this check. Start a new run with the search box ticked to find the exact change.";
   $("bisectCount").textContent = b ? b.changes+" commits . "+b.steps+" steps" : (vm.verdict==="running" ? "the search starts after the test" : "no search was run");
   if(!b || !b.ends.culprit){ tag.style.display="none"; return; }
-  tag.style.display=""; tag.querySelector(".mono").textContent=b.ends.culprit; tag.querySelector(".chip").textContent=b.verifiedText||"";
-  requestAnimationFrame(()=>{ const n=document.querySelector("#bisectNodes .node.c"), tl=document.querySelector(".timeline"); if(!n||!tl) return;
-    const nr=n.getBoundingClientRect(), tr=tl.getBoundingClientRect(); const x=Math.min(Math.max(nr.left+nr.width/2-tr.left,110),tr.width-110); tag.style.left=x+"px"; });
+  tag.style.display=""; tag.querySelector(".mono").textContent=b.ends.culprit; tag.querySelector(".chip").textContent=b.verifiedText||"";   // the tag sits in the flow between the two ends; the culprit node itself is the orange one
 }
 async function loadLive(id){
   const vm=await fetch("/api/ui/case?id="+encodeURIComponent(id)).then(r=>{ if(!r.ok) throw new Error("no such report"); return r.json(); });
@@ -1162,10 +1231,19 @@ async function loadLive(id){
 // ---- runs: start, watch, cancel ----
 let RUN = { running: false, poll: null, apps: [] };
 function mmss(s){ return Math.floor(s/60)+":"+String(s%60).padStart(2,"0"); }
+// One report in the picker: when it ran (month-day hour:minute, UTC as the id is), which two versions, and the result
+function caseLabel(c){
+  const m=/^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(c.id);
+  const when=m ? m[2]+"-"+m[3]+" "+m[4]+":"+m[5] : c.id.slice(0,15);
+  const t=/ (\S+) \(good\) vs (\S+) \(candidate\)$/.exec(c.title||"");
+  const pair=t ? t[1]+" vs "+t[2] : (c.scenario||"");
+  const res=({hold:"HOLD",ship:"SHIP",pass:"SHIP",fail:"FAILED",running:"RUNNING",inconclusive:"REVIEW"})[c.verdict]||String(c.verdict).toUpperCase();
+  return when+"  "+pair+"  "+res+(c.decision?", "+c.decision:"");
+}
 function fillPicker(list){
   list=list.filter(c=>c.app===APPS_UI.selected);       // the reports of the selected app only
   const pick=$("runPick"), keep=pick.value; pick.textContent="";
-  list.forEach(c=>{ const o=document.createElement("option"); o.value=c.id; o.textContent=c.id.slice(0,8)+" "+c.id.slice(9,15)+"  "+(c.scenario||"earlier run")+"  ["+c.verdict.toUpperCase()+(c.decision?", "+c.decision:"")+"]"; pick.appendChild(o); });
+  list.forEach(c=>{ const o=document.createElement("option"); o.value=c.id; o.textContent=caseLabel(c); pick.appendChild(o); });
   if(keep && list.some(c=>c.id===keep)) pick.value=keep;
 }
 async function syncRunUi(){   // the hero button and the progress bar follow the real state of the server and of the record
@@ -1298,7 +1376,8 @@ function heroRunning(cur,text,el){   // a visual or crawl run has no report yet:
 function renderVisualBuilds(){
   const vm=LIVE.vm, V=vm.visual, panes=document.querySelectorAll(".build .measured"), subs=document.querySelectorAll(".build .build-sub"), dots=document.querySelectorAll(".build .status");
   const sides=[{ref:vm.goodRef,tag:"good",cls:"good"},{ref:vm.candRef,tag:"candidate",cls:"cand"}];
-  subs.forEach((el,i)=>{ el.textContent=vm.app+" "+sides[i].ref+" ("+sides[i].tag+")"; }); if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
+  subs.forEach((el,i)=>{ el.textContent=""; el.appendChild(verChip(sides[i].ref, sides[i].tag, i===1 && vm.verdict!=="ship")); });
+  if(dots[1]) dots[1].className="status "+(vm.verdict==="ship"?"g":"r");
   const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
   const fig=(url,cap)=>{ if(!url) return null; const f=mk("figure","shot"), im=document.createElement("img"); im.src=url; im.alt=cap; f.appendChild(im); f.appendChild(mk("figcaption",null,cap)); return f; };
   const label=n=>{ const t=String(n).replace(/-/g," "); return t.charAt(0).toUpperCase()+t.slice(1); };
@@ -1453,6 +1532,7 @@ async function loadSetupState(){
   const sel=appById(APPS_UI.selected); if(sel&&!sel.runnable) renderRepoPanel(sel);
   if(was&&!v.running&&wasRepo){ const s=setupSummary(wasRepo); if(s) showToast(s.text, s.state==="saved"?"green":"red"); if(s&&s.state==="saved"){ RUN.apps=[]; loadApps(false); } }
 }
+function closeAppsDrawer(){ const sb=document.querySelector(".sidebar"); if(sb && sb.classList.contains("apps-open") && window.matchMedia && window.matchMedia("(max-width:900px)").matches){ sb.classList.remove("apps-open"); $("appsToggle").setAttribute("aria-expanded","false"); } }
 function renderApps(){
   const list=$("appsList"); list.textContent="";
   const q=APPS_UI.query.trim().toLowerCase();
@@ -1467,8 +1547,9 @@ function renderApps(){
     const c=document.createElement("span"); c.className="c "+(a.runnable||a.profileId?"ready":s&&s.state==="running"?"busy":s&&s.state==="failed"?"failed":"setup");
     c.textContent=a.runnable?"ready":a.profileId?"set up":s&&s.state==="running"?"setting up":s&&s.state==="failed"?"set-up failed":s&&s.state==="proposed"?"proposed":"needs setup";
     if(s) b.title=s.text;
-    b.append(n,sub,c); b.addEventListener("click",()=>selectApp(a.id)); return b;
+    b.append(n,sub,c); b.addEventListener("click",()=>{ selectApp(a.id); closeAppsDrawer(); }); return b;
   };
+  const sel=APPS_UI.apps.find(a=>a.id===APPS_UI.selected); const tn=$("appsToggleName"); if(tn) tn.textContent=sel?sel.label:"Apps";   // the narrow top bar's capsule names the selected app
   builtin.forEach(a=>list.appendChild(row(a)));
   const shown=repos.filter(match);
   if(repos.length){ const g=document.createElement("div"); g.className="apps-grp"; g.textContent="Your GitHub repos ("+(q?shown.length+" of ":"")+repos.length+")"; list.appendChild(g); }
@@ -1585,6 +1666,7 @@ function showNoReport(){   // the selected app has no reports: the hero says so 
 function initAppsUi(){
   $("appSearch").addEventListener("input",e=>{ APPS_UI.query=e.target.value; renderApps(); });
   $("appsRefresh").addEventListener("click",()=>{ APPS_UI.github=null; renderApps(); loadApps(true); });
+  $("appsToggle").addEventListener("click",()=>{ const sb=document.querySelector(".sidebar"); const open=sb.classList.toggle("apps-open"); $("appsToggle").setAttribute("aria-expanded",open?"true":"false"); });
   $("runPick").addEventListener("change",()=>{ stopPolling(); const u=new URLSearchParams(location.search); u.set("case",$("runPick").value); history.replaceState(null,"","?"+u.toString()+location.hash); loadLive($("runPick").value); });
 }
 // ---- views: the sidebar switches what the main area shows ----

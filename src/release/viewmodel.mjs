@@ -16,6 +16,7 @@ import { appOfOpened } from './appregistry.mjs'
 import { visualView } from './ui/visual-view.mjs'
 import { sha, summarize } from './evidence.mjs'
 import { LABEL, RANK, maskedSentence, noticeSummary } from './notice.mjs'
+import { plainClaim } from './claimtext.mjs'
 
 const STALE_MS = 15 * 60 * 1000
 const APP_NAMES = { freshrss: 'FreshRSS' }
@@ -153,7 +154,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
     const d = e.data, k = KIND[d.label], names = d.evidence.map(h => s.artifacts[h]?.name ?? h.slice(0, 8))
     const ai = d.label === 'ai_hypothesis'
     return {
-      id: 'c' + e.seq, kind: d.label, ...k, text: d.text, ...link,
+      id: 'c' + e.seq, kind: d.label, ...k, text: d.text, plain: plainClaim(d.text), ...link, // `text` is what the hash covers; `plain` is the same facts for a quick read, or null
       foot: ai ? (d.source === 'canvas-vision' ? 'a model\'s guess about what is on the screen . not proof' : `${d.grounded ? 'quote verified in the change' : 'quote NOT found in the change'} . confidence ${d.confidence}`) : names.length ? `${names.length} evidence file${names.length === 1 ? '' : 's'}` : 'no evidence cited',
       chips: ai ? ['hypothesis', 'unproven'] : d.label === 'verified_fact' ? ['verified'] : [],
       links: names, linkUrls: d.evidence.map(h => (/^[0-9a-f]{64}$/.test(h) ? urlOf(h) : null)),
