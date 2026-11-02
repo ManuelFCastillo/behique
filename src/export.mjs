@@ -111,7 +111,7 @@ export function specSource(f) {
     stepCode(a), ...pause(a),
     ...(f.readOnly && a.fromLogin && !hist[i + 1]?.fromLogin ? ['loginWrites = false'] : []),
   ])
-  const settle = f.assert.kind === 'api' ? [] : ['await page.waitForTimeout(250)']
+  const settle = f.assert.kind === 'api' ? [] : ["await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})", 'await page.waitForTimeout(250)'] // settle as the recorder did, so the page is drawn before the check (and before a recording ends)
   const ctx = { origin: typeof f.origin === 'string' && ORIGIN_RE.test(f.origin) ? f.origin : null, live: false } // f.origin: where the facts were recorded
   const check = delta
     ? ['const readScroll = () => page.evaluate(() => Math.round(window.scrollY))', 'const before = await readScroll()', stepCode(f.history.at(-1)), ...pause(f.history.at(-1)), ...settle,
@@ -132,7 +132,11 @@ ${indent([
     `await page.goto(${q(f.start ?? '/')})`,
     ...(ctx.live ? [`// The expected value embeds the address the app was served from when it was recorded (${ctx.origin}); compare against this build's address instead.`, 'const live = new URL(page.url()).origin'] : []),
     ...steps,
-    ...check,
+    'try {',
+    ...check.map(l => '  ' + l),
+    '} finally {',
+    "  if (process.env.BEHIQUE_VIDEO === '1') await page.waitForTimeout(1500) // when recording, hold the state the test judged so the recording shows it",
+    '}',
   ])}
 })
 `

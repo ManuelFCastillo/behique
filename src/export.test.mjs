@@ -53,6 +53,17 @@ test('a class list is compared sorted, and a scroll area is asked whether it can
   assert.ok(sc.includes('expect(scrolls || moved).toBe(true)'), 'a toBe failure, which the bisect reads as bad')
 })
 
+test('a test settles like the recorder before it checks, and holds the judged state when a recording is on', () => {
+  const src = specSource(finding('a', { assert: { kind: 'text', selector: 'xpath=/html/body/p[1]', op: 'equals', value: 'a' } }))
+  const body = src.split('\n')
+  const settle = body.findIndex(l => l.includes("waitForLoadState('networkidle', { timeout: 5000 })")), check = body.findIndex(l => l.includes('toBe("a")'))
+  assert.ok(settle > 0 && settle < check, 'network idle (bounded) comes before the check')
+  assert.ok(body.some(l => l.includes("if (process.env.BEHIQUE_VIDEO === '1') await page.waitForTimeout(1500)")), 'the hold is only when recording')
+  assert.ok(body.findIndex(l => l.trim() === '} finally {') > check, 'the hold runs after the check whether it passed or failed')
+  const api = specSource(finding('', { assert: { kind: 'api', steps: [{ path: '/api/x', method: 'GET' }], status: 200 } }))
+  assert.ok(!api.includes('networkidle'), 'an api check does not wait for the page')
+})
+
 test('runs can be recorded: a folder of their own per run, the video flag for the config, and the recording path read back from the report', () => {
   const plain = runnerArgs('/tmp/x', 'http://127.0.0.1:1', { only: 'R1' })
   assert.deepEqual(plain.args, ['test', 'R1.spec.js']); assert.equal(plain.output, null); assert.equal(plain.env.BEHIQUE_VIDEO, undefined)

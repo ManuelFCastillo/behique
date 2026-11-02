@@ -411,7 +411,7 @@ img,svg{max-width:100%}
 .reg-row{display:flex;justify-content:space-between;gap:10px;font-size:12px;margin-top:8px}.reg-row .nm{font-weight:600}
 /* before and after: the candidate picture underneath, the good one on top clipped to the left of a handle the person drags */
 .cmp{position:relative;margin:10px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:#fff;user-select:none;touch-action:none}
-.cmp img{display:block;width:100%;height:auto}.cmp .cmp-top{position:absolute;inset:0}.cmp .cmp-top img{width:100%}
+.cmp img{display:block;width:100%;height:auto}.cmp .cmp-top,.cmp .cmp-right{position:absolute;inset:0}.cmp .cmp-right{pointer-events:none}.cmp .cmp-top img{width:100%}
 .cmp .cmp-line{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:var(--amber);box-shadow:0 0 0 1px rgba(0,0,0,.5);pointer-events:none}
 .cmp .cmp-line::after{content:"\25C0 \25B6";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--amber);color:#000;font-size:9px;letter-spacing:1px;padding:3px 5px;border-radius:10px;white-space:nowrap}
 .cmp .cmp-tag{position:absolute;top:6px;padding:3px;border-radius:999px;background:rgba(0,0,0,.72);pointer-events:none;display:inline-flex}
@@ -480,6 +480,7 @@ img,svg{max-width:100%}
 .culprit-tag{position:static;transform:none;justify-self:center;max-width:100%;white-space:normal;text-align:center}
 /* a claim reads as a lead line and short items; the exact recorded sentence (what the hash covers) stays in the details */
 .claim-items{margin:6px 0 0 16px;padding:0;font-size:12.5px;color:var(--text)}
+.claim-test{margin:8px 0 0;padding:7px 10px;border-left:2px solid var(--line);font-size:12.5px;color:var(--text)}.claim-test b{display:block;font:600 10.5px/1.4 var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
 .claim-videos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:700px){.claim-videos{grid-template-columns:1fr}}
 .vid{margin:0}.vid video{display:block;width:100%;aspect-ratio:1280/900;border:1px solid var(--line);border-radius:8px;background:#000}.vid figcaption{font-size:11px;color:var(--muted);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .claim-items li{margin:3px 0;overflow-wrap:anywhere}
@@ -879,7 +880,9 @@ function renderClaims(){
     c.chips.forEach(ch=>{
       const s=document.createElement("span"); s.className="chip "+(c.cls==="gold"?"gold":"green"); s.textContent=ch; foot.appendChild(s); foot.appendChild(document.createTextNode(" "));
     });
-    card.appendChild(top); card.appendChild(p); if(items) card.appendChild(items);
+    card.appendChild(top); card.appendChild(p);
+    if(c.test&&c.test.text){ const t=document.createElement("div"); t.className="claim-test"; const b=document.createElement("b"); b.textContent="What the test "+c.test.id+" does"; t.appendChild(b); t.appendChild(LIVE.vm?withChips(c.test.text,LIVE.vm):document.createTextNode(c.test.text)); card.appendChild(t); }
+    if(items) card.appendChild(items);
     if(c.videos&&c.videos.length){ // one recorded run each way: the test passing on the good version, failing on the candidate
       const vw=document.createElement("div"); vw.className="claim-videos"; vw.addEventListener("click",ev=>ev.stopPropagation()); vw.addEventListener("keydown",ev=>ev.stopPropagation());
       c.videos.forEach(v=>{ const fg=document.createElement("figure"); fg.className="vid"; const vd=document.createElement("video"); vd.controls=true; vd.muted=true; vd.playsInline=true; vd.preload="metadata"; vd.src=v.url; fg.appendChild(vd);
@@ -1453,9 +1456,11 @@ function compareSlider(goodUrl,candUrl,goodRef,candRef,candBad){
   const c=mk("div","cmp"), under=document.createElement("img"), top=mk("div","cmp-top"), over=document.createElement("img"), line=mk("div","cmp-line"), range=document.createElement("input");
   under.src=candUrl; under.alt="Settled picture of "+candRef+" (candidate)"; over.src=goodUrl; over.alt="Settled picture of "+goodRef+" (good)"; top.appendChild(over);
   range.type="range"; range.min="0"; range.max="100"; range.value="50"; range.setAttribute("aria-label","Before and after: how much of the good picture to show, from the left");
-  const set=v=>{ top.style.clipPath="inset(0 "+(100-v)+"% 0 0)"; line.style.left=v+"%"; };
+  // each capsule lives on its own picture's side of the handle and is clipped with it: pushed fully to one side, only the version that fills the box keeps its capsule
+  const right=mk("div","cmp-right"); right.appendChild(tag("r",verChip(candRef,"candidate",candBad===true))); top.appendChild(tag("l",verChip(goodRef,"good",false)));
+  const set=v=>{ top.style.clipPath="inset(0 "+(100-v)+"% 0 0)"; right.style.clipPath="inset(0 0 0 "+v+"%)"; line.style.left=v+"%"; };
   range.addEventListener("input",()=>set(+range.value)); set(50);
-  c.appendChild(under); c.appendChild(top); c.appendChild(tag("l",verChip(goodRef,"good",false))); c.appendChild(tag("r",verChip(candRef,"candidate",candBad===true))); c.appendChild(range); c.appendChild(line);
+  c.appendChild(under); c.appendChild(top); c.appendChild(right); c.appendChild(range); c.appendChild(line);
   return c;
 }
 async function cancelRun(){

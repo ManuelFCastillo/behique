@@ -105,6 +105,10 @@ Miss: the two `#scrolls` losses the crawl recorded (steps 9 and 14, the inner pa
 
 Same crawl, cached builds, 168 s. HOLD. The compare claim now reads "84 recorded values, 33 elements missing (33 facts), 390 recorded facts dropped from elements still there (data-v-f947af81, data-v-2cbeb444)" instead of 16 vanished elements. Findings: R1 the overflow swap (with 9 other elements listed on it), R2 `inline-flex` to `flex` at step 9, **R3 the inner pane at step 9 can no longer scroll** (`#scrolls` lost, "whether an area can scroll", a person would notice), R4 a style class (churn), R5 the `data-v` attribute dropped (churn). All five 3/3 both ways, two recordings each. The last frame of R3's recordings shows the bug itself: on 2025.10.1 the wheel over the Settings pane scrolled it down to Experiments and Theme; on 2025.11.2 the same wheel left the pane at General. That is the double-scrollbar fix of #5665 taking the inner pane's scrolling with it, which is #5693. Bisected to d67a85b in 5 steps, 47 s, parent verified. Graded: symptom seen and recorded, commit named, no model call. The noise floor on this run masked 1,447 facts (as in 2b) where 2c masked none: the same cached builds vary from run to run in what the first two recordings disagree on, which does not change the result but does change which facts can be compared.
 
+### Run 2e: the same, with recordings that show the page (2026-11-02, case `20261102T191126Z_2025.10.1-vs-2025.11.2`)
+
+Same crawl and builds after the generated tests learned to settle like the recorder and to hold the judged state while recording. Same five findings (R3 the pane that stops scrolling), same bisect to d67a85b in 5 steps, 195 s instead of 168 (the settle and the 1.5 s hold on each of 30 runs). Recordings run 3.0 s to 4.1 s and end on the drawn page rather than a loading shell. Each record now carries "What the test R1 does" in a sentence.
+
 ## Next
 
 Docusaurus #11213 is cloned (`~/dev/behique-apps/docusaurus`, 154 commits in range) for an overnight run.

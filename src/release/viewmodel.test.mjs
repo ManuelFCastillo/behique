@@ -183,6 +183,19 @@ test('screenshots recorded for a case come out as picture links, and only real h
   assert.deepEqual(growing().vm().pictures, [], 'a report with no screenshots has none')
 })
 
+test('a reproduced failure says what its test checks, from the exported test and the step label', () => {
+  const { c, vm } = growing()
+  c.artifact('baseline.json', { labels: ['0:start', '1:click a.one'], stable: 10, volatile: {} }, 'application/json')
+  c.event('test.exported', { id: 'R1', fact: 'body/div[1]/div[3]@class', i: 1, good: '"!overflow-auto flex"', candidate: '"!overflow-hidden flex"', notice: { cls: 'visible', why: 'x' } })
+  const spec = c.artifact('R1.spec.js', '// test', 'text/javascript')
+  c.claim('reproduced_failure', 'The test R1 passed 3 of 3 runs on 1.0 and failed 3 of 3 runs on 2.0.', { evidence: [spec] })
+  c.claim('reproduced_failure', 'The first change that makes the test fail is abc1234.', { evidence: [spec] })
+  const [r1, culprit] = vm().claims.filter(x => x.kind === 'reproduced_failure')
+  assert.deepEqual(r1.test, { id: 'R1', text: 'Checks that after step 1 (click a.one) the classes of a block at div[1]/div[3] are "!overflow-auto flex", as on 1.0. On 2.0 they were "!overflow-hidden flex".' })
+  assert.equal(culprit.test, null, 'the culprit record names no test')
+  assert.ok(vm().claims.filter(x => x.kind !== 'reproduced_failure').every(x => x.test === null))
+})
+
 test('a reproduced failure carries its recordings as playable links, one each way, and other evidence stays text', () => {
   const { c, vm } = growing()
   const spec = c.artifact('R1.spec.js', '// test', 'text/javascript')

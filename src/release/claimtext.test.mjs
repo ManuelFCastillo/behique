@@ -1,7 +1,7 @@
 // node --test src/release/claimtext.test.mjs   (offline)
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { changesText, plainClaim } from './claimtext.mjs'
+import { changesText, plainClaim, testSentence } from './claimtext.mjs'
 
 describe('changesText', () => {
   it('counts identical changes once, keeps the first-seen order, and stops at max', () => {
@@ -58,5 +58,22 @@ describe('a fact dropped from an element still there', () => {
     const p = plainClaim(`2.0 differs from 1.0 in 1 element present on 1.0 is missing (2 recorded facts), and 1 recorded fact dropped from elements still there (data-v-abc): ${text}.`)
     assert.equal(p.lead, '2.0 against 1.0: 1 gone, 1 dropped (data-v-abc)')
     assert.deepEqual(p.items, ['data-v-abc dropped from a block (was empty)', 'a sidebar is gone (its text was "Menu")'])
+  })
+})
+
+describe('testSentence says what an exported test checks', () => {
+  const refs = { goodRef: '1.0', candRef: '2.0' }
+  it('a class list, a text, an attribute, a vanished fact, an appearing state and a scroll area', () => {
+    assert.equal(testSentence({ id: 'R1', fact: 'body/div[1]/div[3]@class', i: 0, good: '"!overflow-auto flex"', candidate: '"!overflow-hidden flex"' }, { label: '0:start', ...refs }),
+      'Checks that after step 0 (start) the classes of a block at div[1]/div[3] are "!overflow-auto flex", as on 1.0. On 2.0 they were "!overflow-hidden flex".')
+    assert.equal(testSentence({ id: 'R2', fact: 'body/a[1]#text', i: 2, good: '"Share"', candidate: '"Post"' }, refs), 'Checks that after step 2 the text of a link at body/a[1] is "Share", as on 1.0. On 2.0 it was "Post".')
+    assert.equal(testSentence({ id: 'R3', fact: 'body/a[1]@href', i: 2, good: '"/x"', candidate: 'missing on the candidate', removed: true }, refs), 'Checks that after step 2 the href attribute of a link at body/a[1] is still "/x", as on 1.0. On 2.0 it was missing.')
+    assert.equal(testSentence({ id: 'R4', fact: 'body/aside[1]@inert', i: 1, good: 'absent (not set on the previous release)', candidate: '""', appeared: true }, refs), 'Checks that after step 1 a sidebar at body/aside[1] has no inert attribute, as on 1.0. On 2.0 it was set to empty.')
+    assert.equal(testSentence({ id: 'R5', fact: 'body/div[1]/main[1]#scrolls', i: 9, good: 'can scroll', candidate: 'cannot scroll on the candidate', removed: true }, { label: '9:click css=body > div:nth-of-type(1) > div:nth-of-type(1) > div:nth-of-type(2) > section', ...refs }),
+      'Checks that after step 9 (a click) a main area at div[1]/main[1] can still scroll, as on 1.0: the test turns the mouse wheel over it and asks whether it can scroll. On 2.0 it cannot.')
+    assert.equal(testSentence({ id: 'R6', fact: 'window@scrollY', i: 3, good: 'the page scrolls by 300 pixels (the old version)', candidate: 'the page ends 300 pixels higher up than the old version leaves it' }, refs), 'Checks that after step 3 the page scrolls by 300 pixels (the old version), as on 1.0. On 2.0 the page ends 300 pixels higher up than the old version leaves it.')
+    assert.equal(testSentence({ id: 'R8', fact: 'body/h1[1]#text', i: 14, good: '"Settings"', candidate: '"Options"' }, { label: '14:goto /settings', ...refs }), 'Checks that after step 14 (load /settings) the text of a heading at body/h1[1] is "Settings", as on 1.0. On 2.0 it was "Options".')
+    assert.equal(testSentence({ id: 'R9', fact: 'body/h1[1]#text', i: 3, good: '"a"', candidate: '"b"' }, { label: '3:click role=button[name="Save"]', ...refs }), 'Checks that after step 3 (click role=button[name=\\"Save\\"]) the text of a heading at body/h1[1] is "a", as on 1.0. On 2.0 it was "b".')
+    assert.equal(testSentence(null), null); assert.equal(testSentence({ id: 'R7' }), null)
   })
 })
