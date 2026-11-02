@@ -113,6 +113,10 @@ Same crawl and builds after the generated tests learned to settle like the recor
 
 Same crawl and builds, same five findings and the same bisect to d67a85b, 197 s. New on the record: every reproduced failure opens with "Regression R1 in plain words" ("On the start page on 2025.11.2, a split pane that could scroll can no longer scroll: content taller than it is cut off (!overflow-auto to !overflow-hidden)."; R3: "After a click on 2025.11.2, a block cannot be scrolled: the mouse wheel over it does nothing, so anything below its edge is out of reach. On 2025.10.1 it scrolls."), the Measured rows read R3 as "scrolling of div[1]/div[1] · the area can no longer scroll on the candidate", and the step-9 picture says that of its 13,867 differing pixels most are the same content moved 48 px down (the inserted "Enable Documentation" row), with 5,804 still different once lined up, in a 277 by 275 box; the diff image paints the row red and the moved rows blue. R5 is still read as a missing element rather than a dropped attribute: that block has no other recorded fact on the candidate, so the evidence cannot tell the two apart.
 
+### Run 2g: the wheel turn marked in the recordings (2026-11-02, case `20261102T220313Z_2025.10.1-vs-2025.11.2`)
+
+Same crawl, builds, five findings and bisect, 199 s. R3's two recordings (5.4 s each) now carry the marker: a dashed spotlight on the Settings pane, the mouse glyph where the wheel turns, "Mouse wheel / 240 px down" in amber, then "It scrolled / the area under the wheel moved" in green on 2025.10.1 and "It did not move / nothing under the wheel moved" in red on 2025.11.2, and the last frame shows the pane scrolled on one and stuck at the top on the other. Every player in the dashboard opens on that last frame. R1's record shows R3's recordings under its own.
+
 ## Next
 
 Docusaurus #11213 is cloned (`~/dev/behique-apps/docusaurus`, 154 commits in range) for an overnight run.

@@ -73,8 +73,11 @@ function assertionCode(spec, ctx = null) {
       'await el.scrollIntoViewIfNeeded().catch(() => {})',
       'const box = await el.boundingBox()',
       'const topBefore = await el.evaluate(e => e.scrollTop)',
+      "const recording = process.env.BEHIQUE_VIDEO === '1' // when recording, the page is marked so the footage explains itself; never part of the check",
+      `if (box && recording) { await page.evaluate(${WHEEL_MARK}, { x: box.x + box.width / 2, y: box.y + box.height / 2, box, head: 'Mouse wheel', note: '240 px down, over the outlined area', state: '' }); await page.waitForTimeout(700) }`,
       'if (box) { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 240); await page.waitForTimeout(400) }',
       'const moved = (await el.evaluate(e => e.scrollTop)) > topBefore',
+      `if (box && recording) await page.evaluate(${WHEEL_MARK}, { x: box.x + box.width / 2, y: box.y + box.height / 2, box, head: moved ? 'It scrolled' : 'It did not move', note: moved ? 'the area under the wheel moved' : 'nothing under the wheel moved', state: moved ? 'ok' : 'bad' })`,
       "const scrolls = await el.evaluate(e => e.clientHeight > 0 && e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))",
       'expect(scrolls || moved).toBe(true)']
     case 'attr': return spec.op === 'absent'
@@ -98,6 +101,29 @@ function assertionCode(spec, ctx = null) {
     default: throw new Error('cannot export assertion ' + spec.kind)
   }
 }
+
+// Runs inside the page while a scroll test is recorded: a spotlight on the tested area, a pulsing ring and a mouse glyph where the
+// wheel turns, and a tag that first says what is about to happen and then what did. Fixed, on top of everything, lets events through.
+const WHEEL_MARK = `(({ x, y, box, head, note, state }) => {
+  let root = document.getElementById('__bq_wheel')
+  if (!root) {
+    root = document.createElement('div'); root.id = '__bq_wheel'
+    root.innerHTML = '<style>#__bq_wheel{position:fixed;inset:0;pointer-events:none;z-index:2147483647;font:600 15px/1.25 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;--c:#f0b429}#__bq_wheel.ok{--c:#3ddc97}#__bq_wheel.bad{--c:#ff5c5c}'
+      + '#__bq_wheel .area{position:absolute;border:2px dashed var(--c);border-radius:10px;box-shadow:0 0 0 9999px rgba(8,10,16,.22);transition:border-color .3s}'
+      + '#__bq_wheel .ring{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px;border:3px solid var(--c);border-radius:50%;animation:__bqPulse 1.1s ease-out infinite}'
+      + '@keyframes __bqPulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.7);opacity:0}}'
+      + '#__bq_wheel .mouse{position:absolute;width:28px;height:42px;margin:-21px 0 0 -14px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}'
+      + '#__bq_wheel .tag{position:absolute;margin:28px 0 0 22px;padding:9px 13px;border-radius:12px;background:rgba(14,17,24,.94);color:#fff;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12)}'
+      + '#__bq_wheel .tag b{display:block;color:var(--c);font-size:16px}#__bq_wheel .tag small{display:block;font-weight:500;font-size:12.5px;opacity:.85;margin-top:2px}</style>'
+      + '<div class="area"></div><div class="ring"></div><svg class="mouse" viewBox="0 0 28 42"><rect x="2" y="2" width="24" height="38" rx="12" fill="rgba(14,17,24,.92)" stroke="#fff" stroke-width="2"/><rect class="w" x="12" y="8" width="4" height="10" rx="2" fill="#f0b429"/><path d="M14 22v12m-4-4l4 4 4-4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="tag"><b></b><small></small></div>'
+    document.documentElement.appendChild(root)
+  }
+  root.className = state
+  const a = root.querySelector('.area'); a.style.left = box.x + 'px'; a.style.top = box.y + 'px'; a.style.width = box.width + 'px'; a.style.height = box.height + 'px'
+  for (const c of ['.ring', '.mouse', '.tag']) { const e = root.querySelector(c); e.style.left = x + 'px'; e.style.top = y + 'px' }
+  root.querySelector('.w').setAttribute('fill', state === 'ok' ? '#3ddc97' : state === 'bad' ? '#ff5c5c' : '#f0b429')
+  root.querySelector('.tag b').textContent = head; root.querySelector('.tag small').textContent = note
+})`
 
 export function specSource(f) {
   const indent = lines => lines.map(l => '  ' + l).join('\n')

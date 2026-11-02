@@ -51,6 +51,9 @@ test('a class list is compared sorted, and a scroll area is asked whether it can
   assert.ok(sc.includes("e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)"))
   assert.ok(sc.includes('page.mouse.wheel(0, 240)'), 'the test turns the wheel over the area first, so a recording shows the attempt')
   assert.ok(sc.includes('expect(scrolls || moved).toBe(true)'), 'a toBe failure, which the bisect reads as bad')
+  assert.ok(sc.includes("const recording = process.env.BEHIQUE_VIDEO === '1'") && sc.includes("__bq_wheel") && sc.includes("head: 'Mouse wheel'") && sc.includes("moved ? 'It scrolled' : 'It did not move'"), 'when recording, the page is marked before the wheel turns and again with what happened')
+  assert.ok(sc.indexOf("head: 'Mouse wheel'") < sc.indexOf('page.mouse.wheel(0, 240)') && sc.indexOf('page.mouse.wheel(0, 240)') < sc.indexOf("'It scrolled'"), 'mark, wheel, verdict, in that order')
+  new Function(sc.replace(/^import .*$/mg, '').replace(/\btest\(/, '(function(a,b){})(')) // the generated file parses
 })
 
 test('a test settles like the recorder before it checks, and holds the judged state when a recording is on', () => {
