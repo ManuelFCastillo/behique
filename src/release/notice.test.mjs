@@ -1,7 +1,7 @@
 // node --test src/release/notice.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hostOf, isForeign, maskedAreas, maskedSentence, noticeOf, noticePhrase, noticeSummary, rankFindings, releaseLabel, tokenOnlyChange } from './notice.mjs'
+import { classChange, classNotice, hostOf, isForeign, maskedAreas, maskedSentence, noticeOf, noticePhrase, noticeSummary, rankFindings, releaseLabel, tokenOnlyChange } from './notice.mjs'
 
 test("the release's own version label is expected churn; anything else that mentions a version is still text a person reads", () => {
   const refs = { good: 'v1.0.0-rc.10', cand: 'v1.0.0-rc.12' }
@@ -98,4 +98,22 @@ test('maskedAreas groups masked facts by where they sit; maskedSentence says wha
   assert.equal(maskedSentence({ masked: 7, total: 100, areas: m.areas }), '7 of 100 recorded facts (7.0%) were masked as noise, mostly under body/div[1]/nav[1] (3), body/div[1]/main[1] (2), body/footer[1]/span[1] (1). A change inside a masked fact cannot be seen by this check.')
   assert.match(maskedSentence({ masked: 0, total: 50, areas: [] }), /^No recorded fact was masked/)
   assert.deepEqual(maskedAreas(null), { total: 0, areas: [] })
+})
+
+test('a class change is noticed only when a class that shows, hides or scrolls comes or goes; generated and other classes are churn', () => {
+  assert.deepEqual(classChange('a b c', 'b c d'), { added: ['d'], removed: ['a'] })
+  // the Hoppscotch #5693 culprit: three Pane elements went from !overflow-auto to !overflow-hidden
+  assert.deepEqual(n('body/div[1]/main[1]@class', '!overflow-auto flex flex-1 md:mb-0', '!overflow-hidden flex flex-1 md:mb-0'), { cls: 'visible', why: 'a class that shows, hides or scrolls (!overflow-auto to !overflow-hidden)' })
+  assert.deepEqual(classNotice('card p-4', 'card hidden p-4'), { cls: 'visible', why: 'a class that shows, hides or scrolls (hidden added)' })
+  assert.deepEqual(classNotice('card d-none', 'card'), { cls: 'visible', why: 'a class that shows, hides or scrolls (d-none dropped)' })
+  assert.equal(classNotice('x', 'x md:hover:opacity-0').cls, 'visible') // prefixes are allowed
+  assert.deepEqual(classNotice('btn css-1a2b3c4', 'btn css-9z8y7x6'), { cls: 'churn', why: 'a generated class name' }) // emotion
+  assert.deepEqual(classNotice('a sc-bdfBwQ hGjYcD', 'a sc-bdfBwQ kLmNoP'), { cls: 'churn', why: 'a generated class name' }) // styled-components
+  assert.deepEqual(classNotice('Button_root__a1B2c', 'Button_root__d3E4f'), { cls: 'churn', why: 'a generated class name' }) // CSS modules
+  assert.deepEqual(classNotice('a b', 'b a'), { cls: 'churn', why: 'the same classes in another order' })
+  const other = classNotice('btn btn-primary', 'btn btn-secondary')
+  assert.equal(other.cls, 'churn')
+  assert.match(other.why, /a style class this check cannot read \(btn-primary btn-secondary\)/)
+  assert.equal(n('body/div[1]/main[1]#scrolls', 'y', null).cls, 'visible') // an area that could scroll
+  assert.deepEqual(maskedAreas({ '2|body/div[1]/main[1]#scrolls': { a: 'y', b: null } }).areas, [{ area: 'body/div[1]/main[1]', count: 1 }])
 })

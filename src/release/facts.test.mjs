@@ -2,7 +2,7 @@
 //   node --test src/release/facts.test.mjs
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { buildBaseline, diffFacts, evaluateSettled, widenMask } from './facts.mjs'
+import { buildBaseline, diffFacts, evaluateSettled, rankDiffs, widenMask } from './facts.mjs'
 
 const run = (...facts) => facts.map((f, i) => ({ label: `s${i}`, facts: f }))
 
@@ -95,5 +95,17 @@ describe('widenMask', () => {
     const w = widenMask(b, diffFacts(b, run(withQuote, withQuote, withQuote, base)))
     assert.equal(w.added, 3)
     assert.deepEqual(diffFacts(w.baseline, run(base, base, base, withQuote)), [])
+  })
+})
+
+describe('scroll and class facts in the diff', () => {
+  it('a #scrolls fact that vanished is a removed diff and ranks with the others; one that moved pairs up', () => {
+    const base = buildBaseline([{ label: 's', facts: { 'body/main[1]#scrolls': 'y', 'body/div[1]#scrolls': 'y', 'body/div[1]@class': 'a b' } }], [{ label: 's', facts: { 'body/main[1]#scrolls': 'y', 'body/div[1]#scrolls': 'y', 'body/div[1]@class': 'a b' } }])
+    const diffs = diffFacts(base, [{ label: 's', facts: { 'body/div[2]#scrolls': 'y', 'body/div[1]@class': 'a b hidden' } }])
+    const ranked = rankDiffs(diffs)
+    assert.deepEqual(ranked.map(d => d.kind), ['changed', 'removed', 'moved']) // one of the two lost areas pairs with the new one as moved, the other is a loss
+    assert.equal(ranked[0].key, 'body/div[1]@class')
+    assert.equal(ranked[2].key, 'body/div[2]#scrolls')
+    assert.ok(['body/main[1]#scrolls', 'body/div[1]#scrolls'].includes(ranked[1].key))
   })
 })

@@ -33,11 +33,23 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
       history: historyFor(actions, d.i), assert: { kind: 'scroll_delta', value: moved },
     }
   }
+  // An area that could scroll on the good version and cannot on the candidate (the fact is only ever 'y', so it vanishes rather than
+  // changes): the test asks the same element whether it can scroll. An area that newly scrolls is not a loss and is not tested.
+  if (d.key.endsWith('#scrolls')) {
+    if (!removed) return null
+    const el = d.key.slice(0, -'#scrolls'.length)
+    return {
+      id, start,
+      title: `${el.split('/').slice(-2).join('/')} after step ${d.i} can still scroll, as on the previous release`,
+      expected: 'can scroll (content taller than its box, overflow auto or scroll)', actual: 'cannot scroll on the candidate',
+      history: historyFor(actions, d.i), assert: { kind: 'scrolls', selector: 'xpath=/html/' + el },
+    }
+  }
   const m = d.key.match(/^(.*?)(?:@([^/]+)|#text)$/)
   const selector = 'xpath=/html/' + m[1]
   const attr = m[2]
   const long = String(d.was).length >= 300 // facts cut values at 300 characters
-  const what = attr ? `${attr} of ${m[1].split('/').slice(-2).join('/')}` : `text of ${m[1].split('/').slice(-2).join('/')}`
+  const what = attr === 'class' ? `classes of ${m[1].split('/').slice(-2).join('/')}` : attr ? `${attr} of ${m[1].split('/').slice(-2).join('/')}` : `text of ${m[1].split('/').slice(-2).join('/')}`
   // An attribute that appeared on the candidate (inert, disabled, hidden) is tested the other way round: the old version has no such
   // attribute, so the test expects it absent and fails on the candidate where it is set.
   if (added) {
@@ -49,7 +61,9 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
       history: historyFor(actions, d.i), assert: { kind: 'attr', selector, name: attr, op: 'absent', value: '' },
     }
   }
-  const assert = attr
+  const assert = attr === 'class'
+    ? { kind: 'class_list', selector, op: long ? 'contains' : 'equals', value: d.was } // the recorded value is the sorted class list, so the test sorts too
+    : attr
     ? { kind: 'attr', selector, name: attr, op: long ? 'contains' : 'equals', value: d.was }
     : { kind: 'own_text', selector, op: long ? 'contains' : 'equals', value: d.was } // the fact is the element's own text, cut at 300 characters: compare it exactly, or a longer new text still contains the old one
   // A vanished fact is tested with the same assertion: the old value is expected, so the test fails on the candidate whether the
@@ -84,8 +98,8 @@ export function appearedStates(diffs, baseline) {
 }
 
 const PREFERRED = ['#text', '@href', '@value', '@src', '@alt', '@title', '@placeholder', '@aria-label', '@action']
-const elementOf = key => key.replace(/(@[^/]+|#text)$/, '')
-const suffixOf = key => (key.match(/(@[^/]+|#text)$/) ?? ['', ''])[1]
+const elementOf = key => key.replace(/(@[^/]+|#text|#scrolls)$/, '')
+const suffixOf = key => (key.match(/(@[^/]+|#text|#scrolls)$/) ?? ['', ''])[1]
 
 /**
  * One fact per vanished element. An element that disappears takes every attribute and text of itself and its descendants with it,
@@ -98,7 +112,11 @@ export function vanishedRoots(diffs) {
   const bySteps = new Map()
   for (const d of removed) { if (!bySteps.has(d.i)) bySteps.set(d.i, []); bySteps.get(d.i).push(d) }
   const out = []
-  for (const [, list] of [...bySteps.entries()].sort((a, b) => a[0] - b[0])) {
+  for (const [, all] of [...bySteps.entries()].sort((a, b) => a[0] - b[0])) {
+    // An area that lost its ability to scroll is still there, so its loss is its own entry and never a root that swallows the facts
+    // beneath it; it is left out only when the whole element is under a root that vanished.
+    const scrollLoss = all.filter(d => d.key.endsWith('#scrolls'))
+    const list = all.filter(d => !d.key.endsWith('#scrolls'))
     const elements = new Set(list.map(d => elementOf(d.key)))
     const isRoot = el => ![...elements].some(o => o !== el && el.startsWith(o + '/'))
     const roots = new Map()
@@ -113,6 +131,11 @@ export function vanishedRoots(diffs) {
       const rank = d => { const i = PREFERRED.indexOf(suffixOf(d.key)); return i < 0 ? PREFERRED.length : i }
       const pick = [...facts].sort((a, b) => rank(a) - rank(b))[0]
       out.push({ ...pick, vanished: under })
+    }
+    for (const d of scrollLoss) {
+      const el = elementOf(d.key)
+      if ([...roots.keys()].some(r => el === r || el.startsWith(r + '/'))) continue
+      out.push({ ...d, vanished: 1 })
     }
   }
   return out

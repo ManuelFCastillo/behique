@@ -21,12 +21,12 @@ export function changesText(changed, { max = 4 } = {}) {
   return [...groups.values()].slice(0, max).map(({ line, n }) => n > 1 ? `${line} (${n} places)` : line).join('; ')
 }
 
-// "body/div[1]/span[1]#text" or "span[1]/span[1]@inert" -> { tag: 'span', what: 'text' | 'inert' }
+// "body/div[1]/span[1]#text", "span[1]/span[1]@inert" or "div[1]/main[1]#scrolls" -> { tag: 'span', what: 'text' | 'inert' | 'scrolling' }
 const TAG_NAMES = { a: 'link', p: 'paragraph', li: 'list item', ul: 'list', ol: 'list', img: 'image', h1: 'heading', h2: 'heading', h3: 'heading', h4: 'heading', nav: 'nav', aside: 'sidebar', main: 'main area', header: 'header', footer: 'footer', button: 'button', input: 'field', select: 'menu', textarea: 'field', table: 'table', td: 'cell', th: 'cell', tr: 'row', span: 'span', div: 'block', label: 'label', form: 'form', section: 'section', article: 'article', svg: 'icon', body: 'page' }
 function element(key) {
-  const m = key.match(/([a-z0-9]+)(?:\[\d+\])?(?:@([^/@\s]+)|#text)?$/i)
+  const m = key.match(/([a-z0-9]+)(?:\[\d+\])?(?:@([^/@\s]+)|#text|#scrolls)?$/i)
   if (!m) return { tag: key, what: 'value' }
-  return { tag: TAG_NAMES[m[1].toLowerCase()] ?? m[1], what: m[2] ?? (key.endsWith('#text') ? 'text' : 'value') }
+  return { tag: TAG_NAMES[m[1].toLowerCase()] ?? m[1], what: m[2] === 'class' ? 'classes' : m[2] ?? (key.endsWith('#text') ? 'text' : key.endsWith('#scrolls') ? 'scrolling' : 'value') }
 }
 const article = w => (/^[aeiou]/i.test(w) ? 'an ' : 'a ') + w
 const unq = v => { try { const x = JSON.parse(v); return typeof x === 'string' ? x : v } catch { return v } }
@@ -51,7 +51,7 @@ export function plainClaim(text) {
     const places = n ? ` in ${n[1]} places` : ''
     const body = n ? line.slice(0, -n[0].length) : line
     let x
-    if ((x = body.match(/^(\S+) \(was (.+)\) is gone$/))) { const e = element(x[1]); return `${article(e.tag)} is gone (its ${e.what} was ${q(x[2])})${places}` }
+    if ((x = body.match(/^(\S+) \(was (.+)\) is gone$/))) { const e = element(x[1]); return e.what === 'scrolling' ? `${article(e.tag)} can no longer scroll${places}` : `${article(e.tag)} is gone (its ${e.what} was ${q(x[2])})${places}` }
     if ((x = body.match(/^(\S+) is newly set to (.+)$/))) { const e = element(x[1]); return `${e.what} newly set on ${article(e.tag)}${places}` }
     if ((x = body.match(/^(\S+) was (.+), now (.+)$/))) { const e = element(x[1]); return `${e.what} of ${article(e.tag)}: ${q(x[2])} to ${q(x[3])}${places}` }
     return body

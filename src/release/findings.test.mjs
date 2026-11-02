@@ -399,3 +399,38 @@ describe('a vanished element becomes a test', () => {
 
   it('vanishedRoots of nothing is nothing', () => { assert.deepEqual(vanishedRoots([]), []); assert.deepEqual(vanishedRoots(null), []) })
 })
+
+describe('an area that stops scrolling, and a class list', () => {
+  const actions = [{ type: 'click', selector: 'a.settings' }]
+  const baseline = { stable: {}, volatile: {}, labels: ['start', '1:click a.settings'] }
+  it('a vanished #scrolls fact becomes a test that asks the same element whether it can scroll', () => {
+    const f = factToFinding({ i: 1, key: 'body/div[1]/main[1]#scrolls', kind: 'removed', was: 'y', now: null }, actions, '/', baseline, 'R1')
+    assert.deepEqual(f.assert, { kind: 'scrolls', selector: 'xpath=/html/body/div[1]/main[1]' })
+    assert.equal(f.title, 'div[1]/main[1] after step 1 can still scroll, as on the previous release')
+    assert.equal(f.actual, 'cannot scroll on the candidate')
+    assert.deepEqual(f.history, actions)
+  })
+  it('an area that newly scrolls is not a loss and is not tested', () => {
+    assert.equal(factToFinding({ i: 1, key: 'body/div[1]/main[1]#scrolls', kind: 'added', was: null, now: 'y' }, actions, '/', baseline), null)
+    assert.equal(factToFinding({ i: 1, key: 'body/div[1]/main[1]#scrolls', kind: 'changed', was: 'y', now: 'n' }, actions, '/', baseline), null)
+  })
+  it('a changed class list is tested as a sorted class list, and ranks as a person would notice when overflow changes', () => {
+    const d = { i: 1, key: 'body/div[1]/main[1]@class', kind: 'changed', was: '!overflow-auto flex flex-1', now: '!overflow-hidden flex flex-1' }
+    const f = factToFinding(d, actions, '/', baseline, 'R1')
+    assert.deepEqual(f.assert, { kind: 'class_list', selector: 'xpath=/html/body/div[1]/main[1]', op: 'equals', value: '!overflow-auto flex flex-1' })
+    assert.match(f.title, /^classes of div\[1\]\/main\[1\] after step 1 keeps/)
+    const { findings } = selectFindings([d, { i: 1, key: 'body/div[2]@class', kind: 'changed', was: 'card a1b2c3d4e5', now: 'card f6e5d4c3b2' }], actions, '/', baseline)
+    assert.equal(findings.length, 2)
+    assert.equal(findings[0].notice.cls, 'visible')
+    assert.equal(findings[1].notice.cls, 'churn')
+  })
+  it('selectFindings and vanishedRoots take #scrolls keys', () => {
+    const diffs = [{ i: 1, key: 'body/div[1]/main[1]#scrolls', kind: 'removed', was: 'y', now: null }, { i: 1, key: 'body/div[1]/main[1]/p[1]#text', kind: 'removed', was: 'hello', now: null }]
+    const roots = vanishedRoots(diffs)
+    assert.deepEqual(roots.map(r => [r.key, r.vanished]), [['body/div[1]/main[1]/p[1]#text', 1], ['body/div[1]/main[1]#scrolls', 1]]) // the area is still there: its lost scrolling does not swallow the text that vanished inside it
+    assert.deepEqual(vanishedRoots([{ i: 1, key: 'body/aside[1]#text', kind: 'removed', was: 'Menu', now: null }, { i: 1, key: 'body/aside[1]/div[1]#scrolls', kind: 'removed', was: 'y', now: null }]).map(r => r.key), ['body/aside[1]#text']) // under a vanished root, the area went with it
+    const { findings } = selectFindings(diffs, actions, '/', baseline)
+    assert.deepEqual(findings.map(f => f.assert.kind), ['scrolls', 'own_text'])
+    assert.equal(findings[0].notice.why, 'whether an area can scroll')
+  })
+})

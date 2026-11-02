@@ -51,7 +51,7 @@ Every run is an evidence case under `out/evidence/<case>/`: a hash-chained event
 ## Limits
 
 - Apps behind a login or needing data: a profile can declare a `login` step (the password comes from the environment, or a documented public default; it is never written to the record), `serve.prepare` commands that run before every start (migrations), and `seed` files for the sandbox's database sidecars. Without those, the crawl sees what an anonymous visitor sees. The seed-file path has not yet been run end to end.
-- Facts are attributes, text, scroll position and pictures. Console errors, failed requests and accessibility names are not recorded yet.
+- Facts are attributes, class lists, text, scroll position, whether an area can scroll, and pictures. A class change counts as something a person would notice only when a class that shows, hides or scrolls comes or goes (`overflow-hidden`, `hidden`, `d-none` and the like); any other class change is reported as churn, and a general style change shows in the pictures. Console errors, failed requests and accessibility names are not recorded yet.
 - "Confirmed" means the test reproduces, not that the change matters. The class (a person would notice, or markup churn) is a rule, not a judgment; a person decides.
 - Third-party content (images and media from other hosts) is excluded from findings, since it changes on its own.
 - A check takes from under a minute (a static site, warm cache) to about ten minutes (a Next.js app, with bisect) on the measured apps; see [docs/speed-plan.md](docs/speed-plan.md). The GitHub Action has not been run on GitHub's own runners yet.
@@ -62,7 +62,7 @@ Every run is an evidence case under `out/evidence/<case>/`: a hash-chained event
 node --test $(find src -name "*.test.mjs" -not -path "*/senses/*")
 ```
 
-829 tests, no network, no model calls (the crawl's own test launches a browser against a local fake site and takes a few minutes). The canvas senses have their own tests under `src/senses/`, which launch a browser.
+841 tests, no network, no model calls (the crawl's own test launches a browser against a local fake site and takes a few minutes). The canvas senses have their own tests under `src/senses/`, which launch a browser.
 
 ## More
 

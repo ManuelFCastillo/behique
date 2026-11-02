@@ -1,6 +1,6 @@
 // Page facts: a flat map of "what the page says" at one moment, recorded after every step of a run.
-//   key   = path of tag:nth-of-type from <body>, then @attribute or #text. Ids and classes are left out of the path (they churn).
-//   value = the attribute value, or the visible text owned by that element.
+//   key   = path of tag:nth-of-type from <body>, then @attribute, #text or #scrolls. Ids and classes are left out of the path (they churn).
+//   value = the attribute value (for @class the class list, sorted), the visible text owned by that element, or 'y' for an area that can scroll.
 // Run-twice masking: record the SAME build twice from a clean install. Any fact that differs between the two runs
 // (timestamps, generated ids) is volatile and is ignored when builds are compared. Everything else is a stable fact.
 import { Session } from '../session.mjs'
@@ -14,7 +14,15 @@ const EXTRACT = () => {
   const out = {}
   const walk = (el, path) => {
     if (SKIP.has(el.tagName)) return
-    for (const a of el.attributes) if (ATTRS.has(a.name) || a.name.startsWith('data-')) out[path + '@' + a.name] = a.value.slice(0, 300)
+    for (const a of el.attributes) {
+      // The class list, sorted and deduplicated: a class is how most apps show, hide or make something scroll (overflow-hidden), and the
+      // Hoppscotch run missed exactly such a change because classes were not recorded (docs/blind-bisect-runs.md). Order is not a change.
+      if (a.name === 'class') { const cls = [...new Set(a.value.split(/\s+/).filter(Boolean))].sort().join(' '); if (cls) out[path + '@class'] = cls.slice(0, 300) }
+      else if (ATTRS.has(a.name) || a.name.startsWith('data-')) out[path + '@' + a.name] = a.value.slice(0, 300)
+    }
+    // An area that can scroll: content taller than its box and overflow auto or scroll. When this fact vanishes, an area a person could
+    // scroll no longer scrolls, which is felt at once and is otherwise invisible to a recorder of values.
+    if (el.clientHeight > 0 && el.scrollHeight > el.clientHeight + 1) { const o = getComputedStyle(el).overflowY; if (o === 'auto' || o === 'scroll') out[path + '#scrolls'] = 'y' }
     if (el.tagName === 'CANVAS') out[path + '@canvas'] = `${el.width}x${el.height}` // a drawing has no facts: this marks the step so its pixels get compared
     if (el.checkVisibility && el.checkVisibility({ visibilityProperty: true })) {
       const own = [...el.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent).join(' ').replace(/\s+/g, ' ').trim()
@@ -139,7 +147,7 @@ export function widenMask(baseline, diffs, { siteWideSteps = 3 } = {}) {
   return { baseline: { ...baseline, stable, volatile }, added }
 }
 
-const suffixOf = key => key.match(/(@[^/]+|#text)$/)[0]
+const suffixOf = key => key.match(/(@[^/]+|#text|#scrolls)$/)[0]
 
 /**
  * Order differences by how likely they are a behaviour change: changed, then added, then removed, then moved.

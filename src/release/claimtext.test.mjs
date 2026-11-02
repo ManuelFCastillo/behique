@@ -41,6 +41,10 @@ describe('plainClaim', () => {
     const p = plainClaim(`v1.0.0-rc.12 differs from v1.0.0-rc.10 in 11 recorded values: ${[one, one, one, one].join('; ')}.`)
     assert.deepEqual(p.items, ['text of a span: "1.0.0-rc.10" to "1.0.0-rc.12" in 4 places'])
   })
+  it('an area that can no longer scroll, and a class list, read as such', () => {
+    const p = plainClaim('2.0 differs from 1.0 in 2 recorded values, and 1 element present on 1.0 is missing (1 recorded fact): div[1]/main[1]#scrolls (was "y") is gone; div[1]/main[1]@class was "!overflow-auto flex", now "!overflow-hidden flex".')
+    assert.deepEqual(p.items, ['a main area can no longer scroll', 'classes of a main area: "!overflow-auto flex" to "!overflow-hidden flex"'])
+  })
   it('returns null for a claim it does not know how to read', () => {
     assert.equal(plainClaim('A further recording of v1 showed 0 differences from the baseline, so the noise filter holds.'), null)
     assert.equal(plainClaim(''), null)

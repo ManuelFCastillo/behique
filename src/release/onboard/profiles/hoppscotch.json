@@ -1,0 +1,138 @@
+{
+  "name": "hoppscotch",
+  "repo": "/Users/mcastillo/dev/behique-apps/hoppscotch",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "2025.10.1",
+    "cand": "2025.11.2"
+  },
+  "serve": {
+    "kind": "command",
+    "cmd": "pnpm",
+    "args": [
+      "--filter",
+      "@hoppscotch/selfhost-web",
+      "exec",
+      "vite",
+      "preview",
+      "--port",
+      "{port}",
+      "--host",
+      "0.0.0.0"
+    ],
+    "install": [
+      {
+        "cmd": "pnpm",
+        "args": [
+          "install"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@hoppscotch/data",
+          "run",
+          "build"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@hoppscotch/kernel",
+          "run",
+          "build"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@hoppscotch/codemirror-lang-graphql",
+          "run",
+          "prepare"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@hoppscotch/js-sandbox",
+          "run",
+          "build"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "hoppscotch-backend",
+          "exec",
+          "prisma",
+          "generate"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "hoppscotch-backend",
+          "run",
+          "generate-gql-sdl"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@hoppscotch/common",
+          "run",
+          "gql-codegen"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@hoppscotch/selfhost-web",
+          "run",
+          "gql-codegen"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@hoppscotch/selfhost-web",
+          "run",
+          "build"
+        ]
+      }
+    ],
+    "env": {
+      "VITE_BASE_URL": "http://localhost:3000",
+      "VITE_SHORTCODE_BASE_URL": "http://localhost:3000",
+      "VITE_ADMIN_URL": "http://localhost:3100",
+      "VITE_BACKEND_GQL_URL": "http://localhost:3170/graphql",
+      "VITE_BACKEND_WS_URL": "ws://localhost:3170/graphql",
+      "VITE_BACKEND_API_URL": "http://localhost:3170/v1",
+      "VITE_APP_TOS_LINK": "https://docs.hoppscotch.io/support/terms",
+      "VITE_APP_PRIVACY_POLICY_LINK": "https://docs.hoppscotch.io/support/privacy",
+      "DATABASE_URL": "postgresql://placeholder:placeholder@localhost:5432/placeholder"
+    }
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 60000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "The self-hosted web app (packages/hoppscotch-selfhost-web) as a production build, served by vite preview so client-side routes such as /settings load directly. The model's first proposal (pnpm install; pnpm run generate; http-server) failed: Behique installs with --ignore-scripts, and Hoppscotch builds its workspace libraries (data, kernel, codemirror-lang-graphql, js-sandbox) in prepare/postinstall hooks and generates the backend GraphQL schema and the typed client code in postinstall hooks; none of that is committed, so pnpm -r do-build-prod could not resolve @hoppscotch/data. The install steps here do that work explicitly, in dependency order, following prod.Dockerfile. VITE_* values are the ones from .env.example (no backend runs; the UI renders without one). DATABASE_URL is a placeholder for prisma generate. Made for the blind bisect of issue #5693 (docs/blind-bisect-runs.md)."
+}

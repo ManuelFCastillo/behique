@@ -23,7 +23,7 @@ function jsonPath(obj, path) {
 }
 
 export function validSpec(spec) {
-  return spec && typeof spec === 'object' && ['text', 'own_text', 'value', 'visible', 'count', 'checked', 'style', 'dialog', 'attr', 'api'].includes(spec.kind)
+  return spec && typeof spec === 'object' && ['text', 'own_text', 'value', 'visible', 'count', 'checked', 'style', 'dialog', 'attr', 'api', 'class_list', 'scrolls'].includes(spec.kind)
 }
 
 export async function evaluate(session, spec) {
@@ -65,6 +65,16 @@ export async function evaluate(session, spec) {
       if (!(await loc().count())) return { pass: false, detail: 'selector not found' }
       const v = await loc().evaluate((el, prop) => getComputedStyle(el)[prop], String(spec.property))
       return { pass: cmp(spec.op, v, spec.value), detail: `${spec.property}=${v}` }
+    }
+    case 'class_list': { // the element's class list, sorted and deduplicated: what a recorded @class fact holds
+      if (!(await loc().count())) return { pass: false, detail: 'selector not found' }
+      const v = await loc().evaluate(e => [...new Set((e.getAttribute('class') ?? '').split(/\s+/).filter(Boolean))].sort().join(' '))
+      return { pass: cmp(spec.op, v, spec.value), detail: `classes=${JSON.stringify(v.slice(0, 80))}` }
+    }
+    case 'scrolls': { // can the element scroll: content taller than its box and overflow auto or scroll
+      if (!(await loc().count())) return { pass: false, detail: 'selector not found' }
+      const v = await loc().evaluate(e => e.clientHeight > 0 && e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))
+      return { pass: v === true, detail: `scrolls=${v}` }
     }
     case 'attr': {
       if (!(await loc().count())) return { pass: false, detail: 'selector not found' }

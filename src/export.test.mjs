@@ -39,3 +39,12 @@ test('values without the origin, findings without one, and patterns are written 
   assert.ok(!pattern.includes('const live'))
   assert.ok(pattern.includes(`toMatch(new RegExp("${ORIGIN}/x"))`))
 })
+
+test('a class list is compared sorted, and a scroll area is asked whether it can scroll', () => {
+  const cls = specSource(finding('a b', { assert: { kind: 'class_list', selector: 'xpath=/html/body/main[1]', op: 'equals', value: '!overflow-auto flex' } }))
+  assert.ok(cls.includes(".split(/\\s+/).filter(Boolean))].sort().join(' '))"), 'the live class list is sorted like the recorded one')
+  assert.ok(cls.includes('expect(String(classes)).toBe("!overflow-auto flex")'))
+  const sc = specSource(finding('y', { assert: { kind: 'scrolls', selector: 'xpath=/html/body/main[1]' } }))
+  assert.ok(sc.includes("e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY)"))
+  assert.ok(sc.includes('expect(scrolls).toBe(true)'), 'a toBe failure, which the bisect reads as bad')
+})

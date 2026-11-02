@@ -42,7 +42,7 @@ export function verdictOf(events, s, now = Date.now()) {
   }
 }
 
-const whereOf = key => key.replace(/(@[^/]+|#text)$/, '').split('/').slice(-2).join('/')
+const whereOf = key => key.replace(/(@[^/]+|#text|#scrolls)$/, '').split('/').slice(-2).join('/')
 const whatOf = key => key.match(/@([^/]+)$/)?.[1] ?? (key === 'window@scrollY' ? 'scrollY' : 'text')
 const unquote = v => { try { return JSON.parse(v) } catch { return v } }
 

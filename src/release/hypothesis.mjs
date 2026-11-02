@@ -38,7 +38,7 @@ export function symptomsOf({ changed = [], regions = [] } = {}) {
     return changed.slice(0, 4).map(d => {
       if (d.key === 'window@scrollY') return `the vertical scroll position of the page after step ${d.i} (${d.step.replace(/^\d+:/, '')}): the old version left it at ${cut(d.was, 40)} pixels and the new version at ${cut(d.now, 40)} pixels`
       const attr = d.key.match(/@([^/]+)$/)?.[1]
-      return `${attr ? `the "${attr}" attribute` : 'the text'} of the element at ${d.key.replace(/(@[^/]+|#text)$/, '').split('/').slice(-2).join('/')}: the old version had ${cut(d.was, 200)} and the new version has ${cut(d.now, 200)}`
+      return `${attr ? `the "${attr}" attribute` : 'the text'} of the element at ${d.key.replace(/(@[^/]+|#text|#scrolls)$/, '').split('/').slice(-2).join('/')}: the old version had ${cut(d.was, 200)} and the new version has ${cut(d.now, 200)}`
     })
   }
   const above = regions.filter(r => r?.above && r.box)

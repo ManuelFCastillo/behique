@@ -20,6 +20,38 @@ const GEN_ID = /^(_r_\w+_|:r\w+:|radix-|headlessui-|mui-|react-aria|mantine-|cha
 
 const str = v => (v === null || v === undefined ? '' : String(v))
 
+// Class names that decide whether a person can see, reach or scroll something (Tailwind, Bootstrap and the common hand-written ones),
+// with an optional `!` and responsive or state prefixes (md:, hover:). A change that adds or drops one of these is a change a person feels.
+const LAYOUT_CLASS = /^!?(?:[a-z-]+:)*(?:overflow(?:-[xy])?-(?:auto|hidden|scroll|visible|clip)|hidden|invisible|visible|block|inline|inline-block|inline-flex|flex|grid|contents|sr-only|not-sr-only|opacity-0|opacity-100|pointer-events-(?:none|auto)|collapse|collapsed|expanded|truncate|h-0|w-0|max-h-0|max-w-0|scale-0|fixed|absolute|sticky|static|relative|disabled|active|open|show|hide|selected|is-(?:active|open|hidden|visible|disabled|selected)|d-(?:none|block|flex|inline(?:-\w+)?)|visually-hidden|hidden-(?:xs|sm|md|lg|xl))$/i
+// A class name a build tool made: a hash, a CSS-modules suffix (Button_root__a1B2c), styled-components (sc-bdfBwQ, hGjYcD), css-/jsx-/svelte- prefixes.
+const GEN_CLASS = /[0-9a-f]{6,}|^(?:css|sc|jsx|svelte|emotion|styled)-[A-Za-z0-9]{4,}$|^[A-Za-z0-9]+_[A-Za-z0-9]+__[A-Za-z0-9]{4,}$|^(?=.*[a-z])(?=.*[A-Z])[A-Za-z0-9]{5,}$/
+
+const tokens = v => [...new Set(str(v).split(/\s+/).filter(Boolean))]
+
+/** The class names that differ between two class lists, as { added, removed } (order ignored). */
+export function classChange(was, now) {
+  const a = new Set(tokens(was)), b = new Set(tokens(now))
+  return { added: [...b].filter(t => !a.has(t)), removed: [...a].filter(t => !b.has(t)) }
+}
+
+/**
+ * Would a person notice a class change? Only when a class that shows, hides or scrolls (LAYOUT_CLASS) comes or goes. A generated
+ * class name is churn, and any other class is churn too, with a reason that says so: this check reads styles only through that list,
+ * and the pictures are where a general style change shows.
+ */
+export function classNotice(was, now) {
+  const { added, removed } = classChange(was, now)
+  const diff = [...removed, ...added]
+  if (diff.length === 0) return { cls: 'churn', why: 'the same classes in another order' }
+  const layout = diff.filter(t => LAYOUT_CLASS.test(t))
+  if (layout.length) {
+    const from = removed.filter(t => LAYOUT_CLASS.test(t)), to = added.filter(t => LAYOUT_CLASS.test(t))
+    return { cls: 'visible', why: `a class that shows, hides or scrolls (${from.length && to.length ? `${from.join(' ')} to ${to.join(' ')}` : from.length ? `${from.join(' ')} dropped` : `${to.join(' ')} added`})` }
+  }
+  if (diff.every(t => GEN_CLASS.test(t))) return { cls: 'churn', why: 'a generated class name' }
+  return { cls: 'churn', why: `a style class this check cannot read (${diff.slice(0, 3).join(' ')}); a general style change shows in the pictures` }
+}
+
 /** The host of an absolute or protocol-relative URL, lower-cased, or null for a relative path or a non-URL. */
 export function hostOf(value) {
   const v = str(value).trim()
@@ -82,6 +114,7 @@ export function releaseLabel(was, now, refs) {
 export function noticeOf(fact, { origin = null, refs = null } = {}) {
   const key = str(fact?.key), was = fact?.was, now = fact?.now
   if (key === 'window@scrollY') return { cls: 'visible', why: 'the page scrolls differently' }
+  if (key.endsWith('#scrolls')) return { cls: 'visible', why: 'whether an area can scroll' }
   const label = refs ? releaseLabel(was, now, refs) : null
   if (key.endsWith('#text')) return label ? { cls: 'churn', why: label } : { cls: 'visible', why: 'text a person reads' }
   const attr = attrOf(key)
@@ -96,6 +129,7 @@ export function noticeOf(fact, { origin = null, refs = null } = {}) {
     return { cls: 'visible', why: `${attr} points somewhere else` }
   }
   if (STATE.has(attr)) return { cls: 'visible', why: `a state a person sees (${attr})` }
+  if (attr === 'class') return classNotice(was, now)
   if (TEXTUAL.has(attr)) return label ? { cls: 'churn', why: label } : { cls: 'visible', why: 'text a person reads' }
   if (TARGETS.has(attr)) {
     if (tokenOnlyChange(was, now)) return { cls: 'churn', why: 'a hashed asset name changed, nothing else' }
@@ -142,7 +176,7 @@ export function maskedAreas(volatile, { depth = 3, top = 3 } = {}) {
     total++
     const key = id.slice(id.indexOf('|') + 1)
     if (key === 'window@scrollY') { counts.set('window', (counts.get('window') ?? 0) + 1); continue }
-    const path = key.replace(/(@[^/]+|#text)$/, '')
+    const path = key.replace(/(@[^/]+|#text|#scrolls)$/, '')
     const area = path.split('/').slice(0, depth).join('/')
     counts.set(area, (counts.get(area) ?? 0) + 1)
   }
