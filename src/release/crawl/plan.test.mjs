@@ -127,7 +127,8 @@ test('flows shallow first, one per last-action key, max, start excluded', () => 
   const l3 = p.next()
   // Same last selector as l1 but deeper, should be deduped.
   p.report(l3, stateFor('s-a2', []))
-  const all = p.flows({ max: 8 })
+  const everything = p.flows({ max: 8 })
+  const all = everything.filter(f => !f.direct)
   const keys = all.map((f) => f.state.key)
   assert.ok(!keys.includes('home'))
   // Shallow first: length-1 states before length-2.
@@ -136,9 +137,26 @@ test('flows shallow first, one per last-action key, max, start excluded', () => 
   // One per last-action key: kc reachable twice counts once.
   const lastKeys = all.map((f) => f.path[f.path.length - 1].selector)
   assert.equal(new Set(lastKeys).size, lastKeys.length)
-  const limited = p.flows({ max: 1 })
+  const limited = p.flows({ max: 1, direct: 0 })
   assert.equal(limited.length, 1)
   assert.equal(limited[0].path.length, 1)
+})
+
+test('every page the clicks reached is also loaded directly, once, after the click flows', () => {
+  const p = createPlanner({ maxDepth: 3 })
+  p.next()
+  p.report([], stateFor('home', [cand('#a', 'a', 'ka'), cand('#b', 'b', 'kb')]))
+  p.report(p.next(), { ...stateFor('s-a', [cand('#c', 'c', 'kc')]), url: 'http://x/guide/start?tab=1#top' })
+  p.report(p.next(), { ...stateFor('s-b', []), url: 'http://x/' }) // a click that stays on the start page: nothing to load directly
+  p.report(p.next(), { ...stateFor('s-c', []), url: 'http://x/guide/start?tab=1' }) // the same page again: loaded once
+  const flows = p.flows({ max: 8 })
+  const direct = flows.filter(f => f.direct)
+  assert.deepEqual(direct.map(f => f.path), [[{ type: 'goto', path: '/guide/start?tab=1', label: 'load /guide/start?tab=1 directly' }]])
+  assert.ok(flows.indexOf(direct[0]) > flows.findLastIndex(f => !f.direct), 'direct loads come after the click flows')
+  assert.equal(p.flows({ max: 8, direct: 0 }).filter(f => f.direct).length, 0)
+  // A direct load is its own fresh start: no goto to the start page in front of it, and two different loads may follow each other.
+  const steps = p.toSteps([flows[0], direct[0], { path: [{ type: 'goto', path: '/other', label: 'load /other directly' }], state: {}, direct: true }])
+  assert.deepEqual(steps.slice(1), [{ type: 'goto', path: '/guide/start?tab=1', label: 'load /guide/start?tab=1 directly' }, { type: 'goto', path: '/other', label: 'load /other directly' }])
 })
 
 test('toSteps first flow no goto, later flows do, labels kept, no mutation, empty', () => {

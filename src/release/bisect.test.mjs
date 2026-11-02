@@ -35,3 +35,17 @@ test('two versions with nothing between them are refused clearly, not with a cra
   const { dir } = repo(3)
   await assert.rejects(bisect({ adapter: { repo: dir, workRoot: dir }, goodRef: 'bad', badRef: 'good', dir: 'x', test: async () => ({ verdict: 'good' }), log: () => {} }), /no changes between/)
 })
+
+test('classify: a failed value assertion is bad, an absent-attribute check included; anything else that fails is a skip', async () => {
+  const { classify } = await import('./bisect.mjs')
+  const run = (ok, msg) => ({ results: { R1: ok }, errors: msg ? { R1: msg } : {} })
+  assert.deepEqual(classify(run(true), 'R1'), { verdict: 'good' })
+  assert.equal(classify(run(false, 'Error: expect(received).toBe(expected) // Object.is equality\n\nExpected: "a"\nReceived: "b"'), 'R1').verdict, 'bad')
+  assert.equal(classify(run(false, 'Error: expect(received).toBeNull()\n\nReceived: ""'), 'R1').verdict, 'bad') // an attribute that must be absent is set
+  assert.equal(classify(run(false, 'Error: expect(received).not.toBeNull()\n\nReceived: null'), 'R1').verdict, 'bad') // an attribute that must be there is gone
+  assert.equal(classify(run(false, 'Error: expect(received).toContain(expected)'), 'R1').verdict, 'bad')
+  assert.equal(classify(run(false, 'Error: expect(received).toBeGreaterThanOrEqual(expected)'), 'R1').verdict, 'bad')
+  assert.deepEqual(classify(run(false, 'Error: Timed out 5000ms waiting for expect(locator).toBeAttached()\n\nLocator: xpath=/html/body/div[1]'), 'R1'), { verdict: 'skip', why: 'Error: Timed out 5000ms waiting for expect(locator).toBeAttached()' })
+  assert.deepEqual(classify({ error: 'no output', results: {} }, 'R1'), { verdict: 'skip', why: 'runner error' })
+  assert.equal(classify(run(false, ''), 'R1').why, 'test failed for another reason')
+})

@@ -261,7 +261,7 @@ export async function crawlApp(base, options = {}) {
   if (stoppedBy !== 'budget') {
     stoppedBy = stats.tried >= maxPaths ? 'paths' : 'done'
   }
-  const flows = planner.flows({ max: maxFlows })
+  const flows = planner.flows({ max: maxFlows, startPath })
   const steps = planner.toSteps(flows, { startPath })
   return { steps, flows, states: planner.states(), stats, stoppedBy, ms: Date.now() - started }
 }

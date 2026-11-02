@@ -69,7 +69,9 @@ export async function evaluate(session, spec) {
     case 'attr': {
       if (!(await loc().count())) return { pass: false, detail: 'selector not found' }
       const v = await loc().getAttribute(String(spec.name))
-      return { pass: v !== null && cmp(spec.op, v, spec.value), detail: `${spec.name}=${JSON.stringify(v?.slice(0, 80) ?? null)}` }
+      const detail = `${spec.name}=${JSON.stringify(v?.slice(0, 80) ?? null)}`
+      if (spec.op === 'absent') return { pass: v === null, detail } // the attribute must not be there at all; an empty value counts as set
+      return { pass: v !== null && cmp(spec.op, v, spec.value), detail }
     }
     case 'dialog': {
       const d = session.dialogs.at(-1) ?? ''

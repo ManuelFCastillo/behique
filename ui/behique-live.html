@@ -110,6 +110,7 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 <style>
 .gem.gem-emerald{--gem-c:var(--emerald);--gem-glow:rgba(47,217,138,.6);background:radial-gradient(circle at 50% 38%,#d6ffe9 0%,var(--gem-c) 24%,#063d24 55%,#020a06 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(47,217,138,.3),inset 0 0 22px rgba(255,255,255,.25)}
 .gem.gem-ruby{--gem-c:var(--ruby);--gem-glow:rgba(255,77,87,.6);background:radial-gradient(circle at 50% 38%,#ffd6d9 0%,var(--gem-c) 24%,#5a0a0f 55%,#0a0203 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(255,77,87,.3),inset 0 0 22px rgba(255,255,255,.2)}
+.gem.gem-amber{--gem-c:var(--amber);--gem-glow:rgba(212,160,23,.55);background:radial-gradient(circle at 50% 38%,#fff1c9 0%,var(--gem-c) 24%,#4a3306 55%,#0a0702 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(212,160,23,.28),inset 0 0 22px rgba(255,255,255,.22)}
 .gem.gem-gray{--gem-c:#8b97a6;--gem-glow:rgba(139,151,166,.5);background:radial-gradient(circle at 50% 38%,#e8edf3 0%,var(--gem-c) 26%,#2a3442 58%,#07090c 75%);box-shadow:0 0 24px var(--gem-glow),0 0 60px rgba(139,151,166,.25)}
 .claim.gold{border:1px solid #d4a017;box-shadow:0 0 24px rgba(212,160,23,.35);background:rgba(212,160,23,.06)}
 .chip.gold{background:rgba(212,160,23,.16);color:#e8c24a;border:1px solid rgba(212,160,23,.6)}
@@ -691,6 +692,18 @@ function renderHero(){
   else { word.style.color="var(--amber)"; word.textContent="HOLD"+lock; $("verdictSub").textContent=DATA.subs.hold; }
   $("verdictTitle").textContent=DATA.title;
   $("verdictLabel").textContent=({running:"Behique is checking",fail:"No recommendation"})[state.verdict]||"Behique recommends";
+  // Once a person has decided, the case is closed and the hero says so: the big word is their decision, the label keeps Behique's
+  // recommendation next to it, so an override reads as one. The evidence sentence below stays what the check found.
+  const d=state.decision;
+  if(d && !LIVE.changing && state.verdict!=="running"){
+    const shipped=d.choice==="SHIP", who=d.who||"a person";
+    gem.classList.remove("gem-emerald","gem-ruby","gem-gray"); gem.classList.add(shipped?"gem-emerald":"gem-amber");
+    word.style.color=shipped?"var(--emerald)":"var(--amber)"; word.textContent=shipped?"SHIPPED":"HELD";
+    const rec=String(d.recommendation||"").toUpperCase();
+    $("verdictLabel").textContent = d.override ? "Decided by "+who+", against Behique’s "+rec
+      : rec==="HOLD"||rec==="SHIP" ? "Decided by "+who+", as Behique recommended ("+rec+")"
+      : "Decided by "+who;
+  }
   $("culpritTag").style.display = (scenario==="clean") ? "none" : "";
   if(prevV && prevV!==state.verdict){ gem.classList.remove("shock"); void gem.offsetWidth; gem.classList.add("shock"); clearTimeout(gem._shockH); gem._shockH=setTimeout(()=>gem.classList.remove("shock"),750); }
   gem.dataset.v=state.verdict;
@@ -939,14 +952,14 @@ function updateShipHold(){
   const mk=(tag,cls,text)=>{ const e=document.createElement(tag); if(cls) e.className=cls; if(text!==undefined) e.textContent=text; return e; };
   if(LIVE.changing){
     sum.appendChild(mk("span","dec-rec","Changing your decision. The earlier one stays on the record."));
-    const keep=mk("button","mini-btn","Keep current"); keep.type="button"; keep.addEventListener("click",()=>{ LIVE.changing=false; closeReasonRow(); updateShipHold(); }); sum.appendChild(keep);
+    const keep=mk("button","mini-btn","Keep current"); keep.type="button"; keep.addEventListener("click",()=>{ LIVE.changing=false; closeReasonRow(); updateShipHold(); renderHero(); }); sum.appendChild(keep);
     return;
   }
   if(!d){ sum.appendChild(mk("span","dec-none",running?"Nothing to decide until the run finishes":"No decision yet")); return; }
   sum.appendChild(mk("span","dec-badge "+(d.choice==="SHIP"?"ship":"hold"),"YOU DECIDED: "+d.choice));
   const rec=decisionRecText(d); if(rec) sum.appendChild(mk("span","dec-rec"+(d.override?" against":""),rec));
   const why=mk("span","dec-why",(d.who?d.who+", ":"")+d.time+": "+d.reason); why.title=d.reason; sum.appendChild(why);
-  const chg=mk("button","mini-btn","Change decision"); chg.type="button"; chg.addEventListener("click",()=>{ LIVE.changing=true; updateShipHold(); }); sum.appendChild(chg);
+  const chg=mk("button","mini-btn","Change decision"); chg.type="button"; chg.addEventListener("click",()=>{ LIVE.changing=true; updateShipHold(); renderHero(); }); sum.appendChild(chg);
   if(LIVE.vm && LIVE.vm.decisions>1){ const h=mk("button","tiny-link",LIVE.vm.decisions+" decisions on record"); h.type="button"; h.addEventListener("click",()=>{ const c=document.querySelector("#claimsList .claim.gold"); if(c){ c.scrollIntoView({behavior:"smooth",block:"center"}); c.classList.remove("pulse-red"); void c.offsetWidth; c.classList.add("pulse-red"); setTimeout(()=>c.classList.remove("pulse-red"),3200); } }); sum.appendChild(h); }
 }
 // ---- ask the model why: the paid step. The page shows the exact text and the projected cost first; the server refuses to send unless it is

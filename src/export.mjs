@@ -67,7 +67,9 @@ function assertionCode(spec, ctx = null) {
     case 'checked': return [el, attached, spec.expect === false ? 'await expect(el).not.toBeChecked()' : 'await expect(el).toBeChecked()']
     case 'count': return [`const count = await page.locator(${q(spec.selector)}).count()`, cmp('count', spec.op ?? 'eq', spec.value)]
     case 'style': return [el, attached, `const style = await el.evaluate((e, p) => getComputedStyle(e)[p], ${q(String(spec.property))})`, cmp('style', spec.op, spec.value, ctx)]
-    case 'attr': return [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).not.toBeNull()', cmp('attr', spec.op, spec.value, ctx)]
+    case 'attr': return spec.op === 'absent'
+      ? [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).toBeNull()'] // absent: the old version had no such attribute
+      : [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).not.toBeNull()', cmp('attr', spec.op, spec.value, ctx)]
     case 'dialog': return ["const dialog = dialogs.at(-1) ?? ''", cmp('dialog', spec.op, spec.value, ctx)]
     case 'api': {
       const lines = ['let res']

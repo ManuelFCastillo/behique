@@ -9,6 +9,17 @@ function lastActionKey(action) {
   return JSON.stringify(action)
 }
 
+/** The path and query of a page's address, as a `goto` step takes it, or null when the address cannot be read. */
+function pathOf(url) {
+  try {
+    const u = new URL(String(url))
+    const p = u.pathname + u.search
+    return p.startsWith('/') && !p.startsWith('//') ? p : null
+  } catch {
+    return null
+  }
+}
+
 function pathHasKey(path, candidate) {
   const key = candidate.key
   const sel = candidate.action && candidate.action.selector
@@ -85,7 +96,10 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
     return order.map((e) => ({ key: e.key, url: e.url, title: e.title, path: e.path, order: e.order }))
   }
 
-  function flows({ max = 8 } = {}) {
+  // Click flows first (at most `max`), then direct loads: every page the clicks reached is also loaded on its own, by address,
+  // once (at most `direct`). A page loaded directly is a different state from the same page reached by a click: a full load
+  // hydrates from scratch, and bugs live there that a client-side navigation never shows (a sidebar left inert after a hard load).
+  function flows({ max = 8, direct = 8, startPath = '/' } = {}) {
     const rest = order.filter((e) => Array.isArray(e.path) && e.path.length > 0)
     const sorted = [...rest].sort((a, b) => {
       if (a.path.length !== b.path.length) return a.path.length - b.path.length
@@ -104,6 +118,20 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
         state: { key: entry.key, url: entry.url, title: entry.title, path: entry.path, order: entry.order },
       })
     }
+    const seen = new Set([startPath])
+    let loads = 0
+    for (const entry of [...out.map(f => f.state), ...[...rest].sort((a, b) => a.order - b.order)]) {
+      if (loads >= direct) break
+      const p = pathOf(entry.url)
+      if (!p || seen.has(p)) continue
+      seen.add(p)
+      out.push({
+        path: [{ type: 'goto', path: p, label: `load ${p} directly` }],
+        state: { key: entry.key, url: entry.url, title: entry.title, path: entry.path, order: entry.order },
+        direct: true,
+      })
+      loads += 1
+    }
     return out
   }
 
@@ -111,12 +139,14 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
     if (!Array.isArray(flowList) || flowList.length === 0) return []
     const steps = []
     const push = step => {
-      if (step.type === 'goto' && steps.length > 0 && steps[steps.length - 1].type === 'goto') return // never two in a row
+      const last = steps[steps.length - 1]
+      if (step.type === 'goto' && last && last.type === 'goto' && last.path === step.path) return // never the same load twice in a row
       steps.push({ ...step })
     }
     flowList.forEach((flow, index) => {
       const actions = flow && Array.isArray(flow.path) ? flow.path : []
-      if (index > 0 && actions.length > 0) push({ type: 'goto', path: startPath }) // a fresh start for every flow after the first
+      const startsFresh = actions[0] && actions[0].type === 'goto' // a direct load is its own fresh start
+      if (index > 0 && actions.length > 0 && !startsFresh) push({ type: 'goto', path: startPath }) // a fresh start for every flow after the first
       for (const action of actions) push(action)
     })
     return steps

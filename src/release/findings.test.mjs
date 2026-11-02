@@ -2,7 +2,7 @@
 // Run: node --test src/release/findings.test.mjs
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { factToFinding, selectFindings, judgeFindings, firstConfirmed, summarize, vanishedRoots } from './findings.mjs'
+import { factToFinding, selectFindings, judgeFindings, firstConfirmed, summarize, vanishedRoots, appearedStates } from './findings.mjs'
 
 const actions = [
   { type: 'click', selector: 'a.one' },
@@ -301,9 +301,57 @@ describe('history of a step in a crawled flow', () => {
     assert.equal(factToFinding({ ...d, i: 1 }, crawled, '/', { stable: {} }).history.length, 1)
     assert.equal(factToFinding({ ...d, i: 3 }, crawled.filter(a => a.type !== 'goto'), '/', { stable: {} }).history.length, 3)
   })
-  it('does not trim at a goto to some other page', () => {
+  it('a direct load of another page starts a flow too, and is kept as the first replayed action', () => {
     const odd = [{ type: 'click', selector: 'a' }, { type: 'goto', path: '/about' }, { type: 'click', selector: 'b' }]
-    assert.equal(factToFinding({ ...d, i: 3 }, odd, '/', { stable: {} }).history.length, 3)
+    assert.deepEqual(factToFinding({ ...d, i: 3 }, odd, '/', { stable: {} }).history, odd.slice(1))
+    assert.deepEqual(factToFinding({ ...d, i: 2 }, odd, '/', { stable: {} }).history, [odd[1]]) // the state right after the direct load: the load itself is the step
+  })
+})
+
+describe('a state attribute newly set on the candidate becomes a test that expects it absent', () => {
+  const baseline = { stable: { '1|body/div[1]/aside[1]@class': 'VPSidebar', '1|body/div[1]/aside[1]/a[1]@href': '/guide', '1|body/div[1]/p[1]#text': 'hi' }, volatile: {} }
+  const appeared = (key, now = '') => ({ i: 1, step: 's1', key, kind: 'added', was: undefined, now })
+
+  it('appearedStates keeps state attributes on elements the good version has, and nothing else', () => {
+    const diffs = [
+      appeared('body/div[1]/aside[1]@inert'), // a state, on an element the good version has: kept
+      appeared('body/div[1]/aside[1]@data-v-1'), // not a state
+      appeared('body/div[1]/div[9]@hidden'), // a state, but the element itself is new on the candidate
+      appeared('body/div[1]/aside[1]#text', 'x'), // text is not an attribute
+      { i: 1, step: 's1', key: 'body/div[1]/p[1]#text', kind: 'changed', was: 'hi', now: 'bye' },
+    ]
+    assert.deepEqual(appearedStates(diffs, baseline).map(d => d.key), ['body/div[1]/aside[1]@inert'])
+    assert.deepEqual(appearedStates([], baseline), [])
+    assert.deepEqual(appearedStates(diffs, { stable: {} }), [])
+  })
+
+  it('the finding asserts the attribute is absent, and the exporter writes toBeNull for it', () => {
+    const f = factToFinding(appeared('body/div[1]/aside[1]@inert'), actions, start, baseline)
+    assert.deepEqual(f.assert, { kind: 'attr', selector: 'xpath=/html/body/div[1]/aside[1]', name: 'inert', op: 'absent', value: '' })
+    assert.equal(f.title, 'inert of div[1]/aside[1] after step 1 is absent, as on the previous release')
+    assert.equal(f.expected, 'absent (not set on the previous release)')
+    assert.equal(f.actual, '""')
+    assert.equal(factToFinding(appeared('body/div[1]/aside[1]#text', 'x'), actions, start, baseline), null)
+  })
+
+  it('selectFindings ranks a newly set state as something a person would notice and marks the fact appeared', () => {
+    const { findings } = selectFindings([appeared('body/div[1]/aside[1]@inert'), appeared('body/div[1]/aside[1]@data-v-1')], actions, start, baseline)
+    assert.equal(findings.length, 1)
+    assert.equal(findings[0].fact.appeared, true)
+    assert.deepEqual(findings[0].notice, { cls: 'visible', why: 'a state a person sees (inert)' })
+  })
+})
+
+describe("the release's own version label", () => {
+  it('is ranked as churn, so the bisect follows a real change instead of the release commit', () => {
+    const refs = { good: 'v1.0.0-rc.10', cand: 'v1.0.0-rc.12' }
+    const label = { i: 1, step: 's1', key: 'body/nav[1]/button[1]/span[1]#text', kind: 'changed', was: '1.0.0-rc.10', now: '1.0.0-rc.12' }
+    const real = { i: 1, step: 's1', key: 'body/main[1]/a[1]@href', kind: 'changed', was: '/guide', now: '/guide/' }
+    const { findings } = selectFindings([label, real], actions, start, emptyBaseline, { refs })
+    assert.deepEqual(findings.map(f => [f.id, f.fact.key, f.notice.cls]), [['R1', 'body/main[1]/a[1]@href', 'visible'], ['R2', 'body/nav[1]/button[1]/span[1]#text', 'churn']])
+    assert.equal(findings[1].notice.why, "the release's own version label (1.0.0-rc.10 to 1.0.0-rc.12)")
+    // Without the refs the same text is a change a person reads, as before.
+    assert.equal(selectFindings([label], actions, start, emptyBaseline).findings[0].notice.cls, 'visible')
   })
 })
 

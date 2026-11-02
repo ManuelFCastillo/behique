@@ -98,16 +98,22 @@ test('crawls safely and finds flows', async () => {
   } finally { await s.close() }
   const r2 = await crawlApp(base, { maxDepth: 2, maxPaths: 40, log: () => {} })
   assert.deepEqual(r2.steps, r.steps)
-  let prevGoto = false
+  let prev = null
   let sawGoto = false
   for (const st of r.steps) {
     if (st.type === 'goto') {
-      assert.equal(prevGoto, false, 'never two gotos in a row')
+      if (prev && prev.type === 'goto') assert.notEqual(prev.path, st.path, 'never the same load twice in a row') // two direct loads of different pages may follow each other
       sawGoto = true
     }
-    prevGoto = st.type === 'goto'
+    prev = st
   }
   if (r.flows.length > 1) assert.ok(sawGoto, 'has a goto between flows')
+  // Every page the clicks reached is also loaded directly, once, after the click flows.
+  const direct = r.flows.filter(f => f.direct)
+  assert.ok(direct.length >= 1, 'has direct loads')
+  assert.ok(direct.every(f => f.path.length === 1 && f.path[0].type === 'goto' && f.path[0].path !== '/'))
+  assert.equal(new Set(direct.map(f => f.path[0].path)).size, direct.length, 'each page loaded directly once')
+  assert.ok(r.flows.findIndex(f => f.direct) > r.flows.findLastIndex(f => !f.direct))
 })
 
 test('maxPaths stops early', async () => {

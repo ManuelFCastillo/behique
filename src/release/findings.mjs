@@ -9,18 +9,19 @@ import { noticeOf, rankFindings } from './notice.mjs'
  * action moved the page, compared with how far it moved it on the old version (no absolute pixel positions).
  */
 /**
- * The actions a test must replay to reach step i. The crawl joins its flows with a `goto /`, which starts the app over, so a test
+ * The actions a test must replay to reach step i. The crawl joins its flows with a `goto`, which starts the app over, so a test
  * for a step in the third flow replays that flow only, not the two before it (they would only add time and shared state).
+ * A `goto /` is the test's own starting point and is left out; a direct load of another page is kept, since it is the step.
  */
 function historyFor(actions, i) {
-  for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto' && actions[g].path === '/') return actions.slice(g + 1, i)
+  for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto') return actions[g].path === '/' ? actions.slice(g + 1, i) : actions.slice(g, i)
   return actions.slice(0, i)
 }
 
 export function factToFinding(d, actions, start, baseline, id = 'R1') {
   if (d.key === 'step@error') return null // a step that could not be performed is reported, but there is no element to test
-  const removed = d.kind === 'removed'
-  if (removed && d.key === 'window@scrollY') return null // the scroll position is always recorded; it cannot vanish
+  const removed = d.kind === 'removed', added = d.kind === 'added'
+  if ((removed || added) && d.key === 'window@scrollY') return null // the scroll position is always recorded; it cannot vanish or appear
   if (d.key === 'window@scrollY') {
     const before = baseline.stable[`${d.i - 1}|${d.key}`]
     if (d.i < 1 || typeof before !== 'number' || typeof d.was !== 'number') return null
@@ -36,10 +37,21 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
   const selector = 'xpath=/html/' + m[1]
   const attr = m[2]
   const long = String(d.was).length >= 300 // facts cut values at 300 characters
+  const what = attr ? `${attr} of ${m[1].split('/').slice(-2).join('/')}` : `text of ${m[1].split('/').slice(-2).join('/')}`
+  // An attribute that appeared on the candidate (inert, disabled, hidden) is tested the other way round: the old version has no such
+  // attribute, so the test expects it absent and fails on the candidate where it is set.
+  if (added) {
+    if (!attr) return null
+    return {
+      id, start,
+      title: `${what} after step ${d.i} is absent, as on the previous release`,
+      expected: 'absent (not set on the previous release)', actual: JSON.stringify(d.now),
+      history: historyFor(actions, d.i), assert: { kind: 'attr', selector, name: attr, op: 'absent', value: '' },
+    }
+  }
   const assert = attr
     ? { kind: 'attr', selector, name: attr, op: long ? 'contains' : 'equals', value: d.was }
     : { kind: 'own_text', selector, op: long ? 'contains' : 'equals', value: d.was } // the fact is the element's own text, cut at 300 characters: compare it exactly, or a longer new text still contains the old one
-  const what = attr ? `${attr} of ${m[1].split('/').slice(-2).join('/')}` : `text of ${m[1].split('/').slice(-2).join('/')}`
   // A vanished fact is tested with the same assertion: the old value is expected, so the test fails on the candidate whether the
   // whole element is gone (the locator finds nothing) or only its attribute or text is.
   return {
@@ -48,6 +60,27 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
     expected: JSON.stringify(d.was), actual: removed ? 'missing on the candidate' : JSON.stringify(d.now),
     history: historyFor(actions, d.i), assert,
   }
+}
+
+// Attributes whose appearance a person feels at once: a control that stops working, a region that goes dead or hidden.
+const APPEARS = new Set(['inert', 'disabled', 'hidden', 'readonly', 'checked', 'selected', 'open', 'aria-hidden', 'aria-disabled', 'aria-expanded', 'aria-busy', 'aria-invalid'])
+
+/**
+ * The state attributes that are newly set on the candidate, on elements the good version also has at that step. New elements
+ * bring their own attributes along and are not a state change of anything; those are left out. Returns the added diffs, in order.
+ */
+export function appearedStates(diffs, baseline) {
+  const added = (Array.isArray(diffs) ? diffs : []).filter(d => d && d.kind === 'added' && typeof d.key === 'string')
+  if (!added.length) return []
+  const present = new Set()
+  for (const id of Object.keys(baseline?.stable ?? {})) {
+    const bar = id.indexOf('|')
+    if (bar > 0) present.add(`${id.slice(0, bar)}|${elementOf(id.slice(bar + 1))}`)
+  }
+  return added.filter(d => {
+    const attr = (d.key.match(/@([^/@]+)$/) ?? [])[1]
+    return Boolean(attr) && APPEARS.has(attr) && present.has(`${d.i}|${elementOf(d.key)}`)
+  })
 }
 
 const PREFERRED = ['#text', '@href', '@value', '@src', '@alt', '@title', '@placeholder', '@aria-label', '@action']
@@ -90,12 +123,14 @@ export function vanishedRoots(diffs) {
  * Each finding carries `notice` ({ cls, why }: would a person notice it, see notice.mjs). Findings are ordered by that class,
  * visible before churn, so the cap keeps what a person would notice and R1 is the most noticeable; the given order holds inside a
  * class. Third-party content (an ad, a widget loaded from another host) never becomes a finding: it is skipped and listed as such.
- * `origin` is where the facts were recorded, so its host counts as the app's own.
+ * `origin` is where the facts were recorded, so its host counts as the app's own. `refs` ({ good, cand }) are the versions compared,
+ * so the page's own version label ranks as expected churn rather than as the change to bisect.
  * Returns { findings, skipped } where skipped entries look like { key, i, why }.
  */
-export function selectFindings(changed, actions, start, baseline, { max = 5, origin = null } = {}) {
+export function selectFindings(changed, actions, start, baseline, { max = 5, origin = null, refs = null } = {}) {
   if (!Array.isArray(changed)) return { findings: [], skipped: [] }
-  const list = changed.filter(d => d && (d.kind === 'changed' || d.kind === 'removed') && typeof d.key === 'string')
+  // Added facts count only when they are a state newly set (appearedStates); a new element's own attributes are not a change of anything.
+  const list = changed.filter(d => d && typeof d.key === 'string' && (d.kind === 'changed' || d.kind === 'removed' || (d.kind === 'added' && APPEARS.has((d.key.match(/@([^/@]+)$/) ?? [])[1]))))
   if (list.length === 0) return { findings: [], skipped: [] }
   const limit = Number(max)
   const cap = Number.isFinite(limit) && limit >= 0 ? Math.floor(limit) : 5
@@ -122,7 +157,7 @@ export function selectFindings(changed, actions, start, baseline, { max = 5, ori
   }
   const testable = []
   for (const d of kept) {
-    const notice = noticeOf(d, { origin })
+    const notice = noticeOf(d, { origin, refs })
     if (notice.cls === 'third_party') {
       skipped.push({ key: d.key, i: d.i, why: `third-party content (${notice.why})` })
       continue
@@ -137,7 +172,7 @@ export function selectFindings(changed, actions, start, baseline, { max = 5, ori
       skipped.push({ key: d.key, i: d.i, why: 'cannot be written as a test' })
       continue
     }
-    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now, ...(d.kind === 'removed' ? { removed: true, vanished: d.vanished ?? 1 } : {}) } })
+    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now, ...(d.kind === 'removed' ? { removed: true, vanished: d.vanished ?? 1 } : {}), ...(d.kind === 'added' ? { appeared: true } : {}) } })
   }
   const findings = []
   for (const f of rankFindings(testable)) {

@@ -22,7 +22,10 @@ export function classify(r, id) {
   if (r.error) return { verdict: 'skip', why: 'runner error' }
   if (r.results[id] === true) return { verdict: 'good' }
   const msg = r.errors?.[id] ?? ''
-  if (/expect\(received\)\.(toBe|toContain|toMatch)\(/.test(msg)) return { verdict: 'bad' }
+  // A value assertion that failed (toBe, toBeNull for an attribute that must be absent, not.toBeNull for one that must be there,
+  // toContain, toMatch, the numeric ones) is the regression showing on this commit: bad. A locator that never attached, a timeout
+  // or a crash says nothing about the regression: skip.
+  if (/expect\(received\)\.(not\.)?(toBe\w*|toContain|toMatch)\(/.test(msg)) return { verdict: 'bad' }
   return { verdict: 'skip', why: firstLine(msg) || 'test failed for another reason' }
 }
 

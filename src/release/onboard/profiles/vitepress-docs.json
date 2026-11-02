@@ -1,0 +1,52 @@
+{
+  "name": "vitepress-docs",
+  "repo": "/Users/mcastillo/dev/behique-apps/vitepress",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v1.0.0-rc.10",
+    "cand": "v1.0.0-rc.12"
+  },
+  "serve": {
+    "kind": "command",
+    "cmd": "pnpm",
+    "args": [
+      "--filter",
+      "docs",
+      "exec",
+      "vitepress",
+      "preview",
+      "--port",
+      "{port}",
+      "--host",
+      "0.0.0.0"
+    ],
+    "install": [
+      {
+        "cmd": "pnpm",
+        "args": [
+          "install"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "run",
+          "docs:build"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/",
+    "timeoutMs": 30000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "The VitePress documentation site as a production build, served by vitepress preview (which honours cleanUrls). Differs from the vitepress profile, which serves the dev server. Made for the blind bisect of issue #2949, whose symptom only shows in a production build (docs/blind-bisect-runs.md)."
+}

@@ -62,7 +62,7 @@ test('proven changes that are all markup churn are recommended SHIP with a note;
   assert.equal(verdictOf(churn.read(), summarize(churn.read())), 'ship')
   const vmChurn = buildViewModel(churn, { caseId: 'churn' })
   assert.equal(vmChurn.verdict, 'ship'); assert.equal(vmChurn.recommendation, 'ship')
-  assert.equal(vmChurn.sub, 'Only markup churn changed: 2 proven changes (generated ids, framework attributes), nothing a person would notice')
+  assert.equal(vmChurn.sub, "Only markup churn changed: 2 proven changes (generated ids, framework attributes, the release's own version label), nothing a person would notice")
   assert.equal(vmChurn.masked.text, '40 of 1000 recorded facts (4.0%) were masked as noise, mostly under body/div[1]/nav[1] (30). A change inside a masked fact cannot be seen by this check.')
   const mixed = classed([{ fact: 'body/div[1]/label[1]@for', cls: 'churn', why: 'a generated id (for)' }, { fact: 'body/div[1]/p[1]#text', cls: 'visible', why: 'text a person reads' }])
   assert.equal(verdictOf(mixed.read(), summarize(mixed.read())), 'hold')

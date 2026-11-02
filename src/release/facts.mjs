@@ -7,7 +7,10 @@ import { Session } from '../session.mjs'
 
 const EXTRACT = () => {
   const SKIP = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE', 'HEAD', 'LINK', 'META', 'svg', 'path'])
-  const ATTRS = new Set(['href', 'src', 'value', 'title', 'alt', 'placeholder', 'aria-label', 'aria-expanded', 'aria-hidden', 'action', 'name', 'type', 'for', 'rel', 'target', 'disabled', 'checked', 'selected'])
+  // The states a person feels (inert, hidden, readonly, open, aria-disabled and the other aria states) are recorded alongside the values; a
+  // region that goes dead after a load is exactly such a state, and it was missed before they were on this list (docs/blind-bisect-runs.md).
+  const ATTRS = new Set(['href', 'src', 'value', 'title', 'alt', 'placeholder', 'aria-label', 'aria-expanded', 'aria-hidden', 'action', 'name', 'type', 'for', 'rel', 'target', 'disabled', 'checked', 'selected',
+    'inert', 'hidden', 'readonly', 'open', 'aria-disabled', 'aria-selected', 'aria-checked', 'aria-pressed', 'aria-busy', 'aria-invalid', 'aria-current'])
   const out = {}
   const walk = (el, path) => {
     if (SKIP.has(el.tagName)) return
@@ -55,7 +58,7 @@ export async function recordRun(base, actions, { viewport = { width: 1280, heigh
     for (const [i, a] of actions.entries()) {
       // A `goto /` between flows (the crawl writes one) starts the app over, exactly like a test that opens a new browser: cookies and
       // storage are cleared, so a flow does not see what an earlier flow changed (a view setting, a filter, a session).
-      if (a.type === 'goto' && a.path === '/') { await s.ctx.clearCookies(); await s.page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch {} }).catch(() => {}) }
+      if (a.type === 'goto') { await s.ctx.clearCookies(); await s.page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch {} }).catch(() => {}) } // every goto the crawl writes is a fresh start, a direct load of a page included
       let failed = null
       try { await s.act(a) } catch (e) { failed = String(e.message ?? e).split('\n')[0].slice(0, 100) } // a click that cannot be made (the element is gone in this version) is itself a difference worth recording
       await s.page.waitForLoadState('networkidle').catch(() => {})

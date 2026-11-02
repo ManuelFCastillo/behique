@@ -7,7 +7,7 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { runExportedAsync, writeExport } from '../export.mjs'
-import { firstConfirmed, judgeFindings, selectFindings, summarize, vanishedRoots } from './findings.mjs'
+import { appearedStates, firstConfirmed, judgeFindings, selectFindings, summarize, vanishedRoots } from './findings.mjs'
 import { LABEL, maskedAreas, noticePhrase, noticeSummary } from './notice.mjs'
 import { captureShots, captureShotsWithCanvases, recordShots } from './shots.mjs'
 import { setTiming, startBuild, stopAll } from './build.mjs'
@@ -64,8 +64,9 @@ const onBuild = async (ref, slot, work) => { // one fresh build on the slot's po
   const b = await startBuild({ adapter, ref, port: p })
   try { return { sha: b.sha, value: await work(b) } } finally { await b.stop() }
 }
-// A crawled step list holds several flows, each starting over with `goto /`: a replay runs only the flow its step is in, in a fresh browser on a fresh build.
-const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto' && actions[g].path === '/') return g + 1; return 0 }
+// A crawled step list holds several flows, each starting over with a `goto`: a replay runs only the flow its step is in, in a fresh browser on a fresh build.
+// `goto /` is where a replay starts anyway and is left out; a direct load of another page is the flow's first action and is kept.
+const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto') return actions[g].path === '/' ? g + 1 : g; return 0 }
 const groupByFlow = steps => { const groups = new Map(); for (const step of steps) groups.set(flowStart(step), [...(groups.get(flowStart(step)) ?? []), step]); return groups }
 /** The page at each step on the good version twice (the second is the noise floor) and on the candidate once, through the pool: { goodA, goodB, cand } of step -> result. */
 const takeAt = async (steps, capture) => {
@@ -130,7 +131,10 @@ if (canvasSteps.length) {
 // An element that is on the good version and gone from the candidate is a difference like any other: each vanished element (the
 // root of what disappeared, not every attribute under it) becomes a test that expects the old value, so it fails on the candidate.
 const vanished = vanishedRoots(cand)
-if (!cand.some(d => d.kind === 'changed') && !vanished.length) {
+// A state attribute newly set on an element both versions have (inert, disabled, hidden) is a change a person feels at once, and it
+// becomes a test that expects the attribute absent, as on the good version.
+const appeared = appearedStates(cand, baseline)
+if (!cand.some(d => d.kind === 'changed') && !vanished.length && !appeared.length) {
   const n = k => cand.filter(d => d.kind === k).length
   console.log('no changed facts between the builds; nothing to turn into a test')
   ev.claim('verified_fact', `No recorded value differs between ${goodRef} and ${candRef} across ${actions.length} step${actions.length === 1 ? '' : 's'} (${n('added')} new and ${n('moved')} moved elements, 0 changed, 0 missing).`, { evidence: [diffH] })
@@ -141,21 +145,24 @@ if (!cand.some(d => d.kind === 'changed') && !vanished.length) {
   close({ outcome: 'no changed facts' }); process.exit(0)
 }
 const valueChanges = cand.filter(d => d.kind === 'changed')
-const changed = [...valueChanges, ...vanished] // ranked: value changes first, then vanished elements
+const changed = [...valueChanges, ...appeared, ...vanished] // ranked: value changes first, then states newly set, then vanished elements
 const short = k => k.split('/').slice(-2).join('/')
+const attrName = k => (k.match(/@([^/@]+)$/) ?? [])[1] ?? k
 const cut = (v, n) => { const t = JSON.stringify(v); return t.length > n ? t.slice(0, n) + '...' : t } // shown shortened, never cut silently
 const nGone = vanished.reduce((a, d) => a + (d.vanished ?? 1), 0)
 const parts = [
   valueChanges.length ? `${valueChanges.length} recorded value${valueChanges.length === 1 ? '' : 's'}` : null,
+  appeared.length ? `${appeared.length} state attribute${appeared.length === 1 ? '' : 's'} newly set on ${candRef} (${[...new Set(appeared.map(d => attrName(d.key)))].slice(0, 4).join(', ')})` : null,
   vanished.length ? `${vanished.length} element${vanished.length === 1 ? '' : 's'} present on ${goodRef} ${vanished.length === 1 ? 'is' : 'are'} missing (${nGone} recorded fact${nGone === 1 ? '' : 's'})` : null,
 ].filter(Boolean)
-ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${parts.join(', and ')}: ${changed.slice(0, 4).map(d => d.kind === 'removed' ? `${short(d.key)} (was ${cut(d.was, 90)}) is gone` : `${short(d.key)} was ${cut(d.was, 90)}, now ${cut(d.now, 90)}`).join('; ')}.`, { evidence: [diffH] })
+ev.claim('verified_fact', `${candRef} differs from ${goodRef} in ${parts.join(', and ')}: ${changed.slice(0, 4).map(d => d.kind === 'removed' ? `${short(d.key)} (was ${cut(d.was, 90)}) is gone` : d.kind === 'added' ? `${short(d.key)} is newly set to ${cut(d.now, 90)}` : `${short(d.key)} was ${cut(d.was, 90)}, now ${cut(d.now, 90)}`).join('; ')}.`, { evidence: [diffH] })
+if (appeared.length) console.log(`${appeared.length} state attribute${appeared.length === 1 ? '' : 's'} newly set on ${candRef}: ${appeared.slice(0, 3).map(d => short(d.key)).join(', ')}`)
 if (vanished.length) console.log(`${vanished.length} element${vanished.length === 1 ? '' : 's'} vanished on ${candRef} (${nGone} facts): ${vanished.slice(0, 3).map(d => short(d.key)).join(', ')}`)
 
 const probe = await startBuild({ adapter, ref: goodRef, port })
 const origin = new URL(probe.base).origin, start = new URL(probe.base + '/').pathname
 await probe.stop()
-const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings, origin }) // ordered: what a person would notice first; third-party content skipped
+const { findings, skipped } = selectFindings(changed, actions, start, baseline, { max: maxFindings, origin, refs: { good: goodRef, cand: candRef } }) // ordered: what a person would notice first; third-party content skipped, the release's own version label ranked as churn
 for (const f of findings) { f.origin = origin; if (readOnly) f.readOnly = true } // origin: so a test can swap it for the address of the build it runs against
 if (!findings.length) {
   console.log('none of the changed facts can be written as a test')
@@ -172,7 +179,7 @@ writeExport(dir, findings)
 const specH = {}
 for (const f of findings) {
   specH[f.id] = ev.artifact(`${f.id}.spec.js`, readFileSync(join(dir, f.id + '.spec.js'), 'utf8'), 'text/javascript')
-  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice, ...(f.fact.removed ? { removed: true, vanished: f.fact.vanished } : {}) })
+  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice, ...(f.fact.removed ? { removed: true, vanished: f.fact.vanished } : {}), ...(f.fact.appeared ? { appeared: true } : {}) })
   console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}\n  class: ${LABEL[f.notice?.cls] ?? 'unknown'} (${f.notice?.why ?? ''})`)
 }
 if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.length === 1 ? '' : 's'} not tested separately (${[...new Set(skipped.map(k => k.why.replace(/ \d+/, ' N')))].join('; ')})`)

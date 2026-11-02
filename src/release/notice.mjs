@@ -12,7 +12,7 @@ export const LABEL = { visible: 'a person would notice', churn: 'markup churn', 
 
 const LOADED = new Set(['src', 'srcset', 'poster'])
 const ID_LIKE = new Set(['id', 'for', 'aria-labelledby', 'aria-describedby', 'aria-controls', 'aria-owns', 'aria-activedescendant'])
-const STATE = new Set(['disabled', 'checked', 'selected', 'aria-expanded', 'aria-hidden', 'aria-selected', 'aria-checked', 'aria-pressed', 'open', 'hidden'])
+const STATE = new Set(['disabled', 'checked', 'selected', 'aria-expanded', 'aria-hidden', 'aria-selected', 'aria-checked', 'aria-pressed', 'open', 'hidden', 'inert', 'readonly', 'aria-disabled'])
 const TEXTUAL = new Set(['title', 'alt', 'placeholder', 'aria-label', 'value', 'label'])
 const TARGETS = new Set(['href', 'action', 'target', 'type', 'name'])
 const OWN_HOSTS = new Set(['localhost', '127.0.0.1', '[::1]', '0.0.0.0'])
@@ -58,11 +58,32 @@ const attrOf = key => (key.match(/@([^/@]+)$/) ?? [])[1] ?? null
 const looksHuman = v => /\s/.test(str(v).trim()) && /[A-Za-z]{3,}/.test(str(v))
 const looksUrl = v => /^(https?:)?\/\/|^\/[^/]|^\.{0,2}\//.test(str(v).trim()) || Boolean(hostOf(v))
 
-/** { cls, why } for one changed fact. `origin` is where the facts were recorded (http://host:port), so its host is the app's own. */
-export function noticeOf(fact, { origin = null } = {}) {
+/** The version in a ref: `v1.2.3` and `pkg@1.2.3` give `1.2.3`; a branch or a commit hash gives null. */
+const versionOf = ref => { const s = str(ref).trim().replace(/^.*@/, '').replace(/^[vV](?=\d)/, ''); return /\d+\.\d+/.test(s) ? s : null }
+
+/**
+ * When two releases are compared, the page may print the release's own version ("1.0.0-rc.10" in the nav), and that text
+ * changes with every release by definition. Such a text is expected, not a regression: ranking it first would send the
+ * bisect to the release commit. Returns the reason to mark it, or null when the two values are not the two versions.
+ */
+export function releaseLabel(was, now, refs) {
+  const g = versionOf(refs?.good), c = versionOf(refs?.cand)
+  if (!g || !c || g === c) return null
+  const a = str(was).trim(), b = str(now).trim()
+  if (!a.includes(g) || !b.includes(c)) return null
+  if (a.split(g).join('\0') !== b.split(c).join('\0')) return null // the same text with the version swapped, nothing else
+  return `the release's own version label (${g} to ${c})`
+}
+
+/**
+ * { cls, why } for one changed fact. `origin` is where the facts were recorded (http://host:port), so its host is the app's own.
+ * `refs` ({ good, cand }) are the two versions compared, so the page's own version label is recognised as expected.
+ */
+export function noticeOf(fact, { origin = null, refs = null } = {}) {
   const key = str(fact?.key), was = fact?.was, now = fact?.now
   if (key === 'window@scrollY') return { cls: 'visible', why: 'the page scrolls differently' }
-  if (key.endsWith('#text')) return { cls: 'visible', why: 'text a person reads' }
+  const label = refs ? releaseLabel(was, now, refs) : null
+  if (key.endsWith('#text')) return label ? { cls: 'churn', why: label } : { cls: 'visible', why: 'text a person reads' }
   const attr = attrOf(key)
   if (!attr) return { cls: 'visible', why: 'a recorded value' }
   if (LOADED.has(attr)) {
@@ -75,7 +96,7 @@ export function noticeOf(fact, { origin = null } = {}) {
     return { cls: 'visible', why: `${attr} points somewhere else` }
   }
   if (STATE.has(attr)) return { cls: 'visible', why: `a state a person sees (${attr})` }
-  if (TEXTUAL.has(attr)) return { cls: 'visible', why: 'text a person reads' }
+  if (TEXTUAL.has(attr)) return label ? { cls: 'churn', why: label } : { cls: 'visible', why: 'text a person reads' }
   if (TARGETS.has(attr)) {
     if (tokenOnlyChange(was, now)) return { cls: 'churn', why: 'a hashed asset name changed, nothing else' }
     return { cls: 'visible', why: attr === 'href' || attr === 'action' ? 'a link or form target' : `${attr} changed` }

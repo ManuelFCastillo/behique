@@ -1,7 +1,22 @@
 // node --test src/release/notice.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { hostOf, isForeign, maskedAreas, maskedSentence, noticeOf, noticePhrase, noticeSummary, rankFindings, tokenOnlyChange } from './notice.mjs'
+import { hostOf, isForeign, maskedAreas, maskedSentence, noticeOf, noticePhrase, noticeSummary, rankFindings, releaseLabel, tokenOnlyChange } from './notice.mjs'
+
+test("the release's own version label is expected churn; anything else that mentions a version is still text a person reads", () => {
+  const refs = { good: 'v1.0.0-rc.10', cand: 'v1.0.0-rc.12' }
+  assert.equal(releaseLabel('1.0.0-rc.10', '1.0.0-rc.12', refs), "the release's own version label (1.0.0-rc.10 to 1.0.0-rc.12)")
+  assert.equal(releaseLabel('Version v1.0.0-rc.10 (beta)', 'Version v1.0.0-rc.12 (beta)', refs), "the release's own version label (1.0.0-rc.10 to 1.0.0-rc.12)")
+  assert.equal(releaseLabel('mermaid 11.12.3', 'mermaid 11.13.0', { good: 'mermaid@11.12.3', cand: 'mermaid@11.13.0' }), "the release's own version label (11.12.3 to 11.13.0)")
+  assert.equal(releaseLabel('1.0.0-rc.10', 'Hello 1.0.0-rc.12', refs), null) // more than the version changed
+  assert.equal(releaseLabel('Released in 1.0.0-rc.10', 'Released in 1.0.0-rc.11', refs), null) // not the candidate's version
+  assert.equal(releaseLabel('1.0.0-rc.10', '1.0.0-rc.12', { good: 'd88b984', cand: 'main' }), null) // a commit and a branch have no version
+  assert.equal(releaseLabel('x', 'y', null), null)
+  assert.deepEqual(noticeOf({ key: 'body/nav[1]/span[1]#text', was: '1.0.0-rc.10', now: '1.0.0-rc.12' }, { origin: ORIGIN, refs }), { cls: 'churn', why: "the release's own version label (1.0.0-rc.10 to 1.0.0-rc.12)" })
+  assert.deepEqual(noticeOf({ key: 'body/nav[1]/a[1]@title', was: 'v1.0.0-rc.10', now: 'v1.0.0-rc.12' }, { origin: ORIGIN, refs }), { cls: 'churn', why: "the release's own version label (1.0.0-rc.10 to 1.0.0-rc.12)" })
+  assert.deepEqual(noticeOf({ key: 'body/nav[1]/span[1]#text', was: '1.0.0-rc.10', now: '1.0.0-rc.12' }, { origin: ORIGIN }), { cls: 'visible', why: 'text a person reads' })
+  assert.deepEqual(noticeOf({ key: 'body/aside[1]@inert', was: undefined, now: '' }, { origin: ORIGIN }), { cls: 'visible', why: 'a state a person sees (inert)' })
+})
 
 const ORIGIN = 'http://127.0.0.1:8300'
 const n = (key, was, now) => noticeOf({ key, was, now }, { origin: ORIGIN })

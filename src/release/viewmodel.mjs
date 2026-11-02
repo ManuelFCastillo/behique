@@ -50,7 +50,7 @@ export function findingsView(events) {
   const verdicts = new Map(events.filter(e => e.type === 'test.judged').map(e => [e.data.id, e.data.verdict]))
   const list = events.filter(e => e.type === 'test.exported' && typeof e.data.fact === 'string').map(e => {
     const d = e.data, cls = d.notice?.cls ?? null
-    return { id: d.id, cls, label: cls ? LABEL[cls] : null, why: d.notice?.why ?? null, where: whereOf(d.fact), what: whatOf(d.fact), was: unquote(d.good), now: d.removed ? 'missing' : unquote(d.candidate), step: d.i ?? null, verdict: verdicts.get(d.id) ?? 'pending', ...(d.removed ? { removed: true, vanished: d.vanished ?? 1 } : {}) }
+    return { id: d.id, cls, label: cls ? LABEL[cls] : null, why: d.notice?.why ?? null, where: whereOf(d.fact), what: whatOf(d.fact), was: d.appeared ? 'absent' : unquote(d.good), now: d.removed ? 'missing' : unquote(d.candidate), step: d.i ?? null, verdict: verdicts.get(d.id) ?? 'pending', ...(d.removed ? { removed: true, vanished: d.vanished ?? 1 } : {}), ...(d.appeared ? { appeared: true } : {}) }
   })
   return list.map((f, i) => [f, i]).sort((a, b) => (RANK[a[0].cls] ?? 9) - (RANK[b[0].cls] ?? 9) || a[1] - b[1]).map(([f]) => f)
 }
@@ -181,7 +181,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const canvasNote = canvasHits.length ? `${canvasHits.length} canvas drawing${canvasHits.length === 1 ? '' : 's'} changed beyond the noise floor (step${new Set(canvasHits.map(h => h.step)).size === 1 ? '' : 's'} ${[...new Set(canvasHits.map(h => h.step))].join(', ')})` : ''
   const sub = {
     hold: nProven === 0 && canvasNote ? `${canvasNote}, no other recorded fact differs` : `${nProven} reproduced behaviour change${nProven === 1 ? '' : 's'}${classed ? ` (${ns.visible} a person would notice, ${ns.churn} markup churn)` : ''}${canvasNote ? `; ${canvasNote}` : ''}${bisectNote}`,
-    ship: ns.churnOnly ? `Only markup churn changed: ${ns.churn} proven change${ns.churn === 1 ? '' : 's'} (generated ids, framework attributes), nothing a person would notice${bisectNote}` : 'No behaviour changes found in the recorded steps',
+    ship: ns.churnOnly ? `Only markup churn changed: ${ns.churn} proven change${ns.churn === 1 ? '' : 's'} (generated ids, framework attributes, the release's own version label), nothing a person would notice${bisectNote}` : 'No behaviour changes found in the recorded steps',
     inconclusive: 'Changes seen, but not proven by a repeatable test',
     fail: events.find(e => e.type === 'case.closed')?.data.outcome === 'cancelled' ? 'Run cancelled, evidence incomplete' : 'Evidence incomplete',
     running: progress?.text ?? 'Running verification, please wait',
