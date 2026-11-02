@@ -29,10 +29,19 @@ body{background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,
 .side-foot{font-size:12px;color:var(--muted);text-align:center;border-top:1px solid var(--line);padding-top:12px}
 /* CENTER */
 .center{grid-column:2;display:flex;flex-direction:column;gap:16px;min-width:0}
-.verdict{display:flex;align-items:center;gap:22px;padding:18px 22px;min-height:180px;position:relative;overflow:hidden}
+.verdict{display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;padding:30px 24px 26px;min-height:180px;position:relative;overflow:hidden}
+.verdict-text{display:flex;flex-direction:column;align-items:center;gap:6px;margin-top:10px}
+.v-meta{display:flex;flex-direction:column;align-items:center;max-width:64ch;min-width:0;margin-top:4px}
+.v-meta .v-vers{justify-content:center}
+.v-meta .v-about,.v-meta .ext-runs{text-align:left}
+.v-meta .runbar{width:100%}
+/* the one thing to do from the hero: start a run. A pill that reads as the primary action, lit in the verdict's colour */
+.run-cta{margin-top:18px;padding:13px 30px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:linear-gradient(180deg,rgba(255,255,255,.12),rgba(255,255,255,.04)),var(--panel-2);color:var(--text);font-size:14px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;box-shadow:0 0 0 1px rgba(0,0,0,.35),0 10px 30px rgba(0,0,0,.45),0 0 28px color-mix(in srgb,var(--gem-c) 28%,transparent);transition:transform 140ms ease,box-shadow 140ms ease,border-color 140ms ease}
+.run-cta:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--gem-c) 60%,rgba(255,255,255,.2));box-shadow:0 0 0 1px rgba(0,0,0,.35),0 12px 34px rgba(0,0,0,.5),0 0 40px color-mix(in srgb,var(--gem-c) 45%,transparent)}
+.run-cta:disabled{opacity:.55;cursor:default;transform:none}
 @property --gem-c{syntax:"<color>";inherits:true;initial-value:#ffa63d}
 @property --gem-glow{syntax:"<color>";inherits:true;initial-value:#ff7a1a}
-.gem{width:120px;height:120px;flex:none;border-radius:50%;position:relative;
+.gem{width:144px;height:144px;flex:none;border-radius:50%;position:relative;
 --gem-c:var(--amber);
 --gem-glow:var(--amber-glow);
 background:radial-gradient(circle at 50% 38%,#ffe6b8 0%,var(--gem-c) 22%,#7a2e00 52%,#0a0602 72%);
@@ -47,9 +56,8 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 @keyframes gemRingSpin{to{transform:rotate(360deg)}}
 @keyframes gemShock{from{transform:scale(.85);opacity:.9}to{transform:scale(1.35);opacity:0}}
 @media (prefers-reduced-motion: reduce){.gem,.gem::before,.gem.shock::after{animation:none}.gem{transition:none}}
-.verdict-text h1{font-size:54px;line-height:1;color:var(--amber);font-weight:800;letter-spacing:.02em}
-.v-div{width:1px;align-self:stretch;background:var(--line)}
-.v-title{font-size:15px;font-weight:600}
+.verdict-text h1{font-size:64px;line-height:1;color:var(--amber);font-weight:800;letter-spacing:.02em}
+.v-title{font-size:15px;font-weight:600;text-align:center}
 .v-sub{font-size:13px;color:var(--muted);margin-top:4px}
 .petro{position:absolute;right:18px;top:50%;transform:translateY(-50%);opacity:.12;display:flex;gap:18px;align-items:center}
 .bisect{padding:16px 18px}
@@ -108,6 +116,7 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 @media (prefers-reduced-motion: reduce){.reveal,.claim-enter{animation:none;opacity:1;transform:none}}
 </style>
 <style>
+.verdict:has(.gem-emerald){--gem-c:var(--emerald)}.verdict:has(.gem-ruby){--gem-c:var(--ruby)}.verdict:has(.gem-amber){--gem-c:var(--amber)}.verdict:has(.gem-gray){--gem-c:#8b97a6}
 .gem.gem-emerald{--gem-c:var(--emerald);--gem-glow:rgba(47,217,138,.6);background:radial-gradient(circle at 50% 38%,#d6ffe9 0%,var(--gem-c) 24%,#063d24 55%,#020a06 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(47,217,138,.3),inset 0 0 22px rgba(255,255,255,.25)}
 .gem.gem-ruby{--gem-c:var(--ruby);--gem-glow:rgba(255,77,87,.6);background:radial-gradient(circle at 50% 38%,#ffd6d9 0%,var(--gem-c) 24%,#5a0a0f 55%,#0a0203 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(255,77,87,.3),inset 0 0 22px rgba(255,255,255,.2)}
 .gem.gem-amber{--gem-c:var(--amber);--gem-glow:rgba(212,160,23,.55);background:radial-gradient(circle at 50% 38%,#fff1c9 0%,var(--gem-c) 24%,#4a3306 55%,#0a0702 74%);box-shadow:0 0 24px var(--gem-glow),0 0 64px rgba(212,160,23,.28),inset 0 0 22px rgba(255,255,255,.22)}
@@ -153,7 +162,6 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 #demoDrawer{position:fixed;left:0;bottom:58px;background:#121821;border:1px solid var(--line);border-radius:0 12px 12px 0;padding:12px;width:260px;display:none;z-index:150}
 #demoDrawer label{display:flex;gap:8px;align-items:center;font-size:13px;margin:8px 0;cursor:pointer}
 .ev-foot{margin-top:10px;padding-top:8px;border-top:1px solid var(--line);text-align:center}
-#replayBtn{margin-top:8px}
 .lock{font-size:34px;vertical-align:middle;margin-left:8px}
 /* Bisect timeline animation */
 .t-line{overflow:visible}
@@ -245,12 +253,8 @@ img,svg{max-width:100%}
 .rail-fade{transition:opacity 200ms ease,transform 200ms ease}
 @media(max-width:1500px){
 .page{grid-template-columns:240px minmax(0,1fr) 340px}
-.verdict{flex-wrap:wrap;row-gap:12px}
-.gem{flex:none}
-.verdict-text{flex:1 1 220px;min-width:0}
 .verdict-text h1{white-space:normal;overflow-wrap:anywhere;word-break:break-word}
-.verdict>div:nth-of-type(2){flex:1 1 100%;min-width:0}
-.v-div{display:none}
+.v-meta{max-width:100%}
 .v-title,.v-sub{white-space:normal;overflow-wrap:anywhere}
 .petro{display:none}
 .measured{overflow:hidden}
@@ -279,8 +283,8 @@ img,svg{max-width:100%}
 .bottombar{grid-column:1;height:auto;flex-wrap:wrap;padding:12px;row-gap:12px}
 #reasonWrap{grid-column:1}
 .builds{grid-template-columns:1fr}
-.verdict{padding:16px}
-.verdict-text h1{font-size:40px}
+.verdict{padding:22px 16px 20px}
+.verdict-text h1{font-size:52px}
 }
 @media (prefers-reduced-motion: reduce){
 .rail-fade{transition:none}
@@ -492,10 +496,11 @@ img,svg{max-width:100%}
 .sidebar.apps-open{flex-wrap:wrap}
 .sidebar.apps-open .apps{display:flex;flex:0 0 100%;margin:8px 0 0;max-height:340px}
 .sidebar.apps-open .runpick{display:block;flex:0 0 100%;margin:6px 0 0}
-.verdict{gap:14px;padding:14px}
-.gem{width:84px;height:84px}
-.gem::before{inset:7px}
-.verdict-text h1{font-size:36px}
+.verdict{gap:4px;padding:22px 14px 18px}
+.gem{width:112px;height:112px}
+.gem::before{inset:8px}
+.verdict-text h1{font-size:44px}
+.run-cta{width:100%;max-width:360px}
 .timeline{padding:22px 16px 8px}
 .t-line{left:23px;right:23px}
 .t-ends{grid-template-columns:1fr 1fr;gap:8px}
@@ -531,9 +536,9 @@ img,svg{max-width:100%}
 <div class="center">
 <section class="verdict card reveal" id="heroCard" style="--d:70ms">
 <div class="gem" id="gem" aria-hidden="true"></div>
-<div class="verdict-text"><div class="label" id="verdictLabel">Behique recommends</div><h1 id="verdictWord">HOLD</h1><button class="mini-btn" id="replayBtn" type="button">New run</button></div>
-<div class="v-div"></div>
-<div><div class="v-title" id="verdictTitle">FreshRSS 1.29.1 (good) vs 1.30.0 (candidate)</div><div class="v-sub" id="verdictSub">1 reproduced regression, 227 commits bisected in 8 steps</div><div class="v-about" id="verdictAbout" hidden></div><div id="extRuns" class="ext-runs" hidden></div><div class="runbar" id="runbar" hidden><i id="runbarFill"></i></div></div>
+<div class="verdict-text"><div class="label" id="verdictLabel">Behique recommends</div><h1 id="verdictWord">HOLD</h1></div>
+<div class="v-meta"><div class="v-title" id="verdictTitle">FreshRSS 1.29.1 (good) vs 1.30.0 (candidate)</div><div class="v-sub" id="verdictSub">1 reproduced regression, 227 commits bisected in 8 steps</div><div class="v-about" id="verdictAbout" hidden></div><div id="extRuns" class="ext-runs" hidden></div><div class="runbar" id="runbar" hidden><i id="runbarFill"></i></div></div>
+<button class="run-cta" id="replayBtn" type="button">New run</button>
 <div class="petro" aria-hidden="true">
 <svg width="140" height="80" viewBox="0 0 140 80" fill="none" stroke="#e8edf3" stroke-width="1"><circle cx="25" cy="30" r="12"/><path d="M25 10v-6M25 56v-6M5 30H-1M45 30h-6M11 16l-4-4M39 48l-4-4M39 12l4-4M11 44l4-4"/><path d="M70 20c8 0 8 12 0 12s-8 12 0 12 8 12 0 12"/><circle cx="115" cy="35" r="10"/><path d="M110 55c5-8 10-8 10 0s5 8 0 0"/></svg>
 </div>

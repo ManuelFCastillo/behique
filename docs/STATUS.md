@@ -163,6 +163,10 @@ Loose ends closed the same day: (a) the recorder retries a fact extraction when 
 
 Once a person has decided, the case is closed and the hero says so: the big word becomes SHIPPED or HELD in the decision's colour, and the small label keeps Behique's recommendation next to it ("Decided by Manny, against Behique's HOLD", or "as Behique recommended"), so an override reads as one line. The evidence sentence under the title still describes what the check found, and the bottom bar keeps YOU DECIDED with the reason and the history. While the person is changing their decision the hero goes back to the recommendation, and returns to the decision on Keep current. Nothing in the record changes; this is display only (`renderHero` in `ui/behique-live.html`). Verified on the codecosmos case 20261101T050716Z, which has two Ship decisions against a HOLD.
 
+## The hero is centred on the gem (2026-11-02)
+
+The recommendation card is a centred column: the gem (144 px, 112 px on a phone) at the top, "Behique recommends" and the word under it, the app name with its version capsules, the one-line summary (at most 64 characters wide), and then New run as a pill that reads as the primary action, lit in the verdict's colour (`.run-cta`, the colour mirrored from the gem onto the card with `:has`). The old row layout (gem left, text right, a divider, the summary in a third column) and its wrap rules for narrower screens are gone. Checked at 1440 px and 399 px.
+
 ## Readable at a glance, on a phone too (2026-11-01)
 
 Seen on a narrow window: the apps list and the report picker came before the hero, so the first screen never said which app was being checked, and the report's words were a run of paths and quoted values. Changes, all display and one claim sentence:
