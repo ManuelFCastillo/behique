@@ -68,7 +68,7 @@ export function plainClaim(text) {
 }
 
 // "9:click css=body > div:nth-of-type(1) > ..." -> "a click"; "14:goto /settings" -> "load /settings"; a crawled selector is not for a person
-function stepWords(label) {
+export function stepWords(label) {
   const l = String(label).replace(/^\d+:/, '').trim()
   const m = l.match(/^(\w+)\b\s*(.*)$/)
   if (!m) return cut(l, 40).replace(/^"|"$/g, '')
@@ -144,7 +144,7 @@ function classMeaning(removed, added, who) {
   const DISABLE = /^(?:disabled|pointer-events-none)$/, ENABLE = /^pointer-events-auto$/
   const LAYOUT = /^(?:block|inline|inline-block|inline-flex|flex|grid|contents|d-block|d-flex|d-inline|d-inline-block)$/, POS = /^(?:fixed|absolute|sticky|static|relative)$/
   const pair = re => `(${few(of(removed, re))} to ${few(of(added, re))})`
-  if (has(removed, SCROLL) && has(added, CLIP)) return `${who} that could scroll can no longer scroll: content taller than it is cut off ${pair(/overflow/)}.`
+  if (has(removed, SCROLL) && has(added, CLIP)) return `${who} lost the style that lets it scroll ${pair(/overflow/)}: content taller than it is cut off instead of scrolling.`
   if (has(removed, CLIP) && has(added, SCROLL)) return `${who} that cut its content off can now scroll ${pair(/overflow/)}.`
   if (has(added, HIDE) && !has(removed, HIDE)) return `${who} that was shown is now hidden ${pair(HIDE)}.`
   if (has(removed, HIDE) && !has(added, HIDE)) return `${who} that was hidden is now shown ${pair(HIDE)}.`
@@ -162,7 +162,7 @@ const STATE_WORDS = { inert: 'inert: it cannot be clicked, focused or typed into
  * The regression in plain words: one or two sentences a person reads first, from the exported test ({ fact, i, good, candidate, removed,
  * appeared, stillThere, notice }) and the versions. The sentence names what changed for a person, not the test's mechanics.
  */
-export function regressionText(t, { goodRef = 'the good version', candRef = 'the candidate', label = null } = {}) {
+export function regressionText(t, { goodRef = 'the good version', candRef = 'the candidate', label = null, sameLook = null, scrollTest = null, id = null } = {}) {
   if (!t || typeof t.fact !== 'string') return null
   const e = element(t.fact)
   const named = nameFromClasses(t.good, t.candidate)
@@ -177,9 +177,15 @@ export function regressionText(t, { goodRef = 'the good version', candRef = 'the
   if (t.removed) return `${lead}${who} is missing: on ${goodRef} it is there, ${e.what === 'text' ? `reading ${q(t.good)}` : e.what === 'classes' ? `with the classes ${q(t.good)}` : `carrying the ${e.what} attribute${unq(t.good) === '' ? '' : ` ${q(t.good)}`}`}.${churn}`
   if (e.what === 'classes') {
     const { added, removed } = classChange(unq(t.good), unq(t.candidate))
+    const has = (list, re) => list.some(c => re.test(c.replace(/^!?(?:[a-z-]+:)*/, '')))
+    // sameLook: the screenshots at this step matched on both versions, so the recordings look the same and only the class differs;
+    // scrollTest: another test that turns the wheel over an area that stopped scrolling, which is where a scroll style shows
+    const scrolly = has(removed, /^overflow/) || has(added, /^overflow/)
+    const look = sameLook === true ? (scrolly ? ` Nothing here is taller than it, so the recordings and screenshots at this step look the same on both versions; the test reads the class.` : ` The recordings and screenshots at this step look the same on both versions: the difference is in the class, which the test reads.`) : ''
+    const see = scrolly && scrollTest && scrollTest.id !== (id ?? t.id) ? ` ${scrollTest.id} shows the lost scrolling itself${scrollTest.when ? `, ${scrollTest.when}` : ''}.` : ''
     const meaning = classMeaning(removed, added, who)
-    if (meaning) return `${lead}${meaning}`
-    return `${lead}the style classes of ${who} changed (${few(removed)} to ${few(added)}).${churn}`
+    if (meaning) return `${lead}${meaning}${look}${see}`
+    return `${lead}the style classes of ${who} changed (${few(removed)} to ${few(added)}).${churn}${look}`
   }
   if (e.what === 'text') return `${lead}the text of ${who} reads ${q(t.candidate)}, where ${goodRef} reads ${q(t.good)}.${churn}`
   return `${lead}the ${e.what} of ${who} is ${q(t.candidate)}, where ${goodRef} has ${q(t.good)}.${churn}`

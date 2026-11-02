@@ -16,7 +16,7 @@ import { appOfOpened } from './appregistry.mjs'
 import { visualView } from './ui/visual-view.mjs'
 import { sha, summarize } from './evidence.mjs'
 import { LABEL, RANK, maskedSentence, noticeSummary } from './notice.mjs'
-import { outcomeText, plainClaim, regressionText, testSentence } from './claimtext.mjs'
+import { outcomeText, plainClaim, regressionText, stepWords, testSentence } from './claimtext.mjs'
 
 const STALE_MS = 15 * 60 * 1000
 const APP_NAMES = { freshrss: 'FreshRSS' }
@@ -123,7 +123,10 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const videoUrl = h => `/api/artifact-video?id=${encodeURIComponent(caseId)}&hash=${h}`
   const exported = new Map(events.filter(e => e.type === 'test.exported').map(e => [e.data.id, e.data])) // what each test checks, for the record that cites it
   const labels = art('baseline.json')?.labels ?? []
-  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, plain: regressionText(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), ...outcomeText(t, { id, goodRef: o.goodRef, candRef: o.candRef }) } : null } // plain: the regression for a person; text: what the test does; pass/fail: what each recording shows
+  const looks = new Map(events.filter(e => e.type === 'shots.recorded').map(e => [Number(e.data.step), Boolean(e.data.above)])) // step -> whether the screenshots differed there
+  const scrollT = [...exported.values()].find(t => String(t.fact).endsWith('#scrolls')) // the test that turns the wheel over an area that stopped scrolling, if any
+  const scrollTest = scrollT ? { id: scrollT.id, when: Number(scrollT.i) > 0 ? `after ${stepWords(labels[scrollT.i] ?? `step ${scrollT.i}`)}` : 'on the start page' } : null
+  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, plain: regressionText(t, { id, label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef, sameLook: looks.has(Number(t.i)) ? !looks.get(Number(t.i)) : null, scrollTest }), text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), ...outcomeText(t, { id, goodRef: o.goodRef, candRef: o.candRef }) } : null } // plain: the regression for a person; text: what the test does; pass/fail: what each recording shows
   const videosOf = evidence => evidence.filter(h => s.artifacts[h]?.mediaType === 'video/webm').map(h => ({ name: s.artifacts[h].name, which: /\.good\.webm$/.test(s.artifacts[h].name) ? 'good' : 'candidate', url: videoUrl(h) })) // recordings of one run each way
   const verdict = verdictOf(events, s, now)
   const app = o.kind === 'visual' ? String(o.adapter ?? '').replace(/^visual-/, '') : APP_NAMES[String(o.adapter ?? '').split('-')[0]] ?? o.adapter ?? 'App'
