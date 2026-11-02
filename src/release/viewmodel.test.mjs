@@ -194,6 +194,7 @@ test('a reproduced failure says what its test checks, from the exported test and
   c.claim('reproduced_failure', 'The first change that makes the test fail is abc1234.', { evidence: [spec] })
   const [r1, culprit] = vm().claims.filter(x => x.kind === 'reproduced_failure')
   assert.deepEqual(r1.test, { id: 'R1', plain: 'After click a.one on 2.0, a block lost the style that lets it scroll (!overflow-auto to !overflow-hidden): content taller than it is cut off instead of scrolling. Nothing here is taller than it, so the recordings and screenshots at this step look the same on both versions; the test reads the class. R2 shows the lost scrolling itself, after click a.one.', text: 'Checks that after step 1 (click a.one) the classes of a block at div[1]/div[3] are "!overflow-auto flex", as on 1.0. On 2.0 they were "!overflow-hidden flex".', pass: 'R1 passes on 1.0: the block still has the class !overflow-auto.', fail: 'R1 fails on 2.0: the block has !overflow-hidden instead of !overflow-auto.' })
+  assert.equal(r1.test.borrowed, undefined, 'R2 has no recordings in this case, so R1 borrows none')
   assert.equal(culprit.test, null, 'the culprit record names no test')
   assert.ok(vm().claims.filter(x => x.kind !== 'reproduced_failure').every(x => x.test === null))
 })
@@ -287,4 +288,25 @@ test('the build panes read a lost scroll area and a dropped attribute for what t
   c.event('test.exported', { id: 'R2', fact: 'body/div[1]@data-v-abc', i: 0, good: '""', candidate: 'missing', removed: true, vanished: 1, stillThere: true, notice: { cls: 'churn', why: 'a framework attribute (data-v-abc)' } })
   const rows = vm().facts
   assert.deepEqual(rows.map(r => [r.id, r.what, r.scrollLoss === true, r.stillThere === true]), [['R1', 'scrolling', true, false], ['R2', 'data-v-abc', false, true]])
+})
+
+
+test('the record of an overflow swap borrows the recordings of the test that turned the wheel', () => {
+  const { c, vm } = growing()
+  c.artifact('baseline.json', { labels: ['0:start', '1:click a.one'], stable: 10, volatile: {} }, 'application/json')
+  c.event('test.exported', { id: 'R1', fact: 'body/div[1]/div[3]@class', i: 0, good: '"!overflow-auto flex"', candidate: '"!overflow-hidden flex"', notice: { cls: 'visible', why: 'x' } })
+  c.event('test.exported', { id: 'R2', fact: 'body/div[1]/div[3]/main[1]#scrolls', i: 1, good: 'can scroll', candidate: 'cannot scroll on the candidate', removed: true, vanished: 1, notice: { cls: 'visible', why: 'x' } })
+  c.event('test.exported', { id: 'R3', fact: 'body/h1[1]#text', i: 0, good: '"A"', candidate: '"B"', notice: { cls: 'visible', why: 'x' } })
+  const webm = Buffer.from([0x1a, 0x45, 0xdf, 0xa3, 0, 0, 0, 0])
+  const g = c.artifact('R2.good.webm', webm, 'video/webm'), b = c.artifact('R2.candidate.webm', Buffer.concat([webm, Buffer.from([1])]), 'video/webm') // different bytes, so two artifacts
+  c.claim('reproduced_failure', 'The test R1 passed 3 of 3 runs on 1.0 and failed 3 of 3 runs on 2.0.', { evidence: [c.artifact('R1.spec.js', '//', 'text/javascript')] })
+  c.claim('reproduced_failure', 'The test R2 passed 3 of 3 runs on 1.0 and failed 3 of 3 runs on 2.0.', { evidence: [g, b] })
+  c.claim('reproduced_failure', 'The test R3 passed 3 of 3 runs on 1.0 and failed 3 of 3 runs on 2.0.', { evidence: [c.artifact('R3.spec.js', '//', 'text/javascript')] })
+  const [r1, r2, r3] = vm().claims.filter(x => x.kind === 'reproduced_failure')
+  assert.equal(r1.test.borrowed.from, 'R2')
+  assert.equal(r1.test.borrowed.when, 'after click a.one')
+  assert.deepEqual(r1.test.borrowed.videos.map(v => v.which), ['good', 'candidate'])
+  assert.equal(r1.test.borrowed.pass, 'R2 passes on 1.0: the main area scrolls when the mouse wheel turns over it.')
+  assert.equal(r2.test.borrowed, undefined, 'the scroll test keeps its own')
+  assert.equal(r3.test.borrowed, undefined, 'a text change borrows nothing')
 })

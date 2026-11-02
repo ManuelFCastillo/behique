@@ -153,7 +153,8 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
 
   const claimEv = events.filter(e => e.type === 'claim' || e.type === 'decision')
   const bisectArt = Object.values(s.artifacts).find(a => a.name === 'bisect.json')?.hash
-  const claims = claimEv.map(e => {
+  const scrolly = t => t && String(t.fact).endsWith('@class') && /(^|\s)!?(?:[a-z-]+:)*overflow/.test(`${unquote(t.good)} ${unquote(t.candidate)}`) // a class swap that gives or takes scrolling
+  const claims = borrowScrollVideos(claimEv.map(e => {
     const link = { hash: hashes[e.seq], prevHash: events[e.seq - 1] ? hashes[e.seq - 1] : 'GENESIS', timestamp: day(e.ts), actor: e.by, seq: e.seq }
     if (e.type === 'decision') {
       const who = e.data.who ? ` (${e.data.who})` : ''
@@ -169,7 +170,16 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
       ...(ai ? { model: d.model, quote: d.quote, howToCheck: d.howToCheck, grounded: d.grounded, estUsd: d.estUsd } : {}),
       isCulprit: d.label === 'reproduced_failure' && Boolean(bisectArt) && d.evidence.includes(bisectArt),
     }
-  })
+  }))
+  // An overflow swap has nothing to show at its own step (nothing is taller than the pane there), so its record carries the recordings
+  // of the test that turned the wheel where the pane overflowed: the cause shows the footage of its effect. The hash still covers only the record's own text.
+  function borrowScrollVideos(list) {
+    if (!scrollTest) return list
+    const src = list.find(k => k.test?.id === scrollTest.id)
+    if (!src?.videos?.length) return list
+    for (const k of list) if (k.test && k.test.id !== scrollTest.id && scrolly(exported.get(k.test.id))) k.test.borrowed = { from: scrollTest.id, when: scrollTest.when, videos: src.videos, pass: src.test.pass, fail: src.test.fail }
+    return list
+  }
 
   if (bisect) { // how the answer was verified, in the record's own words
     const m = claims.find(k => k.isCulprit)?.text.match(/passed (\d+) of (\d+) runs and it failed (\d+) of (\d+)/)
