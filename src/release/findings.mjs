@@ -98,6 +98,7 @@ export function appearedStates(diffs, baseline) {
 }
 
 const PREFERRED = ['#text', '@href', '@value', '@src', '@alt', '@title', '@placeholder', '@aria-label', '@action']
+const NAMING = new Set(['#text', '@title', '@aria-label', '@alt', '@placeholder']) // the facts that carry words a person read on the element
 const elementOf = key => key.replace(/(@[^/]+|#text|#scrolls)$/, '')
 const suffixOf = key => (key.match(/(@[^/]+|#text|#scrolls)$/) ?? ['', ''])[1]
 
@@ -145,7 +146,9 @@ export function vanishedRoots(diffs, baseline = null) {
       const under = list.filter(d => elementOf(d.key) === el || elementOf(d.key).startsWith(el + '/')).length
       const rank = d => { const i = PREFERRED.indexOf(suffixOf(d.key)); return i < 0 ? PREFERRED.length : i }
       const pick = [...facts].sort((a, b) => rank(a) - rank(b))[0]
-      out.push({ ...pick, vanished: under })
+      // the words a person saw inside what vanished (its texts, titles, labels), so the record can name it: the first three, and how many there were
+      const words = [...new Set(list.filter(d => (elementOf(d.key) === el || elementOf(d.key).startsWith(el + '/')) && NAMING.has(suffixOf(d.key)) && typeof d.was === 'string' && d.was.trim()).map(d => d.was.trim()))]
+      out.push({ ...pick, vanished: under, ...(words.length ? { names: words.slice(0, 3), namesTotal: words.length } : {}) })
     }
     const underRoot = el => [...roots.keys()].some(r => el === r || el.startsWith(r + '/'))
     for (const d of dropped) if (!underRoot(elementOf(d.key))) out.push({ ...d, vanished: 1, stillThere: true })
@@ -208,7 +211,7 @@ export function selectFindings(changed, actions, start, baseline, { max = 5, ori
       skipped.push({ key: d.key, i: d.i, why: 'cannot be written as a test' })
       continue
     }
-    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now, ...(d.kind === 'removed' ? { removed: true, vanished: d.vanished ?? 1, ...(d.stillThere ? { stillThere: true } : {}) } : {}), ...(d.kind === 'added' ? { appeared: true } : {}) } })
+    testable.push({ ...finding, notice, fact: { key: d.key, i: d.i, was: d.was, now: d.now, ...(d.kind === 'removed' ? { removed: true, vanished: d.vanished ?? 1, ...(d.stillThere ? { stillThere: true } : {}), ...(d.names?.length ? { names: d.names, namesTotal: d.namesTotal } : {}) } : {}), ...(d.kind === 'added' ? { appeared: true } : {}) } })
   }
   const findings = []
   const alike = new Map() // the same class change on several elements (one stylesheet edit, many panes) is one finding; the others are listed on it

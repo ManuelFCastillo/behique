@@ -1,0 +1,57 @@
+{
+  "name": "slidev",
+  "repo": "/Users/mcastillo/dev/behique-apps/slidev",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v52.15.2",
+    "cand": "v52.16.0"
+  },
+  "serve": {
+    "kind": "static",
+    "root": "demo/composable-vue/dist",
+    "install": [
+      {
+        "cmd": "pnpm",
+        "args": [
+          "install"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "--filter",
+          "@slidev/cli...",
+          "run",
+          "build"
+        ]
+      },
+      {
+        "cmd": "pnpm",
+        "args": [
+          "-C",
+          "demo/composable-vue",
+          "exec",
+          "slidev",
+          "build",
+          "--base",
+          "/sub/",
+          "--out",
+          "dist/sub"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/sub/",
+    "timeoutMs": 60000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "The composable-vue demo deck (demo/composable-vue) built for a sub-directory deploy (slidev build --base /sub/ --out dist/sub) and served as plain files from dist by Behique's own static server, so /sub/ opens the deck's index page and the crawl starts there (the profile's ready path). The deck is built by the workspace's own CLI (@slidev/cli and its packages are built first), so each bisect commit is tested with its own client code. This deck was chosen over demo/starter because the starter's cover uses a remote background image (cover.sli.dev) and white text on it: with no internet in the sandbox the first slide is white on white. The composable-vue cover renders offline, and the deck's navigation bar has a 'Go to next slide' button. Made for the blind bisect of issue #2635 (docs/blind-bisect-runs.md): under a base path, going to the next slide lands on the deck's own 404 page."
+}

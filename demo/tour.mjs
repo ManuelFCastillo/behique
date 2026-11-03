@@ -5,6 +5,7 @@
 //   node demo/tour.mjs <caseId> [out/demo/tour.mp4]
 //   env: BEHIQUE_MUSIC=<audio file> lays the track under it (the video is cut to the track's length)
 //        BEHIQUE_RUN_TIMELAPSE=<webm> the sped-up recording of a run from demo/tour-run.mjs + demo/timelapse.sh (skipped if absent)
+//        BEHIQUE_HERO=R2 the regression card to open on (otherwise a scroll or move story, else the first with recordings)
 import { chromium } from 'playwright'
 import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -117,16 +118,17 @@ const lightbox = (match) => page.evaluate(async ([match]) => {
   return Math.max(...vids.map(v => isFinite(v.duration) ? v.duration : 8))
 }, [match])
 // the sped-up recording of a real run, full screen
-const runTimelapse = (seconds) => page.evaluate(async ([seconds]) => {   // the badge's factor matches demo/timelapse.sh at 8 s over a 3 to 4 minute run
+const tlFactor = (() => { try { const m = JSON.parse(readFileSync(timelapse.replace(/-timelapse\.webm$/, '-raw.json'), 'utf8')).marks; return Math.round((m.end - m.start) / 8) } catch { return null } })()
+const runTimelapse = (seconds) => page.evaluate(async ([seconds, factor]) => {
   const o = document.createElement('div'); o.id = '__tl'
   const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = '/__tour/run.webm'
-  const s = document.createElement('div'); s.className = 'spd'; s.textContent = 'REAL RUN, 25X'
+  const s = document.createElement('div'); s.className = 'spd'; s.textContent = factor ? `REAL RUN, ${factor}X` : 'REAL RUN, SPED UP'
   o.append(v, s); document.body.appendChild(o)
   await new Promise(r => { v.addEventListener('loadeddata', r, { once: true }); v.load(); setTimeout(r, 5000) })
   await new Promise(r => setTimeout(r, 30)); o.classList.add('on')
   try { await v.play() } catch {}
   return isFinite(v.duration) ? v.duration : seconds
-}, [seconds])
+}, [seconds, tlFactor])
 // the number card: read from the page where it can be, so the numbers are the case's own
 const numbers = () => page.evaluate(async () => {
   const txt = document.body.textContent
@@ -139,6 +141,23 @@ const numbers = () => page.evaluate(async () => {
   for (const [n, l, k] of items) { const d = document.createElement('div'); d.className = 'n ' + k; d.innerHTML = `${n}<small>${l}</small>`; g.appendChild(d) }
   o.appendChild(g); document.body.appendChild(o); await new Promise(r => setTimeout(r, 30)); o.classList.add('on')
   const ns = [...o.querySelectorAll('.n')]; for (let i = 0; i < ns.length; i++) { await new Promise(r => setTimeout(r, 230)); ns[i].classList.add('on') }
+})
+
+// the case's own facts: app, versions, bisect size, elapsed time. The words of the video come from here and from the page, never from this file
+const EV = (() => { const f = resolve('out/evidence', caseId, 'events.ndjson'); return existsSync(f) ? readFileSync(f, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)) : [] })()
+const opened = EV.find(e => e.type === 'case.opened')?.data ?? {}
+const APP = opened.app ?? 'the app', GOOD = opened.goodRef ?? 'the good version', CAND = opened.candRef ?? 'the candidate'
+const APP_NAME = { hoppscotch: 'Hoppscotch', docusaurus: 'Docusaurus', slidev: 'Slidev', vitepress: 'VitePress', 'vitepress-docs': 'VitePress', musicblocks: 'Music Blocks', umami: 'Umami', excalidraw: 'Excalidraw' }[APP] ?? APP
+const bisectStart = EV.find(e => e.type === 'bisect.started')?.data ?? null, bisectDone = EV.find(e => e.type === 'bisect.done')?.data ?? null
+const timing = EV.find(e => e.type === 'check.timing')?.data ?? null
+const minutesWords = sec => { const m = Math.round(sec / 30) / 2; return m < 1 ? 'Under a minute' : m === 1 ? 'A minute' : `${m} minutes` }
+const sentence = w => w ? w.replace(/^(passes|fails): /, '').replace(/\.$/, '') : ''
+// the record the video opens on: a reproduced failure with recordings, the one that moves on film if there is one, else the most noticeable
+const pickHero = () => page.evaluate(() => {
+  const cards = [...document.querySelectorAll('.claim')].filter(c => c.querySelector(':scope > .claim-videos video'))
+  const info = cards.map(c => { const m = c.textContent.match(/Regression (R\d+) in plain words/); const caps = [...c.querySelectorAll(':scope > .claim-videos figcaption')].map(f => [...f.childNodes].filter(n => n !== f.firstElementChild).map(n => n.textContent).join('').trim()); return { id: m?.[1], pass: caps[0] ?? '', fail: caps[1] ?? '' } }).filter(x => x.id)
+  const want = window.__heroId // BEHIQUE_HERO=R2 names the card to open on; otherwise a scroll or move story, else the first
+  return (want && info.find(x => x.id === want)) ?? info.find(x => /scroll|move/i.test(x.fail)) ?? info[0] ?? null
 })
 
 // what the run did and when, read from the case's own event log: the ticker over the time-lapse says only what the record says
@@ -180,28 +199,33 @@ const ticker = (seconds) => page.evaluate(async ([run, seconds]) => {
 // ---- the cut, timed to the track: hits at 2.4, 9.3, 11.6, 21.6, 25.9; loudest from 42; ends 59.6 ----
 await page.addInitScript(([html, css]) => { document.addEventListener('DOMContentLoaded', () => { const st = document.createElement('style'); st.id = '__tourcss'; st.textContent = css; document.head.appendChild(st); document.body.insertAdjacentHTML('beforeend', html) }) }, [card('Release verification<br>with evidence', 'Two versions of an app. What changed, proven, bisected, recorded.'), STYLE])
 await page.goto(`${base}/dashboard?case=${encodeURIComponent(caseId)}`, { waitUntil: 'networkidle' })
-await page.waitForFunction(() => [...document.querySelectorAll('.claim')].some(k => k.textContent.includes('Regression R3 in plain words')), null, { timeout: 30000 })
+await page.waitForFunction(() => [...document.querySelectorAll('.claim')].some(k => k.querySelector(':scope > .claim-videos video')), null, { timeout: 30000 }).catch(() => {})
+if (process.env.BEHIQUE_HERO) await page.evaluate(id => { window.__heroId = id }, process.env.BEHIQUE_HERO)
+const hero = await pickHero()
+if (!hero) { console.error('this case has no reproduced failure with recordings; nothing to open on'); await ctx.close(); await browser.close(); process.exit(1) }
+const HERO = `Regression ${hero.id} in plain words`
+console.log('opening on', hero.id, '|', hero.pass, '|', hero.fail)
 await install()
 // the recordings start behind the card so they are ready on the first hit
-const longest = await lightbox('Regression R3 in plain words')
+const longest = await lightbox(HERO)
 await until(2.3); await page.evaluate(() => { const c = document.getElementById('__card'); c.style.transition = 'opacity .25s'; c.style.opacity = '0'; setTimeout(() => c.remove(), 300) })
 await flash(.22)
-await until(2.7); await caption('Behique found this regression in Hoppscotch 2025.11.2. <em>No one wrote a test.</em>', 'A real release, two real builds')
-await until(9.2); await flash(.12); await caption('The good build scrolls when the wheel turns. <em>The candidate does not move.</em>')
+await until(2.7); await caption(`Behique found this regression in ${APP_NAME} ${CAND}. <em>No one wrote a test.</em>`, 'A real release, two real builds')
+await until(9.2); await flash(.12); await caption(`On ${GOOD} ${sentence(hero.pass)}. <em>On ${CAND} ${sentence(hero.fail)}.</em>`)
 await page.evaluate(() => document.querySelectorAll('#__lb video').forEach(v => { v.currentTime = 2; v.play().catch(() => {}) }))   // past the blank first frames of a recording (the page paints at about 1.5 s)
-await until(13.4); await flash(.1); await caption('Both runs recorded, the wheel marked in the footage, <em>the verdict written into it.</em>')
+await until(13.4); await flash(.1); await caption('Both runs recorded, the tested element marked in the footage, <em>the verdict written into it.</em>')
 await until(16.0); await overlayOff('__lb'); await hideCaption()
 
 // the feat: the New run dialog, then the time-lapse of a real run
 await until(16.5); await page.click('#replayBtn').catch(() => {}); await page.waitForSelector('#runOverlay.open', { timeout: 3000 }).catch(() => {})
 await caption('Two versions of an app it has never seen. <em>That is the whole input.</em>', 'New run')
-await page.selectOption('#runApp', 'hoppscotch').catch(() => {}); await sleep(250); await page.selectOption('#runType', 'crawl').catch(() => {})
-await page.fill('#runGood', '').catch(() => {}); await page.type('#runGood', '2025.10.1', { delay: 55 }).catch(() => {})
-await page.fill('#runCand', '').catch(() => {}); await page.type('#runCand', '2025.11.2', { delay: 55 }).catch(() => {})
+await page.selectOption('#runApp', APP).catch(() => {}); await sleep(250); await page.selectOption('#runType', 'crawl').catch(() => {})
+await page.fill('#runGood', '').catch(() => {}); await page.type('#runGood', GOOD, { delay: 55 }).catch(() => {})
+await page.fill('#runCand', '').catch(() => {}); await page.type('#runCand', CAND, { delay: 55 }).catch(() => {})
 await until(21.3); await flash(.2); await page.evaluate(() => { document.getElementById('runOverlay')?.classList.remove('open') })   // the real start was recorded earlier; the dialog closes as it would
 if (timelapse) {
   const d = await runTimelapse(8)
-  await caption('Two clean builds in Docker. The click paths came from a crawl, <em>not from a person.</em> Every failure rerun 3 times, then bisected.', 'Real run, 25x')
+  await caption('Two clean builds in Docker. The click paths came from a crawl, <em>not from a person.</em> Every failure rerun 3 times, then bisected.', tlFactor ? `Real run, ${tlFactor}x` : 'Real run, sped up')
   const tk = ticker(Math.max(7.5, Math.min(d, 9.5)) - 0.4)
   await until(21.6 + Math.max(7.5, Math.min(d, 9.5))); await tk.catch(() => {})
   await page.evaluate(() => document.getElementById('__tk')?.remove()); await overlayOff('__tl')
@@ -209,12 +233,13 @@ if (timelapse) {
   await caption('Builds both versions in Docker, crawls the app with <em>no steps written by a person</em>, reruns each failure 3 times, then bisects.', 'The run')
   await until(30.5)
 }
-await flash(.14); await caption('Three and a half minutes later: <em>HOLD</em>, with the reason.', 'The verdict')
+const verdictWord = await page.evaluate(() => document.getElementById('verdictWord')?.textContent?.trim() || 'HOLD')
+await flash(.14); await caption(`${timing ? minutesWords(timing.total.seconds) + ' later' : 'At the end'}: <em>${verdictWord}</em>, with the reason.`, 'The verdict')
 await until(33.2)
 
 // the proof
 await scrollTo('#bisectCard'); await sleep(550); await spot('#bisectCard')
-await caption('41 commits between the versions. <em>5 builds to the one that broke it.</em>', 'Bisect')
+await caption(bisectStart && bisectDone ? `${bisectStart.changes} commits between the versions. <em>${bisectDone.steps} builds to the one that broke it.</em>` : 'The commits between the versions, searched for the one that broke it.', 'Bisect')
 await sleep(500); await punch('#bisectNodes .node.c', 1.8); await punch('#culpritTag', 1.15)
 await until(37.6); await unspot(); await scrollTo('.builds'); await sleep(500)
 await caption('Every fact measured on both builds. <em>Only what changed is lit.</em>', 'Measured')
@@ -233,7 +258,7 @@ await page.evaluate(async () => {
 })
 
 // trust
-await until(48.2); await scrollToCard('Regression R3 in plain words'); await sleep(500); await spot('claim:Regression R3 in plain words')
+await until(48.2); await scrollToCard(HERO); await sleep(500); await spot('claim:' + HERO)
 await caption('Every failure is a record in a hash chain: <em>what the test does, in plain words, with its evidence.</em>', 'Evidence')
 await until(50.3); await unspot(); await scrollTo('#evidenceCard'); await sleep(350); await page.click('#verifyBtn').catch(() => {})   // the scan runs down the records for about 3 s, then the status line says what it found
 await caption('Verify chain recomputes every hash. <em>Nothing here can be edited quietly.</em>', 'Integrity')

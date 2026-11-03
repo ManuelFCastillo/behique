@@ -132,6 +132,7 @@ export function validateProfile(profile) {
       }
     }
     if (serve.allowScripts !== undefined && typeof serve.allowScripts !== 'boolean') problems.push('serve.allowScripts must be true or false')
+    if (serve.gitHistory !== undefined && typeof serve.gitHistory !== 'boolean') problems.push('serve.gitHistory must be true or false')
     if (serve.kind === 'static' && serve.install !== undefined) {
       if (!Array.isArray(serve.install)) problems.push('serve.install must be an array')
       else serve.install.forEach((item, i) => {
@@ -336,6 +337,7 @@ export function describeCommands(profile) {
   lines.push(...describeSeeds(p.seed ?? [], p.services ?? []))
   if (p.login) lines.push(describeLogin(p.login))
   if (p.serve.allowScripts === true) lines.push("installs run the repository's own lifecycle scripts (downloads and runs code from the internet)")
+  if (p.serve.gitHistory === true) lines.push('the copy of the repository gets one git commit of its own before the install (the build reads last-update dates from git)')
   return lines
 }
 

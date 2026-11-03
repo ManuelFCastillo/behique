@@ -121,6 +121,46 @@ Same crawl, builds, five findings and bisect, 199 s. R3's two recordings (5.4 s 
 
 Same five findings and bisect, with hardac2 reached over Tailscale from a library instead of the home network: 341 s (the builds and recordings cross the internet). R2's recordings outline the "Experimental scripting sandbox" toggle label in the Settings pane, green "As on 2025.10.1 / its style classes are the same" on one and red "Changed on 2025.11.2 / flex items-center instead of -mx-1 -my-0.5 cursor-pointer +14" on the other; R1's outline is the whole split pane, which fills the viewport, with the tag parked at the top left. R3 keeps the wheel marker. Recordings now run 4.8 s to 6.4 s.
 
+## Run 3: Docusaurus #11213
+
+### Set-up from zero (2026-11-03, profile written by hand, no model call)
+
+Answer key, written before the run: v3.7.0 good, v3.8.0 bad, culprit PR #10886 = commit 5331de29, fix #11242 in v3.8.1, 154 commits in range. The symptom: open a doc inside a sidebar category that has its own page, click the category: it collapses instead of opening its page.
+
+- **What is built**: the docusaurus.io website (`website/`), current docs version only (`build:fast` = `BUILD_FAST=true`, `--locale en`), served by `docusaurus serve`. The website resolves `@docusaurus/*` to the workspace packages, so every bisect commit is tested with its own theme code. The profile's ready path is `/docs`, where the sidebar is.
+- **First verification failed** on both versions in the website build: the config asks git for every page's last-update date (`showLastUpdateTime`), and the sandbox copies a checkout without its `.git`. New profile switch `serve.gitHistory: true`: the copy gets one commit of its own (`src/release/sandbox/git-history.mjs`, run as the first install step), so every page's date is the build's and the same on both versions.
+- **Second verification failed** inside the ideal-image plugin's webpack setup: sharp 0.32.6 gets its binary from its own install script, and installs run with scripts off. The profile runs that one script and nothing else (`npm rebuild sharp`), checked first in a throwaway container of the sandbox image.
+- **v3.7.0 is not on main**: the tag sits on a release branch (`slorber/docusaurus-3.7.0`: version bump, blog, docs, a lint autofix), so it is not an ancestor of v3.8.0 and the search refuses the pair ("the old version must come before the new one in the history"). The run uses the merge-base instead, cacb973, main at the point v3.7.0 was cut: 154 commits to v3.8.0, the culprit among them.
+- **The crawl now starts at the profile's ready path** (`startPathOf` in `crawl/reuse.mjs`, written into the crawl options only when it is off the root, so saved crawls still match). Before this every crawl began at `/`, which for a docs site is the landing page and for a deck under `/sub/` is nothing at all.
+
+### Result: a miss (2026-11-03, case `20261103T054120Z_cacb973-vs-v3.8.0`, 27 minutes, 51 builds, 44 from the cache)
+
+HOLD, "regression proven", bisected in 7 steps to 71d682c, "chore: release Docusaurus 3.7.0". That is the version bump, not the culprit. The answer key's commit (5331de29) was never tested.
+
+- **Every confirmed finding is the site's own release churn at step 0**: the announcement bar's link and text ("Docusaurus v3.6" to "v3.8", R1, R2, R5) and the colour-mode button's title and label ("currently light mode" to "system mode", R3, R4; v3.8 added a system mode). `releaseLabel` did not catch the announcement bar because the good ref is a commit hash (no version in it) and the text names 3.6, not 3.7.0: the label is the version of the last blog post, not of the build. All five passed 3 of 3 and failed 3 of 3, so the bisect was correct about them and useless about the bug.
+- **The crawl never did the action that shows #11213.** The bug needs a doc inside a category open, then a click on the category's own link (`a.menu__link--sublist`, "Guides"). The crawl clicked the category's caret button (`button "Collapse sidebar category 'Getting Started'"`, `"Expand sidebar category 'Guides'"`), which toggles the same way on both versions, and its one-click paths from `/docs` never reach a doc inside Guides first. 1,708 recorded differences, 917 values changed; the ones after step 0 are the docs content that changed between the versions (a new Rspress section, link text), generated class names, and the same chrome churn on every page.
+- **What it would take**: start the crawl inside the category (ready path such as `/docs/guides/creating-pages`, where one click on "Guides" is the bug), and rank a change that appears only after an action above one present on page load, so the cap of 5 findings is not filled by step-0 chrome. Neither was done before the hackathon deadline; both are recorded in `docs/STATUS.md` as next steps.
+- **Same lesson as VitePress**: a docs site's own version strings and content edits outrank a behaviour bug under a cap of 5, and a depth-one crawl from the landing page misses bugs that need a particular page open first.
+
+## Run 4: Slidev #2635
+
+### Set-up from zero (2026-11-03, profile written by hand, no model call)
+
+Answer key, written before the run: v52.15.2 good, v52.16.0 bad, culprit PR #2562 = commit a0c3857b, fix #2630 in v52.17.0, 15 commits in range. The symptom: a deck built for a sub-directory (`--base /sub/`) goes to `/sub/sub/2` on Next, the deck's own 404 page.
+
+- **What is built**: a deck from the repo's `demo/` folder, built by the workspace's own CLI (`pnpm --filter @slidev/cli... run build` first, then `slidev build --base /sub/ --out dist/sub`), so every bisect commit is tested with its own client code. The output is plain files, served by Behique's static server with the deck's `dist` as root; the profile's ready path is `/sub/`, where the crawl starts.
+- **The starter deck was dropped after verification**: its cover sets a remote background image (`cover.sli.dev`) and white text on it. The sandbox's app network has no internet, so the first slide came up white on white (26 characters of visible text). The `composable-vue` demo deck has a plain cover, renders offline, and its navigation bar has a "Go to next slide" button; built in a throwaway container from the cached image and opened offline, Next lands on `/sub/sub/2` with the 404 page on v52.16.0.
+- **Serving**: `python3 -m http.server` is not allowed inside the sandbox (only the Node tools run in the box), so the profile is `serve.kind: static` rather than a command.
+- **First run failed before the compare**: "slidev v52.15.2 did not answer on http://127.0.0.1:8300 within 60 s". Another check (a VitePress run from a second terminal) started in the same second and both used port 8300 for the compare build. Checks from the dashboard and from the command line share ports 8300 to 8302; one check per machine at a time until the port is picked per run.
+
+### Result: found it and named the commit (2026-11-03, cases `20261103T062255Z_v52.15.2-vs-v52.16.0` on this machine and `20261103T063812Z_v52.15.2-vs-v52.16.0` in the sandbox)
+
+HOLD, "regression proven", bisected in 4 steps over 15 commits to a0c3857, "fix: use BASE_URL in getSlidePath for monorepo sub-directory deployments (#2562)": the answer key's commit, verified 3 of 3 passing on its parent and 3 of 3 failing on it. 9.8 minutes in the sandbox (57 builds, 50 from the cache), 14.3 minutes on this machine with no cache.
+
+- **What was recorded**: 19 crawled steps from `/sub/`, among them `Go to next slide` (step 3) and `Presenter Mode` (step 11), and direct loads of `/sub/1`, `/sub/2`, `/sub/presenter/1`. 6,277 facts, 16.5 percent masked as noise (the deck's own `data-v-*` scoped-style attributes change between installs).
+- **Five findings, all confirmed 3 of 3 and 3 of 3**: after `Go to next slide` the navigation bar's element (`fixed flex ... z-modal`) is missing on v52.16.0 and the page's root carries the 404 page's classes (R2, R5); after `Presenter Mode` the presenter layout is replaced by the 404 page's container and the "Resize notes panel" control is gone (R1, R3, R4). The screenshots at step 3 differ by 308,382 pixels, the whole slide. Every one of them is the same bug seen from a different step: under a base path the next-slide path doubles the base.
+- **A first dashboard run crashed after the compare** (case `20261103T061619Z`, exit 1, the stack trace lost with the run's output, which the dashboard kept only in memory). The same check from a terminal, with and without the sandbox, finished both times; the dashboard now serves the last 400 lines of its current or most recent run at `/api/ui/runs/log`, so the next crash can be read.
+
 ## Next
 
 Docusaurus #11213 is cloned (`~/dev/behique-apps/docusaurus`, 154 commits in range) for an overnight run.

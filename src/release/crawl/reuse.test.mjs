@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { crawlFileStem, crawlMatches, optionsFromArgs, pickCrawl, reuseNote } from './reuse.mjs'
+import { crawlFileStem, crawlMatches, optionsFromArgs, pickCrawl, reuseNote, startPathOf, withStart } from './reuse.mjs'
 
 const SHA = 'a'.repeat(40)
 const SHA2 = 'b'.repeat(40)
@@ -170,5 +170,20 @@ describe('crawlFileStem and optionsFromArgs', () => {
     assert.deepEqual(optionsFromArgs(['node', 'cli.mjs']), {})
     assert.deepEqual(optionsFromArgs(['node', 'cli.mjs', '--verbose']), {})
     assert.deepEqual(optionsFromArgs([]), {})
+  })
+})
+
+describe('startPathOf and withStart', () => {
+  it('starts at the profile ready path only when it is off the root, and writes it into the options only then', () => {
+    assert.equal(startPathOf({ adapter: { profile: { ready: { path: '/docs' } } } }), '/docs')
+    assert.equal(startPathOf({ adapter: { profile: { ready: { path: '/sub/' } } } }), '/sub/')
+    assert.equal(startPathOf({ adapter: { profile: { ready: { path: '/' } } } }), '/')
+    assert.equal(startPathOf({ adapter: {} }), '/')
+    assert.equal(startPathOf(null), '/')
+    assert.equal(startPathOf({ adapter: { profile: { ready: { path: 'docs' } } } }), '/')
+    assert.equal(startPathOf({ adapter: { profile: { ready: { path: '/a b' } } } }), '/')
+    assert.deepEqual(withStart({ a: 1 }, '/'), { a: 1 })
+    assert.deepEqual(withStart({ a: 1 }, null), { a: 1 })
+    assert.deepEqual(withStart({ a: 1 }, '/sub/'), { a: 1, startPath: '/sub/' })
   })
 })

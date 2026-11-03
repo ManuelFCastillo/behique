@@ -24,6 +24,7 @@ import { forwardLocal, sshTunnel } from './tunnel.mjs'
 const HERE = dirname(fileURLToPath(import.meta.url))
 const STATIC_SERVER = join(HERE, '..', 'onboard', 'static-server.mjs')
 const LAUNCHER = join(HERE, 'launch.mjs')
+const GIT_HISTORY = join(HERE, 'git-history.mjs') // one commit for a build that reads last-update dates from git (serve.gitHistory)
 const DEFAULT_IMAGE = 'node:22-bookworm' // the full image: Prisma and many native modules need openssl and build tools that the slim one lacks
 const IN_BOX = new Set(['node', 'npm', 'npx', 'pnpm', 'yarn']) // the base image is a Node image: python3 and php profiles stay on this machine for now
 const sleepMs = ms => new Promise(r => setTimeout(r, ms))
@@ -65,11 +66,12 @@ export function packDir(dir) {
 }
 
 /** Everything the box needs besides the repository: the static file server, the launcher and yarn or pnpm shims (corepack ships with Node). */
-export function writeExtras(dir, shimNames) {
+export function writeExtras(dir, shimNames, { gitHistory = false } = {}) {
   const base = join(dir, '.behique')
   mkdirSync(join(base, 'bin'), { recursive: true })
   copyFileSync(STATIC_SERVER, join(base, 'static-server.mjs'))
   copyFileSync(LAUNCHER, join(base, 'launch.mjs'))
+  if (gitHistory) copyFileSync(GIT_HISTORY, join(base, 'git-history.mjs'))
   for (const name of shimNames) {
     const f = shimFile(name)
     if (!f) continue
@@ -107,9 +109,10 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
   if (outside) throw new Error(`${p.name}: "${outside}" does not run in the sandbox yet (the sandbox image is a Node image)`)
 
   const { sha, dir } = await checkoutRef(adapter, ref)
-  const installs = (adapter.installsFor ? adapter.installsFor(dir) : adapter.installs) ?? [] // which yarn flags are valid depends on this checkout
+  const gitHistory = p.serve.gitHistory === true // the copy gets one git commit before anything else runs: the build reads last-update dates from git
+  const installs = [...(gitHistory ? [{ cmd: 'node', args: ['/work/.behique/git-history.mjs'] }] : []), ...((adapter.installsFor ? adapter.installsFor(dir) : adapter.installs) ?? [])] // which yarn flags are valid depends on this checkout
   const shimNames = [...new Set(cmds.filter(c => c === 'yarn' || c === 'pnpm'))]
-  writeExtras(dir, shimNames)
+  writeExtras(dir, shimNames, { gitHistory })
 
   // the build cache: the same commit, image, install steps and services were installed before, so the app can start from that image
   const key = config.cache === false ? null : cacheKeyFor({ app: p.name, sha, image: config.image, installs, profile: p })

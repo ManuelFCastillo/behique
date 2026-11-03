@@ -157,3 +157,14 @@ export function optionsFromArgs(argv) {
   if (budget !== null) out.budgetMs = Math.trunc(budget) * 1000
   return out
 }
+
+/** Where a crawl of this app starts: the profile's ready path when it has one (a docs site under /docs, a deck under /sub/), else the root. */
+export function startPathOf(resolved) {
+  const p = resolved?.adapter?.profile?.ready?.path
+  return typeof p === 'string' && p.startsWith('/') && !/[\s?#]/.test(p) && p.length <= 200 ? p : '/'
+}
+
+/** The crawl options with the start written in, only when it is off the root: crawls saved before a start existed keep matching. */
+export function withStart(options, startPath) {
+  return startPath && startPath !== '/' ? { ...options, startPath } : { ...options }
+}

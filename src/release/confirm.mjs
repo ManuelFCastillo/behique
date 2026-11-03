@@ -182,7 +182,7 @@ writeExport(dir, findings.map(f => ({ ...f, goodRef, candRef }))) // the version
 const specH = {}
 for (const f of findings) {
   specH[f.id] = ev.artifact(`${f.id}.spec.js`, readFileSync(join(dir, f.id + '.spec.js'), 'utf8'), 'text/javascript')
-  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice, ...(f.alike?.length ? { alike: f.alike } : {}), ...(f.fact.removed ? { removed: true, vanished: f.fact.vanished, ...(f.fact.stillThere ? { stillThere: true } : {}) } : {}), ...(f.fact.appeared ? { appeared: true } : {}) })
+  ev.event('test.exported', { id: f.id, fact: f.fact.key, i: f.fact.i, good: f.expected, candidate: f.actual, notice: f.notice, ...(f.alike?.length ? { alike: f.alike } : {}), ...(f.fact.removed ? { removed: true, vanished: f.fact.vanished, ...(f.fact.stillThere ? { stillThere: true } : {}), ...(f.fact.names?.length ? { names: f.fact.names, namesTotal: f.fact.namesTotal } : {}) } : {}), ...(f.fact.appeared ? { appeared: true } : {}) })
   console.log(`test written: ${join(dir, f.id + '.spec.js')}\n  fact: ${f.fact.key.slice(-70)}\n  good: ${f.expected.slice(0, 80)}\n  cand: ${f.actual.slice(0, 80)}\n  class: ${LABEL[f.notice?.cls] ?? 'unknown'} (${f.notice?.why ?? ''})${f.alike?.length ? `\n  the same change on ${f.alike.length} other element${f.alike.length === 1 ? '' : 's'}: ${f.alike.map(k => k.split('/').slice(-2).join('/').replace(/@class$/, '')).join(', ')}` : ''}`)
 }
 if (skipped.length) console.log(`${skipped.length} other changed fact${skipped.length === 1 ? '' : 's'} not tested separately (${[...new Set(skipped.map(k => k.why.replace(/ \d+/, ' N')))].join('; ')})`)

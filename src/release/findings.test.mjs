@@ -384,6 +384,16 @@ describe('a vanished element becomes a test', () => {
     const roots = vanishedRoots(diffs)
     assert.deepEqual(roots.map(r => [r.i, r.key, r.vanished]), [[1, 'body/div[1]/a[2]#text', 5], [1, 'body/div[1]/p[3]@class', 1], [2, 'body/div[1]/a[2]#text', 1]])
     assert.ok(roots.every(r => r.kind === 'removed'))
+    // the words a person saw inside what vanished travel with the root (texts, titles, labels; not classes or hrefs), the first three and the count
+    assert.deepEqual(roots.map(r => [r.names ?? null, r.namesTotal ?? null]), [[['Share', '*'], 2], [null, null], [['Share'], 1]])
+    const many = vanishedRoots([gone(1, 'body/div[1]/div[2]@class', 'fixed'), ...[1, 2, 3, 4].map(n => gone(1, `body/div[1]/div[2]/button[${n}]@title`, `Control ${n}`)), gone(1, 'body/div[1]/div[2]/button[1]@aria-label', 'Control 1')])
+    assert.deepEqual([many[0].names, many[0].namesTotal], [['Control 1', 'Control 2', 'Control 3'], 4])
+  })
+
+  it('a finding keeps the names of what vanished', () => {
+    const roots = vanishedRoots([gone(1, 'body/div[1]/div[2]@class', 'fixed'), gone(1, 'body/div[1]/div[2]/button[1]@title', 'Go to next slide')])
+    const { findings } = selectFindings(roots, actions, start, emptyBaseline)
+    assert.deepEqual([findings[0].fact.names, findings[0].fact.namesTotal], [['Go to next slide'], 1])
   })
 
   it('selectFindings takes vanished roots after changed facts, with a notice, and marks them', () => {

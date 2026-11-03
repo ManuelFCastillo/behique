@@ -9,6 +9,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import { startBuild, stopAll } from '../build.mjs'
 import { listProfileNames, loadProfile, profileToAdapter } from '../onboard/profile.mjs'
+import { startPathOf, withStart } from './reuse.mjs'
 import { describeLogin, loginActions } from '../login.mjs'
 import { APPS } from '../scenarios.mjs'
 import { crawlApp } from './run.mjs'
@@ -39,17 +40,17 @@ export async function runCrawlCli(argv, { log = console.log } = {}) {
   const ref = refArg ?? resolved.defaultRef
   if (!ref) { log('no version given and the app has no default: pass a tag or branch'); return { code: 2 } }
   const num = (name, d) => { const v = Number(opt(name, d)); return Number.isFinite(v) && v > 0 ? v : d }
-  const options = { maxDepth: num('max-depth', CRAWL_DEFAULTS.maxDepth), maxPaths: num('max-paths', CRAWL_DEFAULTS.maxPaths), maxFlows: num('max-flows', CRAWL_DEFAULTS.maxFlows), budgetMs: num('budget', CRAWL_DEFAULTS.budgetMs / 1000) * 1000 }
+  const options = withStart({ maxDepth: num('max-depth', CRAWL_DEFAULTS.maxDepth), maxPaths: num('max-paths', CRAWL_DEFAULTS.maxPaths), maxFlows: num('max-flows', CRAWL_DEFAULTS.maxFlows), budgetMs: num('budget', CRAWL_DEFAULTS.budgetMs / 1000) * 1000 }, startPathOf(resolved)) // the crawl starts where the profile says the app is ready
   let build
   try {
     build = await startBuild({ adapter: resolved.adapter, ref, port: num('port', 8300) })
-    log(`crawling ${app} ${ref} (${build.sha.slice(0, 12)}) at ${build.base}`)
+    log(`crawling ${app} ${ref} (${build.sha.slice(0, 12)}) at ${build.base}${options.startPath ? ', starting at ' + options.startPath : ''}`)
     // the login actions are passed to the crawl but never into `options`, which is saved to the crawl file
     const login = resolved.login ? loginActions(resolved.login, process.env) : []
     if (login.length) log(`  logging in first: ${describeLogin(resolved.login)}`)
     const found = await crawlApp(build.base, { ...options, login, log: l => log(`  ${l}`) })
     // a page with nothing to click (a single static page) still has facts worth comparing: observe the landing page itself
-    if (found.steps.length === 0 && found.states.length >= 1) found.steps = [{ type: 'goto', path: '/' }]
+    if (found.steps.length === 0 && found.states.length >= 1) found.steps = [{ type: 'goto', path: options.startPath ?? '/' }]
     const outDir = join(ROOT, opt('out', 'out/crawl'))
     mkdirSync(outDir, { recursive: true })
     const stem = `${app}-${build.sha.slice(0, 12)}`

@@ -9,7 +9,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { checkoutRef } from './checkout.mjs'
 import { CRAWL_DEFAULTS, resolveApp } from './crawl/cli.mjs'
-import { crawlFileStem, pickCrawl, reuseNote } from './crawl/reuse.mjs'
+import { crawlFileStem, pickCrawl, reuseNote, startPathOf, withStart } from './crawl/reuse.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
 const args = process.argv.slice(2)
@@ -43,7 +43,7 @@ async function savedCrawl() {
     if (!stem) return null
     const file = join(ROOT, 'out', 'crawl', `${stem}.crawl.json`), stepsFile = join(ROOT, 'out', 'crawl', `${stem}.steps.json`)
     if (!existsSync(file) || !existsSync(stepsFile)) return null
-    const pick = pickCrawl([JSON.parse(readFileSync(file, 'utf8'))], { app, sha, options: CRAWL_DEFAULTS })
+    const pick = pickCrawl([JSON.parse(readFileSync(file, 'utf8'))], { app, sha, options: withStart(CRAWL_DEFAULTS, startPathOf(resolved)) })
     if (!pick) return null
     const found = pick.record
     return { stepsFile: stepsFile.replace(ROOT + '/', ''), note: reuseNote(found), states: Array.isArray(found.states) ? found.states.length : 0, flows: Array.isArray(found.flows) ? found.flows.length : 0, steps: found.steps.length }

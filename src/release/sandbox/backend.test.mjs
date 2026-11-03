@@ -68,6 +68,9 @@ describe('writeExtras', () => {
     assert.ok(existsSync(join(dir, '.behique', 'static-server.mjs')))
     assert.match(readFileSync(join(dir, '.behique', 'bin', 'yarn'), 'utf8'), /exec corepack yarn/)
     assert.ok(statSync(join(dir, '.behique', 'bin', 'pnpm')).mode & 0o100)
+    assert.ok(!existsSync(join(dir, '.behique', 'git-history.mjs')))
+    writeExtras(dir, [], { gitHistory: true })
+    assert.match(readFileSync(join(dir, '.behique', 'git-history.mjs'), 'utf8'), /git.*commit/s)
   })
 })
 
@@ -96,6 +99,16 @@ describe('startSandboxedBuild', () => {
     assert.deepEqual(f.calls[5][1], { listenPort: 8300, host: '172.20.0.2', port: 8300 })
     await b.stop()
     assert.equal(f.destroyedCount(), 1); assert.equal(f.closed.length, 1)
+  })
+
+  it('a profile that reads git history gets one commit before its own install steps', async () => {
+    const a = adapterFor({ kind: 'command', cmd: 'pnpm', args: ['start'], install: [{ cmd: 'pnpm', args: ['install'] }], gitHistory: true })
+    const f = fakes()
+    const b = await startSandboxedBuild({ adapter: a, ref: 'HEAD', port: 8300, config, deps: f.deps })
+    const install = f.calls.find(c => c[0] === 'install')
+    assert.deepEqual(install[1][0], { cmd: 'node', args: ['/work/.behique/git-history.mjs'] })
+    assert.equal(install[1].length, 2)
+    await b.stop()
   })
 
   it('a cached commit skips the install and starts from the cache image; BEHIQUE_CACHE=off skips the cache entirely', async () => {

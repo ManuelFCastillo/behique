@@ -342,6 +342,7 @@ createServer(async (req, res) => {
       return send(res, 200, { ...runView(startUiRun(v.params)), note: v.note })
     }
     if (u.pathname === '/api/ui/runs/current') return send(res, 200, uiRun ? runView(uiRun) : { running: false, status: 'none' })
+    if (u.pathname === '/api/ui/runs/log') return send(res, 200, uiRun ? { runId: uiRun.runId, status: uiRun.status, code: uiRun.code, lines: uiRun.lines } : { lines: [] }) // the last 400 output lines of the current or most recent run, so a crash can be read after the fact
     if (u.pathname === '/api/ui/runs/external') { // checks started from a terminal (bin/behique.mjs, check-app.mjs): open cases this server did not start, with a phase read from their own events
       const started = new Set([...startedCases, ...(uiRun?.caseId ? [uiRun.caseId] : [])])
       return send(res, 200, externalRuns({ cases: recentCases({ root: EVIDENCE, listCases, openCase, limit: 15 }), started }))

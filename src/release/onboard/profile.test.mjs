@@ -166,6 +166,14 @@ describe('normalizeProfile', () => {
 })
 
 describe('describeCommands', () => {
+  it('says when the copy gets a git commit, and refuses a gitHistory that is not a boolean', () => {
+    const p = validCommand(); p.serve.gitHistory = true
+    assert.ok(describeCommands(p).some(l => /one git commit/.test(l)))
+    assert.deepEqual(validateProfile(p), [])
+    p.serve.gitHistory = 'yes'
+    assert.ok(validateProfile(p).some(x => /gitHistory/.test(x)))
+  })
+
   it('describes the static server', () => {
     assert.deepEqual(describeCommands(validStatic()), ['serve: built-in static file server'])
   })

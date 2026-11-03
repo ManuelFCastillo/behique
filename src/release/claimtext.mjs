@@ -116,10 +116,12 @@ export function outcomeText(t, { goodRef = 'the good version', candRef = 'the ca
   if (e.what === 'scrolling') return { pass: `${P}${the} scrolls when the mouse wheel turns over it.`, fail: `${F}${the} does not move when the mouse wheel turns over it.` }
   if (t.appeared) return { pass: `${P}${the} has no ${e.what} attribute.`, fail: `${F}${the} is ${STATE_WORDS[e.what] ?? `marked ${e.what}`}.` }
   if (t.removed && t.stillThere) return { pass: `${P}${the} carries the ${e.what} attribute.`, fail: `${F}the ${e.what} attribute is gone from ${the}.` }
-  if (t.removed) return { pass: `${P}${the} is there${e.what === 'text' ? `, reading ${q(t.good)}` : ''}.`, fail: `${F}${the} is missing.` }
+  if (t.removed) return { pass: `${P}${the}${namesOf(t)} is there${e.what === 'text' && !t.names ? `, reading ${q(t.good)}` : ''}.`, fail: `${F}${the}${namesOf(t)} is missing.` }
   if (e.what === 'classes') {
     const { added, removed } = classChange(unq(t.good), unq(t.candidate))
     const [was, now] = known(removed).length || known(added).length ? [known(removed), known(added)] : [removed, added] // the classes this check can read come first; else the whole change, cut short
+    if (!was.length) return { pass: `${P}${the} has no "${few(now)}" class.`, fail: `${F}${the} has "${few(now)}" added.` }
+    if (!now.length) return { pass: `${P}${the} still has the class${was.length === 1 ? '' : 'es'} "${few(was)}".`, fail: `${F}${the} has lost "${few(was)}".` }
     return { pass: `${P}${the} still has the class${was.length === 1 ? '' : 'es'} "${few(was)}".`, fail: `${F}${the} has "${few(now)}" instead of "${few(was)}".` }
   }
   if (e.what === 'text') return { pass: `${P}${the} reads ${q(t.good)}.`, fail: `${F}${the} reads ${q(t.candidate)}.` }
@@ -129,7 +131,7 @@ export function outcomeText(t, { goodRef = 'the good version', candRef = 'the ca
 // A word a person would use for the element, read from its class names (a split pane, a sidebar, a dialog), else from its tag.
 const CLASS_WORDS = [['splitpanes', 'a split pane'], ['pane', 'a pane'], ['sidebar', 'a sidebar'], ['navbar', 'a navigation bar'], ['nav', 'a navigation bar'], ['modal', 'a dialog'], ['dialog', 'a dialog'], ['dropdown', 'a dropdown menu'], ['menu', 'a menu'], ['tooltip', 'a tooltip'], ['toolbar', 'a toolbar'], ['tabs', 'a tab bar'], ['tab', 'a tab'], ['panel', 'a panel'], ['drawer', 'a drawer'], ['header', 'a header'], ['footer', 'a footer'], ['card', 'a card'], ['table', 'a table'], ['editor', 'an editor'], ['toggle', 'a toggle'], ['switch', 'a switch'], ['btn', 'a button'], ['button', 'a button'], ['input', 'an input'], ['form', 'a form'], ['list', 'a list'], ['badge', 'a badge'], ['banner', 'a banner'], ['overlay', 'an overlay'], ['spinner', 'a spinner'], ['avatar', 'an avatar']]
 export function nameFromClasses(...lists) {
-  const tokens = new Set(lists.flatMap(l => unq(l ?? '').split(/\s+/)).flatMap(c => c.replace(/^!/, '').split(/[:_-]+|__/)).map(t => t.toLowerCase()).filter(Boolean))
+  const tokens = new Set(lists.flatMap(l => unq(l ?? '').split(/\s+/)).filter(c => !/^!?(?:[a-z-]+:)*z-/.test(c)).flatMap(c => c.replace(/^!/, '').split(/[:_-]+|__/)).map(t => t.toLowerCase()).filter(Boolean)) // z-modal is a stacking order, not a dialog
   for (const [tok, word] of CLASS_WORDS) if (tokens.has(tok)) return word
   return null
 }
@@ -181,7 +183,7 @@ export function regressionText(t, { goodRef = 'the good version', candRef = 'the
   if (e.what === 'scrolling') return `${lead}${who} cannot be scrolled: the mouse wheel over it does nothing, so anything below its edge is out of reach. On ${goodRef} it scrolls.`
   if (t.appeared) return `${lead}${who} is ${STATE_WORDS[e.what] ?? `marked ${e.what}`}. On ${goodRef} it is not.${churn}`
   if (t.removed && t.stillThere) return `${lead}the ${e.what} attribute dropped off ${who}; the element itself is still there.${churn}`
-  if (t.removed) return `${lead}${who} is missing: on ${goodRef} it is there, ${e.what === 'text' ? `reading ${q(t.good)}` : e.what === 'classes' ? `with the classes ${q(t.good)}` : `carrying the ${e.what} attribute${unq(t.good) === '' ? '' : ` ${q(t.good)}`}`}.${churn}`
+  if (t.removed) return `${lead}${who}${namesOf(t)} is missing: on ${goodRef} it is there, ${e.what === 'text' ? `reading ${q(t.good)}` : e.what === 'classes' ? `with the classes ${q(t.good)}` : `carrying the ${e.what} attribute${unq(t.good) === '' ? '' : ` ${q(t.good)}`}`}.${churn}`
   if (e.what === 'classes') {
     const { added, removed } = classChange(unq(t.good), unq(t.candidate))
     const has = (list, re) => list.some(c => re.test(c.replace(/^!?(?:[a-z-]+:)*/, '')))
@@ -197,5 +199,7 @@ export function regressionText(t, { goodRef = 'the good version', candRef = 'the
   if (e.what === 'text') return `${lead}the text of ${who} reads ${q(t.candidate)}, where ${goodRef} reads ${q(t.good)}.${churn}`
   return `${lead}the ${e.what} of ${who} is ${q(t.candidate)}, where ${goodRef} has ${q(t.good)}.${churn}`
 }
+// The words a person saw inside a vanished element, from the exported test's `names` (its texts, titles, labels): " (“Next”, “Previous” and 9 more)".
+const namesOf = t => (Array.isArray(t?.names) && t.names.length ? ` (${t.names.map(n => `"${n}"`).join(', ')}${Number(t.namesTotal) > t.names.length ? ` and ${Number(t.namesTotal) - t.names.length} more` : ''})` : '')
 const few = (list, n = 4) => (list.length ? list.slice(0, n).join(' ') + (list.length > n ? ` and ${list.length - n} more` : '') : 'nothing')
 const cap = s => s.charAt(0).toUpperCase() + s.slice(1)
