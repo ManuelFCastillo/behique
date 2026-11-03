@@ -11,9 +11,9 @@ const CASE_RE = /^[0-9TZ]{16}_[A-Za-z0-9._\-/]+-vs-[A-Za-z0-9._\-/]+$/
 /** `behique check <app> <good> <cand> [options]` argv (after the subcommand) to { ok, app, good, cand, options } or { ok: false, error }. */
 export function parseCheckArgs(argv) {
   const args = Array.isArray(argv) ? argv.map(String) : []
-  const flags = new Set(['--bisect', '--recrawl', '--json', '--no-dashboard'])
+  const flags = new Set(['--bisect', '--recrawl', '--json', '--no-dashboard', '--explain'])
   const withValue = new Set(['--max-findings', '--profile', '--repo', '--out', '--timeout-min', '--dashboard'])
-  const pos = [], options = { bisect: false, recrawl: false, maxFindings: 5, profile: null, repo: null, out: null, timeoutMin: 45, dashboard: 'http://127.0.0.1:8790', json: false }
+  const pos = [], options = { bisect: false, recrawl: false, explain: false, maxFindings: 5, profile: null, repo: null, out: null, timeoutMin: 45, dashboard: 'http://127.0.0.1:8790', json: false }
   for (let i = 0; i < args.length; i++) {
     const a = args[i]
     if (flags.has(a)) { if (a === '--no-dashboard') options.dashboard = null; else options[a === '--json' ? 'json' : a.slice(2)] = true; continue }
@@ -35,10 +35,11 @@ export function parseCheckArgs(argv) {
     pos.push(a)
   }
   const [app, good, cand] = pos
-  if (pos.length !== 3) return { ok: false, error: 'Usage: behique check <app> <good> <cand> [--bisect] [--max-findings 5] [--recrawl] [--profile file.json --repo path] [--out file] [--json]' }
+  if (pos.length !== 3) return { ok: false, error: 'Usage: behique check <app> <good> <cand> [--bisect [--explain]] [--max-findings 5] [--recrawl] [--profile file.json --repo path] [--out file] [--json]' }
   if (!APP_RE.test(app)) return { ok: false, error: 'The app name must be lower-case letters, digits and dashes.' }
   for (const r of [good, cand]) if (!REF.test(r)) return { ok: false, error: `"${r.slice(0, 30)}" is not a git tag, branch or commit name.` }
   if (good === cand) return { ok: false, error: 'The good and candidate versions are the same.' }
+  if (options.explain && !options.bisect) return { ok: false, error: '--explain needs --bisect: the model explains the first change that makes the test fail.' }
   if (options.profile && !options.repo) return { ok: false, error: '--profile needs --repo <path to the checked-out repository>.' }
   return { ok: true, app, good, cand, options }
 }
@@ -57,12 +58,14 @@ export function resultOf(vm, { caseId, dashboard = null } = {}) {
   const confirmed = findings.filter(f => f.verdict === 'confirmed')
   const counts = { findings: findings.length, confirmed: confirmed.length, visible: confirmed.filter(f => f.cls === 'visible').length, churn: confirmed.filter(f => f.cls === 'churn').length }
   const c = vm.bisect?.commit ?? null
+  const guess = (vm.claims ?? []).filter(k => k.kind === 'ai_hypothesis' && k.model).at(-1) ?? null // the newest model guess on the case, if one was asked for
   const q = s => encodeURIComponent(String(s))
   return {
     app: vm.app, good: vm.goodRef, cand: vm.candRef, caseId,
     recommendation: rec, word: WORD[rec] ?? String(rec).toUpperCase(), summary: vm.sub ?? '', failReason: vm.failReason ?? null,
     counts, findings, masked: vm.masked?.text ?? null,
     culprit: c ? { sha: c.sha, subject: c.subject, author: c.author, date: c.date, url: c.url ?? null } : null,
+    explanation: guess ? { label: 'ai_hypothesis', model: guess.model, hypothesis: guess.text, quote: guess.quote ?? null, quoteFound: guess.grounded === true, confidence: guess.confidence ?? null, howToCheck: guess.howToCheck ?? null, estUsd: guess.estUsd ?? null } : null,
     bisect: vm.bisect ? { changes: vm.bisect.changes, steps: vm.bisect.steps, verified: vm.bisect.verifiedText ?? null } : null,
     report: dashboard ? { dashboard: `${dashboard}/dashboard?app=${q(vm.appId ?? vm.app)}&case=${q(caseId)}`, full: `${dashboard}/report?case=${q(caseId)}` } : null,
     chainOk: vm.chain?.ok ?? null,
@@ -75,6 +78,7 @@ export function exitCodeOf(result) {
 }
 
 const cell = v => String(v ?? '').replace(/\|/g, '\\|').replace(/\r?\n/g, ' ').slice(0, 120)
+const para = (v, n = 900) => String(v ?? '').replace(/\r?\n/g, ' ').slice(0, n) // model text: a paragraph, longer than a table cell
 const code = v => '`' + String(v ?? '').replace(/`/g, "'").replace(/\r?\n/g, ' ').slice(0, 80) + '`'
 
 /** GitHub-flavoured Markdown for a pull request comment or a terminal. Findings most noticeable first, as the result lists them. */
@@ -90,9 +94,17 @@ export function markdownOf(r) {
     lines.push('', '"Confirmed" means the test passed every run on the good version and failed every run on the candidate, each run on a fresh build.')
   }
   if (r.culprit) lines.push('', `**First change that makes the test fail:** ${r.culprit.url ? `[${r.culprit.sha.slice(0, 7)}](${r.culprit.url})` : r.culprit.sha.slice(0, 7)} ${cell(r.culprit.subject)} (${cell(r.culprit.author)}, ${cell(r.culprit.date)})${r.bisect ? `, ${r.bisect.changes} commits bisected in ${r.bisect.steps} steps${r.bisect.verified ? `, ${r.bisect.verified}` : ''}` : ''}.`)
+  if (r.explanation) {
+    const e = r.explanation
+    lines.push('', `**AI guess, not proof** (${cell(e.model)}${e.confidence ? `, ${cell(e.confidence)} confidence` : ''}; asked about the change above only): ${para(e.hypothesis)}`)
+    if (e.quote) lines.push('', `It rests on this line of the change, which ${e.quoteFound ? 'is' : '**is NOT**'} in the diff: ${code(e.quote)}`)
+    if (e.howToCheck) lines.push('', `To check it: ${para(e.howToCheck)}`)
+    if (typeof e.estUsd === 'number') lines.push('', `One model call, about $${e.estUsd.toFixed(4)} (estimated).`)
+  }
+  else if (r.explanationSkipped) lines.push('', `No AI explanation was added: ${para(r.explanationSkipped, 200)}`)
   if (r.masked) lines.push('', `**Not seen by this check:** ${r.masked}`)
   if (r.report) lines.push('', `Report: [dashboard](${r.report.dashboard}) · [full report](${r.report.full}) · case \`${r.caseId}\``)
   else lines.push('', `Case \`${r.caseId}\` in out/evidence.`)
-  lines.push('', 'A model proposes nothing here: every claim is a test that ran. A person decides.')
+  lines.push('', r.explanation ? 'The verdict and every finding above are tests that ran; the AI guess is the only part a model wrote, and it proves nothing. A person decides.' : 'A model proposes nothing here: every claim is a test that ran. A person decides.')
   return lines.filter((l, i, a) => !(l === '' && a[i - 1] === '')).join('\n') + '\n'
 }

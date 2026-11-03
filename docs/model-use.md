@@ -61,7 +61,7 @@ The verification loop has no model in it. A model proposes; code verifies; a per
 
 - In the dashboard: Spark proposes the app profile (visible, with the text and price first) and explains the culprit on request (visible, with the text and price first, labelled a guess).
 - In the report page: the AI Hypothesis claim with model, quote check and cost, in the same chain as the tests.
-- In the command and the GitHub Action: nothing. The CI path makes no model call, so a judge reading the pull request comment sees no Meta model at all.
+- In the command and the GitHub Action: only with `--explain` (action input `explain: true` with `bisect: true` and a `meta-api-key` secret). Without it the CI path makes no model call. With it, after the bisect names a first bad change, one Muse Spark 1.3 call (about $0.008) is added to the result and the pull request comment, labelled "AI guess, not proof", with its quoted line checked against the diff and its cost; the verdict and exit code never depend on it (`src/release/cli/explain.mjs`, built 2026-11-02). It sends the observed difference and that one commit's message and diff to Meta's standard (not contributor) model; on a private repository that is code leaving the runner, which is why it is opt-in. Checked once on a scratch copy of the VitePress rc.10 vs rc.12 case: the guess named the inert binding in the culprit commit 070fc0a, quote found in the diff, $0.0077.
 - On the demo server: the canvas senses pages.
 
 ## Options for the submission

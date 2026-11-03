@@ -167,7 +167,7 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
       foot: ai ? (d.source === 'canvas-vision' ? 'a model\'s guess about what is on the screen . not proof' : `${d.grounded ? 'quote verified in the change' : 'quote NOT found in the change'} . confidence ${d.confidence}`) : names.length ? `${names.length} evidence file${names.length === 1 ? '' : 's'}` : 'no evidence cited',
       chips: ai ? ['hypothesis', 'unproven'] : d.label === 'verified_fact' ? ['verified'] : [],
       links: names, linkUrls: d.evidence.map(h => (/^[0-9a-f]{64}$/.test(h) ? urlOf(h) : null)), videos: videosOf(d.evidence), test: d.label === 'reproduced_failure' ? testOf(d.text) : null,
-      ...(ai ? { model: d.model, quote: d.quote, howToCheck: d.howToCheck, grounded: d.grounded, estUsd: d.estUsd } : {}),
+      ...(ai ? { model: d.model, quote: d.quote, howToCheck: d.howToCheck, grounded: d.grounded, estUsd: d.estUsd, confidence: d.confidence } : {}),
       isCulprit: d.label === 'reproduced_failure' && Boolean(bisectArt) && d.evidence.includes(bisectArt),
     }
   }))

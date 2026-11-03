@@ -23,6 +23,14 @@ inputs:
     description: Also find the first commit that makes the test fail (true or false).
     required: false
     default: "false"
+  explain:
+    description: With bisect, also ask Meta's Muse Spark once why the first bad commit causes the failure (about a cent). Sends the observed difference and that one commit's message and diff to Meta; the answer is labelled a guess and never changes the verdict. Needs meta-api-key (true or false).
+    required: false
+    default: "false"
+  meta-api-key:
+    description: Meta Model API key for the explanation (pass it from a secret). Unused unless explain is true.
+    required: false
+    default: ""
   max-findings:
     description: How many changed facts become tests, most noticeable first.
     required: false
@@ -78,12 +86,15 @@ runs:
         GOOD: ${{ inputs.good }}
         CAND: ${{ inputs.cand }}
         BISECT: ${{ inputs.bisect }}
+        EXPLAIN: ${{ inputs.explain }}
+        META_API_KEY: ${{ inputs.meta-api-key }}
         MAX: ${{ inputs.max-findings }}
         FAIL_ON_HOLD: ${{ inputs.fail-on-hold }}
       run: |
         set +e
         args=(check "$APP" "$GOOD" "$CAND" --profile "$PROFILE" --repo "$REPO" --max-findings "$MAX" --no-dashboard --out "$RUNNER_TEMP/behique-result.json")
         if [ "$BISECT" = "true" ]; then args+=(--bisect); fi
+        if [ "$BISECT" = "true" ] && [ "$EXPLAIN" = "true" ]; then args+=(--explain); fi
         node bin/behique.mjs "${args[@]}"
         code=$?
         echo "result=$RUNNER_TEMP/behique-result.json" >> "$GITHUB_OUTPUT"

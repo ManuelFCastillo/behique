@@ -35,11 +35,15 @@ const cut = (v, n) => { const t = JSON.stringify(v); return t.length > n ? t.sli
 /** The observed difference in words, from what the check recorded: changed page facts, or (a check by picture) the regions above the noise floor. */
 export function symptomsOf({ changed = [], regions = [] } = {}) {
   if (changed.length) {
-    return changed.slice(0, 4).map(d => {
+    const lines = changed.slice(0, 16).map(d => {
       if (d.key === 'window@scrollY') return `the vertical scroll position of the page after step ${d.i} (${d.step.replace(/^\d+:/, '')}): the old version left it at ${cut(d.was, 40)} pixels and the new version at ${cut(d.now, 40)} pixels`
       const attr = d.key.match(/@([^/]+)$/)?.[1]
-      return `${attr ? `the "${attr}" attribute` : 'the text'} of the element at ${d.key.replace(/(@[^/]+|#text|#scrolls)$/, '').split('/').slice(-2).join('/')}: the old version had ${cut(d.was, 200)} and the new version has ${cut(d.now, 200)}`
+      const what = `${attr ? `the "${attr}" attribute` : 'the text'} of the element at ${d.key.replace(/(@[^/]+|#text|#scrolls)$/, '').split('/').slice(-2).join('/')}`
+      if (d.kind === 'added') return `${what}: the old version did not have it set and the new version has it set to ${cut(d.now, 200)}`
+      if (d.kind === 'removed') return `${what}: the old version had ${cut(d.was, 200)} and the new version no longer has it`
+      return `${what}: the old version had ${cut(d.was, 200)} and the new version has ${cut(d.now, 200)}`
     })
+    return [...new Set(lines)].slice(0, 4) // the same change on several elements reads the same: once
   }
   const above = regions.filter(r => r?.above && r.box)
   if (above.length) {
@@ -48,12 +52,31 @@ export function symptomsOf({ changed = [], regions = [] } = {}) {
   throw new Error('this case recorded no changed values to explain')
 }
 
-/** The folder of the repository a case was checked from: a scenario's adapter, or (a check by picture) the app profile's repo. */
-async function repoOf(opened) {
-  if (opened.kind === 'visual') {
-    const { loadProfile, profileToAdapter } = await import('./onboard/profile.mjs')
-    return profileToAdapter(loadProfile(String(opened.adapter).replace(/^visual-/, ''))).repo
+/** The repo folder of an app profile, by name (the profile directory is BEHIQUE_PROFILE_DIR when set, as for `behique check --profile`). */
+async function profileRepo(name) {
+  const { loadProfile, profileToAdapter } = await import('./onboard/profile.mjs')
+  return profileToAdapter(loadProfile(name)).repo
+}
+
+/**
+ * The changed facts, the proven ones a person would notice first, then other proven ones, then the rest (order otherwise kept).
+ * Without this the model would be shown the first few facts of the diff, which in a release is often only its version label.
+ */
+export function bySignificance(changed, events) {
+  const exported = new Map(events.filter(e => e.type === 'test.exported').map(e => [e.data.id, e.data.fact]))
+  const rank = new Map()
+  for (const e of events.filter(e => e.type === 'test.judged' && e.data.verdict === 'confirmed')) {
+    const key = exported.get(e.data.id)
+    if (key !== undefined) rank.set(key, Math.min(rank.get(key) ?? 2, e.data.notice?.cls === 'visible' ? 0 : 1))
   }
+  const of = d => rank.get(d.key) ?? 2
+  return changed.map((d, i) => [d, i]).sort((a, b) => of(a[0]) - of(b[0]) || a[1] - b[1]).map(([d]) => d)
+}
+
+/** The folder of the repository a case was checked from: an app profile's repo (a check by picture, or any check recorded with an app name, as `behique check` and the dashboard's set-up apps do), else a built-in adapter's. */
+export async function repoOf(opened, { profile = profileRepo } = {}) {
+  if (opened.kind === 'visual') return profile(String(opened.adapter).replace(/^visual-/, ''))
+  if (opened.app) return profile(opened.app)
   return (await import(`./adapters/${opened.adapter}.mjs`)).default.repo
 }
 
@@ -63,7 +86,9 @@ export async function loadContext(c) {
   const art = name => { const a = Object.values(s.artifacts).find(x => x.name === name); return a ? JSON.parse(readFileSync(c.artifactPath(a.hash), 'utf8')) : null }
   const found = art('bisect.json')?.result
   if (!found?.commit) throw new Error('this case has no first bad change to look at: run the check with the search step first')
-  const changed = (art('facts-diff.json')?.candidate ?? []).filter(d => d.kind === 'changed')
+  // changed values, plus an added or removed fact only when a test proved it (a state newly set, an element that vanished)
+  const proven = new Set(events.filter(e => e.type === 'test.judged' && e.data.verdict === 'confirmed').map(e => events.find(x => x.type === 'test.exported' && x.data.id === e.data.id)?.data.fact))
+  const changed = bySignificance((art('facts-diff.json')?.candidate ?? []).filter(d => d.kind === 'changed' || proven.has(d.key)), events)
   const regions = events.find(e => e.type === 'visual.regions')?.data?.regions ?? []
   const symptoms = symptomsOf({ changed, regions }) // throws when there is nothing to explain, before anything is read from the repo
   const repo = await repoOf(s.opened)

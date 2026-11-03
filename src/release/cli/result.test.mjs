@@ -11,13 +11,14 @@ import { EXIT, caseIdFrom, exitCodeOf, markdownOf, parseCheckArgs, resultOf } fr
 test('parseCheckArgs: the three names, the options, and plain refusals', () => {
   const p = parseCheckArgs(['umami', 'v3.3.1', 'v3.4.1', '--bisect', '--max-findings', '3', '--recrawl', '--json', '--out', 'r.json', '--timeout-min', '20'])
   assert.equal(p.ok, true); assert.deepEqual([p.app, p.good, p.cand], ['umami', 'v3.3.1', 'v3.4.1'])
-  assert.deepEqual(p.options, { bisect: true, recrawl: true, maxFindings: 3, profile: null, repo: null, out: 'r.json', timeoutMin: 20, dashboard: 'http://127.0.0.1:8790', json: true })
+  assert.deepEqual(p.options, { bisect: true, recrawl: true, explain: false, maxFindings: 3, profile: null, repo: null, out: 'r.json', timeoutMin: 20, dashboard: 'http://127.0.0.1:8790', json: true })
   assert.equal(parseCheckArgs(['a', 'b', 'c', '--no-dashboard']).options.dashboard, null)
+  assert.equal(parseCheckArgs(['a', 'b', 'c', '--bisect', '--explain']).options.explain, true)
   assert.equal(parseCheckArgs(['a', 'b', 'c', '--dashboard', 'https://ci.example.com']).options.dashboard, 'https://ci.example.com')
   for (const [argv, re] of [
     [['umami', 'v1'], /Usage/], [['Umami', 'v1', 'v2'], /lower-case/], [['umami', '-rf', 'v2'], /not a git/], [['umami', 'v1', 'v1'], /same/],
     [['umami', 'v1', 'v2', '--max-findings', '0'], /1 to 20/], [['umami', 'v1', 'v2', '--max-findings'], /needs a value/], [['umami', 'v1', 'v2', '--profile', 'p.json'], /--repo/],
-    [['umami', 'v1', 'v2', '--dashboard', 'ftp://x'], /origin/], [['umami', 'v1', 'v2', '--wat'], /Unknown option/], [['umami', 'v1', 'v2', '--timeout-min', '9999'], /1 to 600/],
+    [['umami', 'v1', 'v2', '--dashboard', 'ftp://x'], /origin/], [['umami', 'v1', 'v2', '--wat'], /Unknown option/], [['umami', 'v1', 'v2', '--timeout-min', '9999'], /1 to 600/], [['umami', 'v1', 'v2', '--explain'], /--explain needs --bisect/],
   ]) { const r = parseCheckArgs(argv); assert.equal(r.ok, false, argv.join(' ')); assert.match(r.error, re) }
 })
 
@@ -85,4 +86,34 @@ test('resultOf: churn only is SHIP with exit 0 and the note; no dashboard means 
   assert.deepEqual(EXIT, { ship: 0, hold: 1, inconclusive: 2, fail: 3, running: 3 })
   assert.equal(exitCodeOf({ recommendation: 'nonsense' }), 3)
   assert.throws(() => resultOf(null), /view-model/)
+})
+
+test('an AI explanation is in the result and the comment, labelled a guess, and the verdict and exit code do not move', () => {
+  const c = caseWith([{ fact: 'body/div[1]/a[1]@data-url', cls: 'visible', why: 'a link carried in data-url', was: 'http://x/i/?a=1', now: 'http%3A%2F%2Fx' }], { bisect: true })
+  const caseId = '20261031T184304Z_v3.3.1-vs-v3.4.1'
+  const before = resultOf(buildViewModel(c, { caseId }), { caseId })
+  assert.equal(before.explanation, null)
+  assert.match(markdownOf(before), /A model proposes nothing here/)
+  c.claim('ai_hypothesis', 'The link is now passed through encodeURIComponent, so the attribute holds the escaped form.', { by: 'model', model: 'muse-spark-1.3', extra: { grounded: true, quote: '.replace(/--link--/g, encodeURIComponent(link))', confidence: 'medium', howToCheck: 'Open the share dialog and compare the copied link.', estUsd: 0.0061 } })
+  const r = resultOf(buildViewModel(c, { caseId }), { caseId })
+  assert.deepEqual(r.explanation, { label: 'ai_hypothesis', model: 'muse-spark-1.3', hypothesis: 'The link is now passed through encodeURIComponent, so the attribute holds the escaped form.', quote: '.replace(/--link--/g, encodeURIComponent(link))', quoteFound: true, confidence: 'medium', howToCheck: 'Open the share dialog and compare the copied link.', estUsd: 0.0061 })
+  assert.equal(r.recommendation, before.recommendation); assert.equal(r.exitCode, before.exitCode); assert.deepEqual(r.findings, before.findings)
+  const md = markdownOf(r)
+  assert.match(md, /\*\*AI guess, not proof\*\* \(muse-spark-1\.3, medium confidence; asked about the change above only\): The link is now passed through encodeURIComponent/)
+  assert.match(md, /which is in the diff: `\.replace\(\/--link--\/g, encodeURIComponent\(link\)\)`/)
+  assert.match(md, /To check it: Open the share dialog/); assert.match(md, /One model call, about \$0\.0061 \(estimated\)\./)
+  assert.ok(md.indexOf('**First change that makes the test fail:**') < md.indexOf('**AI guess, not proof**'), 'the proven culprit comes before the guess')
+  assert.match(md, /the AI guess is the only part a model wrote, and it proves nothing\. A person decides\.\n$/)
+  assert.ok(!md.includes('A model proposes nothing here'))
+})
+
+test('an ungrounded quote is flagged, and a skipped explanation says why without touching the verdict', () => {
+  const c = caseWith([{ fact: 'body/div[1]/a[1]@data-url', cls: 'visible', why: 'w', was: 'a', now: 'b' }], { bisect: true })
+  c.claim('ai_hypothesis', 'A guess.', { by: 'model', model: 'm', extra: { grounded: false, quote: 'made up line here', confidence: 'low' } })
+  const r = resultOf(buildViewModel(c, { caseId: 'x_v1-vs-v2' }), { caseId: 'x_v1-vs-v2' })
+  assert.match(markdownOf(r), /which \*\*is NOT\*\* in the diff/)
+  const plain = resultOf(buildViewModel(caseWith([], { bisect: false }), { caseId: 'x_v1-vs-v2' }), { caseId: 'x_v1-vs-v2' })
+  const md = markdownOf({ ...plain, explanationSkipped: 'No API key is set for meta, so nothing can be sent.' })
+  assert.match(md, /No AI explanation was added: No API key is set for meta/)
+  assert.ok(!markdownOf(plain).includes('No AI explanation'), 'nothing is said when --explain was not asked for')
 })
