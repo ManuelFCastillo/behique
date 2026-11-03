@@ -144,6 +144,13 @@ function classMeaning(removed, added, who) {
   const DISABLE = /^(?:disabled|pointer-events-none)$/, ENABLE = /^pointer-events-auto$/
   const LAYOUT = /^(?:block|inline|inline-block|inline-flex|flex|grid|contents|d-block|d-flex|d-inline|d-inline-block)$/, POS = /^(?:fixed|absolute|sticky|static|relative)$/
   const pair = re => `(${few(of(removed, re))} to ${few(of(added, re))})`
+  // clickable styling is read on the raw class, since the variant prefix (hover:, focus-visible:) is the point
+  const CLICK = [[/^cursor-pointer$/, 'hand cursor'], [/^hover:/, 'hover colour'], [/^focus(?:-visible)?:(?:ring|outline)/, 'focus ring'], [/^active:/, 'pressed state']]
+  const lostClick = CLICK.filter(([re]) => removed.some(c => re.test(c)) && !added.some(c => re.test(c))).map(([, w]) => w)
+  const gotClick = CLICK.filter(([re]) => added.some(c => re.test(c)) && !removed.some(c => re.test(c))).map(([, w]) => w)
+  const layout = has(removed, LAYOUT) || has(added, LAYOUT) ? ` and is laid out as ${few(of(added, LAYOUT))} instead of ${few(of(removed, LAYOUT))}` : ''
+  if (lostClick.length >= 2) return `${who} lost its clickable styling (${lostClick.join(', ')})${layout}: it no longer looks like something to click.`
+  if (gotClick.length >= 2 && !lostClick.length) return `${who} gained clickable styling (${gotClick.join(', ')})${layout}: it now looks like something to click.`
   if (has(removed, SCROLL) && has(added, CLIP)) return `${who} lost the style that lets it scroll ${pair(/overflow/)}: content taller than it is cut off instead of scrolling.`
   if (has(removed, CLIP) && has(added, SCROLL)) return `${who} that cut its content off can now scroll ${pair(/overflow/)}.`
   if (has(added, HIDE) && !has(removed, HIDE)) return `${who} that was shown is now hidden ${pair(HIDE)}.`

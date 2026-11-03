@@ -178,7 +178,7 @@ if (!findings.length) {
 }
 const dir = join('out', 'regression', `${goodRef}-vs-${candRef}`.replace(/[^\w.-]/g, '_'))
 rmSync(dir, { recursive: true, force: true }); mkdirSync(dir, { recursive: true })
-writeExport(dir, findings)
+writeExport(dir, findings.map(f => ({ ...f, goodRef, candRef }))) // the version names only name the recording's tag; the test itself is the same
 const specH = {}
 for (const f of findings) {
   specH[f.id] = ev.artifact(`${f.id}.spec.js`, readFileSync(join(dir, f.id + '.spec.js'), 'utf8'), 'text/javascript')

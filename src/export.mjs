@@ -74,10 +74,10 @@ function assertionCode(spec, ctx = null) {
       'const box = await el.boundingBox()',
       'const topBefore = await el.evaluate(e => e.scrollTop)',
       "const recording = process.env.BEHIQUE_VIDEO === '1' // when recording, the page is marked so the footage explains itself; never part of the check",
-      `if (box && recording) { await page.evaluate(${WHEEL_MARK}, { x: box.x + box.width / 2, y: box.y + box.height / 2, box, head: 'Mouse wheel', note: '240 px down, over the outlined area', state: '' }); await page.waitForTimeout(700) }`,
+      `if (box && recording) { await page.evaluate(${PAGE_MARK}, { x: box.x + box.width / 2, y: box.y + box.height / 2, box, head: 'Mouse wheel', note: '240 px down, over the outlined area', state: '' }); await page.waitForTimeout(700) }`,
       'if (box) { await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2); await page.mouse.wheel(0, 240); await page.waitForTimeout(400) }',
       'const moved = (await el.evaluate(e => e.scrollTop)) > topBefore',
-      `if (box && recording) await page.evaluate(${WHEEL_MARK}, { x: box.x + box.width / 2, y: box.y + box.height / 2, box, head: moved ? 'It scrolled' : 'It did not move', note: moved ? 'the area under the wheel moved' : 'nothing under the wheel moved', state: moved ? 'ok' : 'bad' })`,
+      `if (box && recording) await page.evaluate(${PAGE_MARK}, { x: box.x + box.width / 2, y: box.y + box.height / 2, box, head: moved ? 'It scrolled' : 'It did not move', note: moved ? 'the area under the wheel moved' : 'nothing under the wheel moved', state: moved ? 'ok' : 'bad' })`,
       "const scrolls = await el.evaluate(e => e.clientHeight > 0 && e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))",
       'expect(scrolls || moved).toBe(true)']
     case 'attr': return spec.op === 'absent'
@@ -102,9 +102,9 @@ function assertionCode(spec, ctx = null) {
   }
 }
 
-// Runs inside the page while a scroll test is recorded: a spotlight on the tested area, a pulsing ring and a mouse glyph where the
-// wheel turns, and a tag that first says what is about to happen and then what did. Fixed, on top of everything, lets events through.
-const WHEEL_MARK = `(({ x, y, box, head, note, state }) => {
+// Runs inside the page while a test is recorded: a spotlight on the tested element, and a tag that first says what is being checked and
+// then what was found; with `pointer`, a pulsing ring and a mouse glyph where the wheel turns. Fixed, on top of everything, lets events through.
+const PAGE_MARK = `(({ x, y, box, head, note, state, pointer = true }) => {
   let root = document.getElementById('__bq_wheel')
   if (!root) {
     root = document.createElement('div'); root.id = '__bq_wheel'
@@ -120,10 +120,37 @@ const WHEEL_MARK = `(({ x, y, box, head, note, state }) => {
   }
   root.className = state
   const a = root.querySelector('.area'); a.style.left = box.x + 'px'; a.style.top = box.y + 'px'; a.style.width = box.width + 'px'; a.style.height = box.height + 'px'
-  for (const c of ['.ring', '.mouse', '.tag']) { const e = root.querySelector(c); e.style.left = x + 'px'; e.style.top = y + 'px' }
+  for (const c of ['.ring', '.mouse']) { const e = root.querySelector(c); e.style.display = pointer ? '' : 'none'; e.style.left = x + 'px'; e.style.top = y + 'px' }
+  const t = root.querySelector('.tag')
+  if (pointer) { t.style.margin = ''; t.style.left = x + 'px'; t.style.top = y + 'px' }
+  else { const below = box.y + box.height + 10, up = box.y - 64; t.style.margin = '0'; t.style.left = Math.max(8, Math.min(box.x, innerWidth - 360)) + 'px'; t.style.top = (below + 60 < innerHeight ? below : Math.max(8, up)) + 'px' }
   root.querySelector('.w').setAttribute('fill', state === 'ok' ? '#3ddc97' : state === 'bad' ? '#ff5c5c' : '#f0b429')
   root.querySelector('.tag b').textContent = head; root.querySelector('.tag small').textContent = note
 })`
+
+const MARK_TAGS = { a: 'link', p: 'paragraph', li: 'list item', ul: 'list', img: 'image', h1: 'heading', h2: 'heading', h3: 'heading', h4: 'heading', nav: 'nav', aside: 'sidebar', main: 'main area', header: 'header', footer: 'footer', button: 'button', input: 'field', select: 'menu', textarea: 'field', table: 'table', td: 'cell', tr: 'row', span: 'span', div: 'block', label: 'label', form: 'form', section: 'section', svg: 'icon' }
+const cutTo = (v, n = 60) => { const t = String(v ?? '').replace(/\s+/g, ' ').trim(); return t.length > n ? t.slice(0, n - 1) + '…' : t }
+const fewOf = (list, n = 3) => (list.length ? list.slice(0, n).join(' ') + (list.length > n ? ` +${list.length - n}` : '') : 'nothing')
+/** What the recording's tag says for an element check: the element, what is checked, and the words for a pass and for a fail. Never part of the check. */
+export function markWords(f) {
+  const a = f.assert ?? {}
+  const tag = String(a.selector ?? '').match(/\/([a-z0-9]+)(?:\[\d+\])?$/i)?.[1]?.toLowerCase()
+  const who = 'This ' + (MARK_TAGS[tag] ?? tag ?? 'element')
+  const good = f.goodRef ? `As on ${f.goodRef}` : 'As expected', bad = f.candRef ? `Changed on ${f.candRef}` : 'Changed'
+  const exp = String(f.expected ?? a.value ?? ''), act = String(f.actual ?? '')
+  const kinds = {
+    class_list: () => { const e = new Set(exp.split(/\s+/).filter(Boolean)), c = new Set(act.split(/\s+/).filter(Boolean)); const lost = [...e].filter(x => !c.has(x)), got = [...c].filter(x => !e.has(x)); return { what: 'checking its style classes', pass: 'its style classes are the same', fail: `${fewOf(got)} instead of ${fewOf(lost)}` } },
+    text: () => ({ what: 'checking its text', pass: `it reads "${cutTo(exp)}"`, fail: `it reads "${cutTo(act)}"` }),
+    own_text: () => ({ what: 'checking its text', pass: `it reads "${cutTo(exp)}"`, fail: `it reads "${cutTo(act)}"` }),
+    value: () => ({ what: 'checking its value', pass: `its value is "${cutTo(exp)}"`, fail: `its value is "${cutTo(act)}"` }),
+    attr: () => (a.op === 'absent' ? { what: `checking it has no ${a.name} attribute`, pass: `no ${a.name} attribute`, fail: `${a.name} is set` } : { what: `checking its ${a.name} attribute`, pass: `${a.name} is "${cutTo(exp)}"`, fail: `${a.name} is "${cutTo(act)}"` }),
+    visible: () => (a.expect === false ? { what: 'checking it is hidden', pass: 'it is hidden', fail: 'it is shown' } : { what: 'checking it is shown', pass: 'it is shown', fail: 'it is hidden' }),
+    checked: () => (a.expect === false ? { what: 'checking it is not checked', pass: 'not checked', fail: 'it is checked' } : { what: 'checking it is checked', pass: 'it is checked', fail: 'not checked' }),
+    style: () => ({ what: `checking its ${a.property}`, pass: `${a.property} is ${cutTo(exp)}`, fail: `${a.property} is ${cutTo(act)}` }),
+  }
+  const w = kinds[a.kind]?.()
+  return w ? { who, what: w.what, goodHead: good, badHead: bad, pass: w.pass, fail: w.fail } : null
+}
 
 export function specSource(f) {
   const indent = lines => lines.map(l => '  ' + l).join('\n')
@@ -139,10 +166,17 @@ export function specSource(f) {
   ])
   const settle = f.assert.kind === 'api' ? [] : ["await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})", 'await page.waitForTimeout(250)'] // settle as the recorder did, so the page is drawn before the check (and before a recording ends)
   const ctx = { origin: typeof f.origin === 'string' && ORIGIN_RE.test(f.origin) ? f.origin : null, live: false } // f.origin: where the facts were recorded
-  const check = delta
+  const words = delta ? null : markWords(f) // when recording, the tested element is outlined and a tag says what is checked, then what was found
+  const body = delta
     ? ['const readScroll = () => page.evaluate(() => Math.round(window.scrollY))', 'const before = await readScroll()', stepCode(f.history.at(-1)), ...pause(f.history.at(-1)), ...settle,
        'const after = await readScroll()', `expect(after - before).toBe(${Number(f.assert.value)})`]
     : [...settle, ...assertionCode(f.assert, ctx)]
+  const check = words
+    ? [...body.slice(0, settle.length + 2), // after the settle, the locator and the attached check come first, so the element can be outlined before its value is read
+       `if (process.env.BEHIQUE_VIDEO === '1') { marked = await el.boundingBox().catch(() => null); if (marked) { await page.evaluate(${PAGE_MARK}, { box: marked, head: ${q(words.who)}, note: ${q(words.what)}, state: '', pointer: false }); await page.waitForTimeout(700) } }`,
+       ...body.slice(settle.length + 2),
+       `if (marked) await page.evaluate(${PAGE_MARK}, { box: marked, head: ${q(words.goodHead)}, note: ${q(words.pass)}, state: 'ok', pointer: false }).catch(() => {})`]
+    : body
   return `// Generated by Behique. ${f.id}: ${f.title.replace(/\n/g, ' ')}
 // Expected: ${String(f.expected).replace(/\n/g, ' ')}
 // Actual:   ${String(f.actual).replace(/\n/g, ' ')}${f.notice?.cls ? `\n// Class:    ${f.notice.cls === 'visible' ? 'a person would notice' : f.notice.cls === 'churn' ? 'markup churn' : 'third-party content'} (${String(f.notice.why ?? '').replace(/\n/g, ' ')})` : ''}
@@ -158,8 +192,10 @@ ${indent([
     `await page.goto(${q(f.start ?? '/')})`,
     ...(ctx.live ? [`// The expected value embeds the address the app was served from when it was recorded (${ctx.origin}); compare against this build's address instead.`, 'const live = new URL(page.url()).origin'] : []),
     ...steps,
+    ...(words ? ['let marked = null // the tested element\'s box, when recording'] : []),
     'try {',
     ...check.map(l => '  ' + l),
+    ...(words ? ['} catch (e) {', `  if (marked) await page.evaluate(${PAGE_MARK}, { box: marked, head: ${q(words.badHead)}, note: ${q(words.fail)}, state: 'bad', pointer: false }).catch(() => {})`, '  throw e'] : []),
     '} finally {',
     "  if (process.env.BEHIQUE_VIDEO === '1') await page.waitForTimeout(1500) // when recording, hold the state the test judged so the recording shows it",
     '}',

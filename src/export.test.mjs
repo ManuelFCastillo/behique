@@ -1,7 +1,7 @@
 // node --test src/export.test.mjs
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { parseRun, runnerArgs, specSource, writeExport } from './export.mjs'
+import { markWords, parseRun, runnerArgs, specSource, writeExport } from './export.mjs'
 import { mkdtempSync, readFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -81,4 +81,18 @@ test('runs can be recorded: a folder of their own per run, the video flag for th
   assert.deepEqual(r.videos, { R1: '/tmp/x/test-results/R1-a-b/video.webm' })
   const dir = mkdtempSync(join(tmpdir(), 'exp-')); writeExport(dir, [])
   assert.ok(readFileSync(join(dir, 'playwright.config.js'), 'utf8').includes("video: process.env.BEHIQUE_VIDEO === '1' ? 'on' : 'off'"), 'recording is off unless Behique asks for it')
+})
+
+test('a recorded element check outlines the element and tags it with what is checked, then what was found', () => {
+  const f = finding('x', { id: 'R2', expected: 'cursor-pointer inline-flex items-center rounded', actual: 'flex items-center', goodRef: '1.0', candRef: '2.0', assert: { kind: 'class_list', selector: 'xpath=/html/body/div[1]/section[3]/div[3]/div[1]', op: 'equals', value: 'cursor-pointer inline-flex items-center rounded' } })
+  assert.deepEqual(markWords(f), { who: 'This block', what: 'checking its style classes', goodHead: 'As on 1.0', badHead: 'Changed on 2.0', pass: 'its style classes are the same', fail: 'flex instead of cursor-pointer inline-flex rounded' })
+  const sc = specSource(f)
+  const at = t => sc.indexOf(t)
+  assert.ok(at('let marked = null') > 0 && at("head: \"This block\"") > 0 && at("head: \"As on 1.0\"") > 0 && at("head: \"Changed on 2.0\"") > 0, 'the three tags are in the file')
+  assert.ok(at('await expect(el).toBeAttached()') < at('head: "This block"') && at('head: "This block"') < at('expect(String(classes))') && at('expect(String(classes))') < at('head: "As on 1.0"') && at('head: "As on 1.0"') < at('} catch (e) {') && at('} catch (e) {') < at('head: "Changed on 2.0"') && at('head: "Changed on 2.0"') < at('throw e'), 'outline, check, pass tag; on a throw the fail tag, then rethrow')
+  assert.ok(sc.includes("process.env.BEHIQUE_VIDEO === '1'") && sc.includes('pointer: false'), 'only recorded runs draw, and without the mouse glyph')
+  new Function(sc.replace(/^import .*$/mg, '').replace(/\btest\(/, '(function(a,b){})('))
+  assert.deepEqual(markWords(finding('x', { assert: { kind: 'attr', selector: 'xpath=/html/body/a[2]', name: 'inert', op: 'absent' } })), { who: 'This link', what: 'checking it has no inert attribute', goodHead: 'As expected', badHead: 'Changed', pass: 'no inert attribute', fail: 'inert is set' })
+  assert.equal(markWords(finding('x', { assert: { kind: 'scrolls', selector: 'xpath=/html/body/main[1]' } })), null, 'the scroll test has its own marker')
+  assert.ok(!specSource(finding('x', { assert: { kind: 'api', steps: [{ path: '/api/x', method: 'GET' }], status: 200 } })).includes('marked'), 'an api check has no element to outline')
 })
