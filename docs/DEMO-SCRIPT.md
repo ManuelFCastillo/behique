@@ -135,3 +135,7 @@ In the standard and short cuts, trim each kept beat to its first sentences; keep
 - Run `node demo/prepare.mjs --generate --keep 20261029T051556Z_1.29.1-vs-1.30.0` again so the next take starts clean. Decisions and AI guesses from this take go to the archive with their reports.
 - Keep the archive folder if you want the take's reports as a record.
 - If you spent AI guesses during rehearsal, each was about three-quarters of a cent at the estimated price.
+
+## 8. The scripted tour (no voice, text captions)
+
+`node demo/tour.mjs <caseId> [out/demo/tour.mp4]` records a 94 s walk through a finished report with the demo server on 8790: title card, the verdict, the bisect timeline, the lit tokens in Measured, the pixel diff (moved in blue, new in red), the before-and-after handle dragged, the R3 record under a spotlight, both recordings played large with the wheel marker and the written verdict, Copy, and Verify chain. Captions are drawn into the page for the recording only; nothing in the case changes. Needs ffmpeg for the mp4. The last take: Hoppscotch case `20261103T011307Z_2025.10.1-vs-2025.11.2`.
