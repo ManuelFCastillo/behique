@@ -137,7 +137,8 @@ export function markWords(f) {
   const tag = String(a.selector ?? '').match(/\/([a-z0-9]+)(?:\[\d+\])?$/i)?.[1]?.toLowerCase()
   const who = 'This ' + (MARK_TAGS[tag] ?? tag ?? 'element')
   const good = f.goodRef ? `As on ${f.goodRef}` : 'As expected', bad = f.candRef ? `Changed on ${f.candRef}` : 'Changed'
-  const exp = String(f.expected ?? a.value ?? ''), act = String(f.actual ?? '')
+  const unq = v => { const t = String(v ?? ''); return /^".*"$/s.test(t) ? JSON.parse(t) : t } // a finding's values are JSON-quoted strings
+  const exp = unq(f.expected ?? a.value), act = unq(f.actual)
   const kinds = {
     class_list: () => { const e = new Set(exp.split(/\s+/).filter(Boolean)), c = new Set(act.split(/\s+/).filter(Boolean)); const lost = [...e].filter(x => !c.has(x)), got = [...c].filter(x => !e.has(x)); return { what: 'checking its style classes', pass: 'its style classes are the same', fail: `${fewOf(got)} instead of ${fewOf(lost)}` } },
     text: () => ({ what: 'checking its text', pass: `it reads "${cutTo(exp)}"`, fail: `it reads "${cutTo(act)}"` }),

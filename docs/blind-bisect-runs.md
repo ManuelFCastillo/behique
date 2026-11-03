@@ -117,6 +117,10 @@ Same crawl and builds, same five findings and the same bisect to d67a85b, 197 s.
 
 Same crawl, builds, five findings and bisect, 199 s. R3's two recordings (5.4 s each) now carry the marker: a dashed spotlight on the Settings pane, the mouse glyph where the wheel turns, "Mouse wheel / 240 px down" in amber, then "It scrolled / the area under the wheel moved" in green on 2025.10.1 and "It did not move / nothing under the wheel moved" in red on 2025.11.2, and the last frame shows the pane scrolled on one and stuck at the top on the other. Every player in the dashboard opens on that last frame. R1's record shows R3's recordings under its own.
 
+### Run 2h: every element outlined in its recording, over the tailnet (2026-11-03, case `20261103T011307Z_2025.10.1-vs-2025.11.2`)
+
+Same five findings and bisect, with hardac2 reached over Tailscale from a library instead of the home network: 341 s (the builds and recordings cross the internet). R2's recordings outline the "Experimental scripting sandbox" toggle label in the Settings pane, green "As on 2025.10.1 / its style classes are the same" on one and red "Changed on 2025.11.2 / flex items-center instead of -mx-1 -my-0.5 cursor-pointer +14" on the other; R1's outline is the whole split pane, which fills the viewport, with the tag parked at the top left. R3 keeps the wheel marker. Recordings now run 4.8 s to 6.4 s.
+
 ## Next
 
 Docusaurus #11213 is cloned (`~/dev/behique-apps/docusaurus`, 154 commits in range) for an overnight run.

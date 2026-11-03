@@ -93,6 +93,8 @@ test('a recorded element check outlines the element and tags it with what is che
   assert.ok(sc.includes("process.env.BEHIQUE_VIDEO === '1'") && sc.includes('pointer: false'), 'only recorded runs draw, and without the mouse glyph')
   new Function(sc.replace(/^import .*$/mg, '').replace(/\btest\(/, '(function(a,b){})('))
   assert.deepEqual(markWords(finding('x', { assert: { kind: 'attr', selector: 'xpath=/html/body/a[2]', name: 'inert', op: 'absent' } })), { who: 'This link', what: 'checking it has no inert attribute', goodHead: 'As expected', badHead: 'Changed', pass: 'no inert attribute', fail: 'inert is set' })
+  assert.deepEqual(markWords(finding('x', { expected: '"-mx-1 cursor-pointer inline-flex"', actual: '"flex items-center"', assert: { kind: 'class_list', selector: 'xpath=/html/body/div[1]', op: 'equals', value: '-mx-1 cursor-pointer inline-flex' } })).fail, 'flex items-center instead of -mx-1 cursor-pointer inline-flex', 'the quotes a finding carries around its values are not classes')
+  assert.deepEqual(markWords(finding('x', { expected: '"Share"', actual: '"Send"', assert: { kind: 'own_text', selector: 'xpath=/html/body/a[1]', op: 'equals', value: 'Share' } })).pass, 'it reads "Share"')
   assert.equal(markWords(finding('x', { assert: { kind: 'scrolls', selector: 'xpath=/html/body/main[1]' } })), null, 'the scroll test has its own marker')
   assert.ok(!specSource(finding('x', { assert: { kind: 'api', steps: [{ path: '/api/x', method: 'GET' }], status: 200 } })).includes('marked'), 'an api check has no element to outline')
 })
