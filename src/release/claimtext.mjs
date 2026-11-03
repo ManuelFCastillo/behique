@@ -120,7 +120,7 @@ export function outcomeText(t, { goodRef = 'the good version', candRef = 'the ca
   if (e.what === 'classes') {
     const { added, removed } = classChange(unq(t.good), unq(t.candidate))
     const [was, now] = known(removed).length || known(added).length ? [known(removed), known(added)] : [removed, added] // the classes this check can read come first; else the whole change, cut short
-    return { pass: `${P}${the} still has the class${was.length === 1 ? '' : 'es'} ${few(was)}.`, fail: `${F}${the} has ${few(now)} instead of ${few(was)}.` }
+    return { pass: `${P}${the} still has the class${was.length === 1 ? '' : 'es'} "${few(was)}".`, fail: `${F}${the} has "${few(now)}" instead of "${few(was)}".` }
   }
   if (e.what === 'text') return { pass: `${P}${the} reads ${q(t.good)}.`, fail: `${F}${the} reads ${q(t.candidate)}.` }
   return { pass: `${P}the ${e.what} of ${the} is ${q(t.good)}.`, fail: `${F}the ${e.what} of ${the} is ${q(t.candidate)}.` }

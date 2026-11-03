@@ -485,6 +485,12 @@ img,svg{max-width:100%}
 /* every picture carries a download control in its lower right corner */
 .pic{position:relative;display:block}.dl{position:absolute;right:6px;bottom:6px;z-index:5;display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(0,0,0,.72);color:#fff;font-size:11px;font-weight:600;text-decoration:none;line-height:1;pointer-events:auto}.dl:hover{background:rgba(0,0,0,.9)}.dl-group{position:absolute;right:6px;bottom:6px;z-index:5;display:flex;gap:4px}.dl-group .dl{position:static}
 .r-legend{font-size:12px;color:var(--muted);margin:4px 0 8px}
+/* code in prose: quoted values and element paths; inside a pair of values only the tokens that differ are lit, amber where lost, red where new */
+code.val{font:500 .92em/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.09);border-radius:5px;padding:1px 5px;color:var(--text);word-break:break-word}
+code.path{font:500 .9em ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--muted)}
+code.val mark{background:transparent;color:inherit;font-weight:700;border-radius:3px;padding:0 2px}
+code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val mark.new{background:rgba(255,77,87,.22);color:var(--ruby)}
+.claim-plain code.val{font-size:.82em}.measured code.val{background:transparent;border:0;padding:0}
 .claim-test{margin:8px 0 0;padding:7px 10px;border-left:2px solid var(--line);font-size:12.5px;color:var(--text)}.claim-test b{display:block;font:600 10.5px/1.4 var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
 .claim-videos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:700px){.claim-videos{grid-template-columns:1fr}}
 .vid{margin:0}.vid video{display:block;width:100%;aspect-ratio:1280/900;border:1px solid var(--line);border-radius:8px;background:#000}.vid figcaption{font-size:12.5px;color:var(--text);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
@@ -780,6 +786,38 @@ function renderHero(){
 }
 // A version as a capsule: the ref in mono, its role (good, candidate) in small caps. The candidate turns red only when the check went against it.
 /* a sentence that names the two versions, with each name as a capsule; a "(good)" or "(candidate)" right after a name is folded into the capsule */
+// A value drawn as code. With `other`, the value it is compared with: the tokens not in `other` are lit, `side` "lost" (amber) or "new" (red).
+// A single-token value that differs is lit whole. The hash covers the recorded text; this only changes how it is drawn.
+const TOKENS=s=>String(s).split(/\s+/).filter(Boolean);
+function codeVal(value, other, side){
+  const el=document.createElement("code"); el.className="val"; const v=String(value??"");
+  if(other==null){ el.textContent=v; return el; }
+  const a=TOKENS(v), b=new Set(TOKENS(other));
+  const lit=tok=>{ const m=document.createElement("mark"); m.className=side; m.textContent=tok; return m; };
+  if(a.length<=1){ if(v!==String(other)) el.appendChild(lit(v)); else el.textContent=v; return el; }
+  a.forEach((tok,i)=>{ if(i) el.append(" "); if(b.has(tok)) el.append(tok); else el.appendChild(lit(tok)); });
+  return el;
+}
+// Prose with its values as code: "quoted values" (a sentence with exactly two is a pair, expected then found; `other` pairs a sentence's one
+// value with another sentence's), element paths like div[1]/div[3], and "(X to Y)" class pairs. Version names still become capsules.
+function withCode(text, vm, opt){
+  const t=String(text??""), frag=document.createDocumentFragment(), o=opt||{};
+  const quoted=[...t.matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m=>m[1]);
+  const otherQ=o.other!=null?[...String(o.other).matchAll(/"((?:[^"\\]|\\.)*)"/g)].map(m=>m[1]):null;
+  const pair=quoted.length===2?[quoted[1],quoted[0]]:(quoted.length===1&&otherQ&&otherQ.length)?[otherQ[0]]:null; // what each quoted value is compared with
+  const sideOf=qi=>quoted.length===2?((qi===0)!==Boolean(o.reverse)?"lost":"new"):(o.side||"lost"); // two values read expected then found, or found then expected with `reverse`
+  const CLS=/^(?:nothing|[-!\w:./[\]#%]+(?: [-!\w:./[\]#%]+)*)$/;
+  const re=/"((?:[^"\\]|\\.)*)"|\b(?:[a-z][a-z0-9]*\[\d+\](?:\/[a-z][a-z0-9]*\[\d+\])*|window@scrollY)(?![\w[])|\(([^()\s][^()]*?) to ([^()]*?)\)/g;
+  let last=0, m, qi=0;
+  while((m=re.exec(t))){
+    frag.appendChild(withChips(t.slice(last,m.index),vm));
+    if(m[1]!==undefined){ frag.appendChild(codeVal(m[1], pair?pair[qi]:null, sideOf(qi))); qi++; }
+    else if(m[2]!==undefined){ if(CLS.test(m[2])&&CLS.test(m[3])){ frag.append("("); frag.appendChild(codeVal(m[2],m[3],"lost")); frag.append(" to "); frag.appendChild(codeVal(m[3],m[2],"new")); frag.append(")"); } else frag.appendChild(withChips(m[0],vm)); }
+    else { const p=document.createElement("code"); p.className="path"; p.textContent=m[0]; frag.appendChild(p); }
+    last=m.index+m[0].length;
+  }
+  frag.appendChild(withChips(t.slice(last),vm)); return frag;
+}
 function withChips(text, vm){
   const frag=document.createDocumentFragment(), t=String(text??"");
   const refs=[vm&&vm.goodRef, vm&&vm.candRef].filter(Boolean);
@@ -893,18 +931,18 @@ function renderClaims(){
     const p=document.createElement("p");
     const plain = c.plain && !c.tampered ? c.plain : null;   // the quick read; the hash covers c.text, which the details show word for word
     p.textContent = plain ? plain.lead : c.text;
-    let items=null; if(plain && plain.items.length){ items=document.createElement("ul"); items.className="claim-items"; plain.items.forEach(s=>{ const li=document.createElement("li"); li.textContent=s; items.appendChild(li); }); }
+    let items=null; if(plain && plain.items.length){ items=document.createElement("ul"); items.className="claim-items"; plain.items.forEach(s=>{ const li=document.createElement("li"); li.appendChild(withCode(s,LIVE.vm)); items.appendChild(li); }); }
     const foot=document.createElement("div"); foot.className="claim-foot"; foot.textContent=c.foot+" ";
     c.chips.forEach(ch=>{
       const s=document.createElement("span"); s.className="chip "+(c.cls==="gold"?"gold":"green"); s.textContent=ch; foot.appendChild(s); foot.appendChild(document.createTextNode(" "));
     });
     card.appendChild(top); card.appendChild(p);
-    if(c.test&&c.test.plain){ const t=document.createElement("div"); t.className="claim-plain"; const b=document.createElement("b"); b.textContent="Regression "+c.test.id+" in plain words"; t.appendChild(b); t.appendChild(LIVE.vm?withChips(c.test.plain,LIVE.vm):document.createTextNode(c.test.plain)); card.appendChild(t); } // R = regression test; this is what it means for a person
-    if(c.test&&c.test.text){ const t=document.createElement("div"); t.className="claim-test"; const b=document.createElement("b"); b.textContent="What the test "+c.test.id+" does"; t.appendChild(b); t.appendChild(LIVE.vm?withChips(c.test.text,LIVE.vm):document.createTextNode(c.test.text)); card.appendChild(t); }
+    if(c.test&&c.test.plain){ const t=document.createElement("div"); t.className="claim-plain"; const b=document.createElement("b"); b.textContent="Regression "+c.test.id+" in plain words"; t.appendChild(b); t.appendChild(withCode(c.test.plain,LIVE.vm)); card.appendChild(t); } // R = regression test; this is what it means for a person
+    if(c.test&&c.test.text){ const t=document.createElement("div"); t.className="claim-test"; const b=document.createElement("b"); b.textContent="What the test "+c.test.id+" does"; t.appendChild(b); t.appendChild(withCode(c.test.text,LIVE.vm)); card.appendChild(t); }
     if(items) card.appendChild(items);
     const videoGrid=(videos,pass,fail)=>{ const vw=document.createElement("div"); vw.className="claim-videos"; vw.addEventListener("click",ev=>ev.stopPropagation()); vw.addEventListener("keydown",ev=>ev.stopPropagation());
       videos.forEach(v=>{ const fg=document.createElement("figure"); fg.className="vid"; const vd=document.createElement("video"); vd.controls=true; vd.muted=true; vd.playsInline=true; vd.preload="metadata"; vd.src=v.url; fg.appendChild(vd); openOnLastFrame(vd);
-        const fc=document.createElement("figcaption"); const good=v.which==="good"; const ref=LIVE.vm ? (good?LIVE.vm.goodRef:LIVE.vm.candRef) : null; if(ref) fc.appendChild(verChip(ref, good?"good":"candidate", !good&&candIsBad())); const said=good?pass:fail; fc.append(said?said.replace(/^(R\d+) (passes|fails) on \S+: /,"$2: "):(good?"the test passes":"the test fails")); fg.appendChild(fc); vw.appendChild(fg); });
+        const fc=document.createElement("figcaption"); const good=v.which==="good"; const ref=LIVE.vm ? (good?LIVE.vm.goodRef:LIVE.vm.candRef) : null; if(ref) fc.appendChild(verChip(ref, good?"good":"candidate", !good&&candIsBad())); const strip=x=>x?x.replace(/^(R\d+) (passes|fails) on \S+: /,"$2: "):null; const said=strip(good?pass:fail), other=strip(good?fail:pass); if(said) fc.appendChild(withCode(said,LIVE.vm,{other:other,side:good?"lost":"new",reverse:!good})); else fc.append(good?"the test passes":"the test fails"); fg.appendChild(fc); vw.appendChild(fg); });
       return vw; }; // the capsule carries the version, the words say what the recording shows
     if(c.videos&&c.videos.length) card.appendChild(videoGrid(c.videos, c.test&&c.test.pass, c.test&&c.test.fail)); // one recorded run each way: the test passing on the good version, failing on the candidate
     if(c.test&&c.test.borrowed){ const bw=c.test.borrowed; const t=document.createElement("div"); t.className="claim-test claim-borrowed"; const b=document.createElement("b"); b.textContent="What it looks like: the recordings of "+bw.from; t.appendChild(b); t.appendChild(document.createTextNode("This change has nothing to show at its own step. "+bw.from+" turns the mouse wheel over the pane "+bw.when+", where it overflows: it scrolls on the good version and does not move on the candidate.")); t.appendChild(videoGrid(bw.videos, bw.pass, bw.fail)); card.appendChild(t); }
@@ -1242,7 +1280,7 @@ function renderBuilds(){
     const h=document.createElement("div"); h.className="m-h"; h.textContent="Measured on "+sides[i].ref; box.appendChild(h);
     if(!vm.facts.length){ const p=document.createElement("div"); p.className="m-w"; p.textContent=vm.verdict==="running"?"Waiting for the comparison...":"No differing facts were recorded."; box.appendChild(p); }
     else { const lg=document.createElement("div"); lg.className="r-legend"; lg.textContent="R1, R2, ... are the regression tests, one per fact that differs between the versions, ranked with the most noticeable first. Each test's record in the evidence chain says in plain words what the regression is."; box.appendChild(lg); }
-    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; const note=!f.removed?"":f.scrollLoss?" · the area can no longer scroll on the candidate":f.stillThere?" · dropped from an element that is still there":" · the element is gone on the candidate ("+f.vanished+" recorded fact"+(f.vanished===1?"":"s")+" with it)"; w.textContent=(f.id?f.id+": ":"")+f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"+note; const c=document.createElement("code"); c.textContent=String(f[sides[i].key]); r.appendChild(w); r.appendChild(c);
+    vm.facts.forEach(f=>{ const r=document.createElement("div"); r.className="m-row"; const w=document.createElement("div"); w.className="m-w"; const note=!f.removed?"":f.scrollLoss?" · the area can no longer scroll on the candidate":f.stillThere?" · dropped from an element that is still there":" · the element is gone on the candidate ("+f.vanished+" recorded fact"+(f.vanished===1?"":"s")+" with it)"; w.textContent=(f.id?f.id+": ":"")+f.what+" of "+f.where+" (after step "+String(f.step).split(":")[0]+")"+note; const c=codeVal(String(f[sides[i].key]), String(f[sides[1-i].key]), i===0?"lost":"new"); r.appendChild(w); r.appendChild(c);
       if(f.label){ const k=document.createElement("div"); k.className="m-w notice notice-"+f.cls; k.textContent=f.label+(f.why?" ("+f.why+")":"")+(f.verdict&&f.verdict!=="confirmed"?" . "+f.verdict.replace(/_/g," "):""); r.appendChild(k); } // the class: would a person notice this change, and why
       box.appendChild(r); });
     if(i===0 && vm.masked && vm.masked.text){ const p=document.createElement("div"); p.className="m-w masked-note"; p.textContent="Not seen by this check: "+vm.masked.text; box.appendChild(p); } // what masking hides, said once under the good build
