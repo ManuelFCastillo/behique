@@ -108,14 +108,14 @@ const PAGE_MARK = `(({ x, y, box, head, note, state, pointer = true }) => {
   let root = document.getElementById('__bq_wheel')
   if (!root) {
     root = document.createElement('div'); root.id = '__bq_wheel'
-    root.innerHTML = '<style>#__bq_wheel{position:fixed;inset:0;pointer-events:none;z-index:2147483647;font:600 15px/1.25 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;--c:#f0b429}#__bq_wheel.ok{--c:#3ddc97}#__bq_wheel.bad{--c:#ff5c5c}'
-      + '#__bq_wheel .area{position:absolute;border:2px dashed var(--c);border-radius:10px;box-shadow:0 0 0 9999px rgba(8,10,16,.22);transition:border-color .3s}'
-      + '#__bq_wheel .ring{position:absolute;width:48px;height:48px;margin:-24px 0 0 -24px;border:3px solid var(--c);border-radius:50%;animation:__bqPulse 1.1s ease-out infinite}'
+    root.innerHTML = '<style>#__bq_wheel{position:fixed;inset:0;pointer-events:none;z-index:2147483647;font:600 20px/1.25 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;--c:#f0b429}#__bq_wheel.ok{--c:#3ddc97}#__bq_wheel.bad{--c:#ff5c5c}'
+      + '#__bq_wheel .area{position:absolute;border:4px dashed var(--c);border-radius:14px;box-shadow:0 0 0 9999px rgba(8,10,16,.22);transition:border-color .3s}'
+      + '#__bq_wheel .ring{position:absolute;width:84px;height:84px;margin:-42px 0 0 -42px;border:5px solid var(--c);border-radius:50%;animation:__bqPulse 1.1s ease-out infinite}'
       + '@keyframes __bqPulse{0%{transform:scale(.5);opacity:1}100%{transform:scale(1.7);opacity:0}}'
-      + '#__bq_wheel .mouse{position:absolute;width:28px;height:42px;margin:-21px 0 0 -14px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.5))}'
-      + '#__bq_wheel .tag{position:absolute;margin:28px 0 0 22px;padding:9px 13px;border-radius:12px;background:rgba(14,17,24,.94);color:#fff;white-space:nowrap;box-shadow:0 8px 24px rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.12)}'
-      + '#__bq_wheel .tag b{display:block;color:var(--c);font-size:16px}#__bq_wheel .tag small{display:block;font-weight:500;font-size:12.5px;opacity:.85;margin-top:2px}</style>'
-      + '<div class="area"></div><div class="ring"></div><svg class="mouse" viewBox="0 0 28 42"><rect x="2" y="2" width="24" height="38" rx="12" fill="rgba(14,17,24,.92)" stroke="#fff" stroke-width="2"/><rect class="w" x="12" y="8" width="4" height="10" rx="2" fill="#f0b429"/><path d="M14 22v12m-4-4l4 4 4-4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="tag"><b></b><small></small></div>'
+      + '#__bq_wheel .mouse{position:absolute;width:48px;height:72px;margin:-36px 0 0 -24px;filter:drop-shadow(0 3px 10px rgba(0,0,0,.5))}'
+      + '#__bq_wheel .tag{position:absolute;margin:48px 0 0 36px;padding:14px 20px;border-radius:16px;background:rgba(14,17,24,.94);color:#fff;white-space:nowrap;box-shadow:0 12px 36px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.14)}'
+      + '#__bq_wheel .tag b{display:block;color:var(--c);font-size:30px;line-height:1.15}#__bq_wheel .tag small{display:block;font-weight:500;font-size:20px;opacity:.9;margin-top:4px}</style>'
+      + '<div class="area"></div><div class="ring"></div><svg class="mouse" viewBox="0 0 28 42"><rect x="2" y="2" width="24" height="38" rx="12" fill="rgba(14,17,24,.92)" stroke="#fff" stroke-width="2.5"/><rect class="w" x="12" y="8" width="4" height="10" rx="2" fill="#f0b429"/><path d="M14 22v12m-4-4l4 4 4-4" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg><div class="tag"><b></b><small></small></div>'
     document.documentElement.appendChild(root)
   }
   root.className = state
@@ -123,7 +123,7 @@ const PAGE_MARK = `(({ x, y, box, head, note, state, pointer = true }) => {
   for (const c of ['.ring', '.mouse']) { const e = root.querySelector(c); e.style.display = pointer ? '' : 'none'; e.style.left = x + 'px'; e.style.top = y + 'px' }
   const t = root.querySelector('.tag')
   if (pointer) { t.style.margin = ''; t.style.left = x + 'px'; t.style.top = y + 'px' }
-  else { const below = box.y + box.height + 10, up = box.y - 64; t.style.margin = '0'; t.style.left = Math.max(8, Math.min(box.x, innerWidth - 360)) + 'px'; t.style.top = (below + 60 < innerHeight ? below : Math.max(8, up)) + 'px' }
+  else { const below = box.y + box.height + 14, up = box.y - 112; t.style.margin = '0'; t.style.left = Math.max(8, Math.min(box.x, innerWidth - 660)) + 'px'; t.style.top = (below + 104 < innerHeight ? below : Math.max(8, up)) + 'px' }
   root.querySelector('.w').setAttribute('fill', state === 'ok' ? '#3ddc97' : state === 'bad' ? '#ff5c5c' : '#f0b429')
   root.querySelector('.tag b').textContent = head; root.querySelector('.tag small').textContent = note
 })`
