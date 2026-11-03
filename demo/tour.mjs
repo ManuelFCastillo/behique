@@ -1,15 +1,22 @@
-// A scripted tour of the dashboard, recorded as a video with text captions and no voice: it drives the real page (scrolls, drags the
-// slider, plays the recordings, verifies the chain, copies a record) over a finished report. No model calls, no runs started.
-//   node demo/tour.mjs <caseId> [out/demo/tour.mp4]      needs the demo server on 8790 and ffmpeg
+// A scripted tour of the dashboard, recorded as a 60 second video cut to a music track, with text captions and no voice. It drives
+// the real page over a finished report: the recordings first, then the New run dialog and a time-lapse of a real run, the bisect
+// culprit, the lit tokens, the pixel diff, the before-and-after handle, the record and the chain. Captions, spotlights and the
+// number card live only in the recording; the case is never changed. No model calls, no run started by this script.
+//   node demo/tour.mjs <caseId> [out/demo/tour.mp4]
+//   env: BEHIQUE_MUSIC=<audio file> lays the track under it (the video is cut to the track's length)
+//        BEHIQUE_RUN_TIMELAPSE=<webm> the sped-up recording of a run from demo/tour-run.mjs + demo/timelapse.sh (skipped if absent)
 import { chromium } from 'playwright'
-import { mkdirSync, renameSync, readdirSync, rmSync } from 'node:fs'
-import { join, dirname } from 'node:path'
+import { existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { dirname, join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 
 const caseId = process.argv[2]
 if (!caseId) { console.error('usage: node demo/tour.mjs <caseId> [out.mp4]'); process.exit(2) }
 const out = process.argv[3] ?? 'out/demo/tour.mp4'
 const base = process.env.BEHIQUE_URL ?? 'http://127.0.0.1:8790'
+const music = process.env.BEHIQUE_MUSIC ?? null
+const timelapse = process.env.BEHIQUE_RUN_TIMELAPSE && existsSync(process.env.BEHIQUE_RUN_TIMELAPSE) ? process.env.BEHIQUE_RUN_TIMELAPSE : null
 const W = 1280, H = 800
 mkdirSync(dirname(out), { recursive: true })
 const vidDir = join(dirname(out), 'raw'); rmSync(vidDir, { recursive: true, force: true })
@@ -17,137 +24,232 @@ const vidDir = join(dirname(out), 'raw'); rmSync(vidDir, { recursive: true, forc
 const browser = await chromium.launch()
 const ctx = await browser.newContext({ viewport: { width: W, height: H }, recordVideo: { dir: vidDir, size: { width: W, height: H } }, reducedMotion: 'no-preference' })
 const page = await ctx.newPage()
+const T0 = Date.now()                                   // the recording starts with the page
+const now = () => (Date.now() - T0) / 1000
+const LEAD = Number(process.env.BEHIQUE_VIDEO_LEAD ?? 0)   // seconds the recording starts after the page is made; measured from a take's raw webm
+const until = t => page.waitForTimeout(Math.max(0, (t + LEAD) * 1000 - (Date.now() - T0)))   // hold until second t of the recording
 const sleep = ms => page.waitForTimeout(ms)
+if (timelapse) await page.route('**/__tour/run.webm', r => r.fulfill({ status: 200, contentType: 'video/webm', body: readFileSync(timelapse) }))
 
-// The caption bar: one line of large text at the bottom, faded in and out. Lives only in this recording.
-const caption = (text, { ms = 3800, head = null } = {}) => page.evaluate(async ([text, head, ms]) => {
-  let bar = document.getElementById('__tour')
-  if (!bar) {
-    bar = document.createElement('div'); bar.id = '__tour'
-    bar.innerHTML = '<style>#__tour{position:fixed;left:50%;bottom:28px;transform:translateX(-50%) translateY(12px);max-width:1040px;padding:16px 26px;border-radius:16px;background:rgba(10,12,18,.93);color:#fff;font:500 24px/1.35 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;text-align:center;box-shadow:0 14px 44px rgba(0,0,0,.55);border:1px solid rgba(255,255,255,.14);opacity:0;transition:opacity .35s,transform .35s;z-index:2147483647;pointer-events:none}#__tour.on{opacity:1;transform:translateX(-50%) translateY(0)}#__tour b{display:block;color:#ffa63d;font-size:15px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px;font-family:ui-monospace,Menlo,monospace}</style><b></b><span></span>'
-    document.body.appendChild(bar)
-  }
-  bar.classList.remove('on'); await new Promise(r => setTimeout(r, 200))
+// ---- things drawn into the page for the recording only ----
+const STYLE = `
+#__tour{position:fixed;left:50%;bottom:30px;transform:translateX(-50%) translateY(14px);max-width:1080px;padding:18px 30px;border-radius:18px;background:rgba(10,12,18,.94);color:#fff;font:600 27px/1.3 -apple-system,"Segoe UI",Helvetica,Arial,sans-serif;text-align:center;box-shadow:0 16px 48px rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.14);opacity:0;transition:opacity .22s,transform .22s;z-index:2147483647;pointer-events:none}
+#__tour.on{opacity:1;transform:translateX(-50%) translateY(0)}
+#__tour b{display:block;color:#ffa63d;font-size:15px;letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px;font-family:ui-monospace,Menlo,monospace}
+#__tour em{font-style:normal;color:#ffd08a}
+#__flash{position:fixed;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:2147483646;transition:opacity .28s}
+#__card{position:fixed;inset:0;background:#0b0e14;color:#fff;font:700 56px/1.15 -apple-system,Helvetica,Arial,sans-serif;display:grid;place-items:center;z-index:2147483640;transition:opacity .5s}
+#__card .k{font-size:16px;letter-spacing:.32em;color:#ffa63d;font-family:ui-monospace,Menlo,monospace;margin-bottom:20px;font-weight:600}
+#__card .s{font-size:23px;font-weight:500;color:#9aa3b2;margin-top:22px}
+#__lb{position:fixed;inset:0;background:rgba(7,9,14,.97);z-index:2147483500;display:grid;grid-template-columns:1fr 1fr;gap:32px;padding:40px 44px 130px;align-content:start;opacity:0;transition:opacity .35s}
+#__lb.on{opacity:1}#__lb figure{margin:0}#__lb video{width:100%;aspect-ratio:16/10;border-radius:12px;border:2px solid #2a3140;background:#000}
+#__lb .chip{display:inline-block;font:700 17px ui-monospace,Menlo,monospace;letter-spacing:.06em;padding:7px 14px;border-radius:999px;margin-bottom:14px}
+#__lb .good .chip{background:#13301d;color:#6fe79e;border:1px solid #2d7a4a}#__lb .bad .chip{background:#36151a;color:#ff8d96;border:1px solid #8a2d36}
+#__lb figcaption{color:#d6dde9;font:500 21px/1.35 -apple-system,Helvetica,Arial,sans-serif;margin-top:16px}
+#__tl{position:fixed;inset:0;background:#07090e;z-index:2147483500;display:grid;place-items:center;opacity:0;transition:opacity .3s}
+#__tl.on{opacity:1}#__tl video{width:1280px;height:800px;object-fit:cover}
+#__tl .spd{position:fixed;top:22px;right:26px;font:700 15px ui-monospace,Menlo,monospace;letter-spacing:.12em;color:#ffa63d;background:rgba(10,12,18,.9);padding:8px 14px;border-radius:999px;border:1px solid rgba(255,166,61,.4)}
+#__nums{position:fixed;inset:0;background:rgba(7,9,14,.96);z-index:2147483500;display:grid;place-items:center;opacity:0;transition:opacity .35s}
+#__nums.on{opacity:1}#__nums .g{display:grid;grid-template-columns:repeat(3,1fr);gap:26px 44px;text-align:center;max-width:1100px}
+#__nums .n{font:800 64px/1 -apple-system,Helvetica,Arial,sans-serif;color:#fff;letter-spacing:-.02em;opacity:0;transform:translateY(16px);transition:opacity .35s,transform .35s}
+#__nums .n.on{opacity:1;transform:none}#__nums .n small{display:block;font:500 17px/1.3 ui-monospace,Menlo,monospace;color:#9aa3b2;margin-top:12px;letter-spacing:.06em;text-transform:uppercase}
+#__nums .n.ok{color:#6fe79e}
+#__tk{position:fixed;left:40px;right:40px;bottom:150px;z-index:2147483510;display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:24px;align-items:end;pointer-events:none}
+#__tk .log{min-width:0;background:rgba(8,10,16,.9);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:16px 20px;font:500 17px/1.5 ui-monospace,Menlo,monospace;color:#d6dde9;min-height:230px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+#__tk .log div{opacity:0;transform:translateY(6px);transition:opacity .25s,transform .25s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#__tk .log div.on{opacity:1;transform:none}#__tk .log i{font-style:normal;color:#7f8a9c;margin-right:12px}#__tk .log b{color:#ffa63d;font-weight:600}#__tk .log .ok{color:#6fe79e}#__tk .log .bad{color:#ff8d96}
+#__tk .bs{background:rgba(8,10,16,.9);border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:16px 20px;box-shadow:0 14px 40px rgba(0,0,0,.5)}
+#__tk .bs h4{margin:0 0 12px;font:600 13px ui-monospace,Menlo,monospace;letter-spacing:.14em;color:#9aa3b2;text-transform:uppercase}
+#__tk .dots{display:grid;grid-template-columns:repeat(21,1fr);gap:5px}#__tk .dots i{display:block;aspect-ratio:1;border-radius:50%;background:#2a3140;transition:background .25s,transform .25s}
+#__tk .dots i.good{background:#3ddc84}#__tk .dots i.bad{background:#ff4d5e}#__tk .dots i.c{background:#ffa63d;transform:scale(1.5);box-shadow:0 0 0 3px rgba(255,166,61,.35)}
+#__tk .who{margin-top:12px;font:600 15px ui-monospace,Menlo,monospace;color:#fff;min-height:20px}
+#__spot{position:fixed;border-radius:16px;box-shadow:0 0 0 3px #ffa63d,0 0 0 200vmax rgba(6,8,12,.62);z-index:2147483600;pointer-events:none;opacity:0;transition:opacity .3s}
+`
+const install = () => page.evaluate(css => {
+  if (!document.getElementById('__tourcss')) { const s = document.createElement('style'); s.id = '__tourcss'; s.textContent = css; document.head.appendChild(s) }
+  const bar = document.createElement('div'); bar.id = '__tour'; bar.innerHTML = '<b></b><span></span>'; document.body.appendChild(bar)
+  const f = document.createElement('div'); f.id = '__flash'; document.body.appendChild(f)
+}, STYLE)
+// a caption: `text` may hold <em> for the lit words; it stays until the next one or hideCaption
+const caption = (text, head = null) => page.evaluate(async ([text, head]) => {
+  const bar = document.getElementById('__tour')
+  bar.classList.remove('on'); await new Promise(r => setTimeout(r, 160))
   bar.querySelector('b').textContent = head ?? ''; bar.querySelector('b').style.display = head ? '' : 'none'
-  bar.querySelector('span').textContent = text
-  bar.classList.add('on'); await new Promise(r => setTimeout(r, ms))
-}, [text, head, ms])
+  bar.querySelector('span').innerHTML = text
+  bar.classList.add('on')
+}, [text, head])
 const hideCaption = () => page.evaluate(() => document.getElementById('__tour')?.classList.remove('on'))
-// A spotlight: the rest of the page dims, the chosen element keeps its light and gets an amber edge. Fixed, so clear it before scrolling.
-const spot = (match) => page.evaluate(([match]) => {
+const flash = (a = .16) => page.evaluate(a => { const f = document.getElementById('__flash'); f.style.transition = 'none'; f.style.opacity = String(a); requestAnimationFrame(() => { f.style.transition = 'opacity .32s'; f.style.opacity = '0' }) }, a)
+const spot = (match, pad = 6) => page.evaluate(([match, pad]) => {
   document.getElementById('__spot')?.remove()
   const el = match.startsWith('claim:') ? [...document.querySelectorAll('.claim')].find(k => k.textContent.includes(match.slice(6))) : document.querySelector(match)
   if (!el) return false
   const r = el.getBoundingClientRect(), d = document.createElement('div'); d.id = '__spot'
-  d.style.cssText = `position:fixed;left:${r.left - 6}px;top:${r.top - 6}px;width:${r.width + 12}px;height:${r.height + 12}px;border-radius:16px;box-shadow:0 0 0 3px #ffa63d,0 0 0 200vmax rgba(6,8,12,.62);z-index:2147483600;pointer-events:none;opacity:0;transition:opacity .35s`
+  d.style.cssText = `left:${r.left - pad}px;top:${r.top - pad}px;width:${r.width + 2 * pad}px;height:${r.height + 2 * pad}px`
   document.body.appendChild(d); requestAnimationFrame(() => { d.style.opacity = '1' }); return true
-}, [match])
-const unspot = () => page.evaluate(() => { const d = document.getElementById('__spot'); if (d) { d.style.opacity = '0'; setTimeout(() => d.remove(), 350) } })
-// The two recordings of a record, played large side by side, with the version and what each one shows under it
+}, [match, pad])
+const unspot = () => page.evaluate(() => { const d = document.getElementById('__spot'); if (d) { d.style.opacity = '0'; setTimeout(() => d.remove(), 300) } })
+const punch = (sel, scale = 1.7) => page.evaluate(([sel, scale]) => { const e = document.querySelector(sel); if (!e) return; e.style.transition = 'transform .18s cubic-bezier(.2,1.6,.4,1)'; e.style.transform = `scale(${scale})`; e.style.zIndex = '5'; e.style.position = e.style.position || 'relative'; setTimeout(() => { e.style.transition = 'transform .5s'; e.style.transform = '' }, 900) }, [sel, scale])
+const scrollTo = (sel, block = 'start') => page.evaluate(([sel, block]) => { document.querySelector(sel)?.scrollIntoView({ behavior: 'smooth', block }) }, [sel, block])
+const scrollToCard = (match, block = 'start') => page.evaluate(([match, block]) => { [...document.querySelectorAll('.claim')].find(k => k.textContent.includes(match))?.scrollIntoView({ behavior: 'smooth', block }) }, [match, block])
+const card = (big, small) => `<div id="__card"><div style="text-align:center"><div class="k">BEHIQUE</div>${big}<div class="s">${small}</div></div></div>`
+const overlayOff = id => page.evaluate(id => { const o = document.getElementById(id); if (o) { o.classList.remove('on'); setTimeout(() => o.remove(), 400) } }, id)
+
+// the two recordings of a record, large, side by side, playing
 const lightbox = (match) => page.evaluate(async ([match]) => {
   const c = [...document.querySelectorAll('.claim')].find(k => k.textContent.includes(match))
   const figs = c ? [...c.querySelectorAll(':scope > .claim-videos figure.vid')] : []
   if (!figs.length) return 0
-  const o = document.createElement('div'); o.id = '__lb'
-  o.innerHTML = '<style>#__lb{position:fixed;inset:0;background:rgba(7,9,14,.97);z-index:2147483500;display:grid;grid-template-columns:1fr 1fr;gap:32px;padding:44px 44px 130px;align-content:start;opacity:0;transition:opacity .4s}#__lb.on{opacity:1}#__lb figure{margin:0}#__lb video{width:100%;aspect-ratio:16/10;border-radius:12px;border:2px solid #2a3140;background:#000}#__lb .chip{display:inline-block;font:700 16px ui-monospace,Menlo,monospace;letter-spacing:.06em;padding:7px 14px;border-radius:999px;margin-bottom:14px}#__lb .good .chip{background:#13301d;color:#6fe79e;border:1px solid #2d7a4a}#__lb .bad .chip{background:#36151a;color:#ff8d96;border:1px solid #8a2d36}#__lb figcaption{color:#d6dde9;font:500 21px/1.35 -apple-system,Helvetica,Arial,sans-serif;margin-top:16px}#__lb figcaption code{font:600 18px ui-monospace,Menlo,monospace;color:#ffd08a}</style>'
-  const vids = []
+  const o = document.createElement('div'); o.id = '__lb'; const vids = []
   figs.forEach((f, i) => {
-    const src = f.querySelector('video')?.src; const cap = f.querySelector('figcaption')
-    const chip = cap?.querySelector('.chip, .ver, [class*=chip]')?.textContent?.trim() || (i === 0 ? 'GOOD' : 'CANDIDATE')
-    const words = cap ? [...cap.childNodes].filter(n => !(n.nodeType === 1 && n === cap.firstElementChild)).map(n => n.textContent).join('').trim() : ''
+    const cap = f.querySelector('figcaption'), chip = cap?.querySelector('.ver')?.textContent?.trim() || (i === 0 ? 'good' : 'candidate')
+    const words = cap ? [...cap.childNodes].filter(n => n !== cap.firstElementChild).map(n => n.textContent).join('').trim() : ''
     const fg = document.createElement('figure'); fg.className = i === 0 ? 'good' : 'bad'
-    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.src = src; v.preload = 'auto'
+    const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = f.querySelector('video').src
     const ch = document.createElement('span'); ch.className = 'chip'; ch.textContent = chip
     const fc = document.createElement('figcaption'); fc.textContent = words
     fg.append(ch, v, fc); o.appendChild(fg); vids.push(v)
   })
-  document.body.appendChild(o); await new Promise(r => setTimeout(r, 50)); o.classList.add('on')
+  document.body.appendChild(o)
   await Promise.all(vids.map(v => new Promise(r => { v.addEventListener('loadeddata', r, { once: true }); v.load(); setTimeout(r, 4000) })))
+  await new Promise(r => setTimeout(r, 30)); o.classList.add('on')
   for (const v of vids) { v.currentTime = 0; try { await v.play() } catch {} }
-  const longest = Math.max(...vids.map(v => isFinite(v.duration) ? v.duration : 8))
-  return longest
+  return Math.max(...vids.map(v => isFinite(v.duration) ? v.duration : 8))
 }, [match])
-const closeLightbox = () => page.evaluate(() => { const o = document.getElementById('__lb'); if (o) { o.classList.remove('on'); setTimeout(() => o.remove(), 450) } })
-const scrollTo = (sel, block = 'start') => page.evaluate(([sel, block]) => { const e = document.querySelector(sel); if (e) e.scrollIntoView({ behavior: 'smooth', block }) }, [sel, block])
-// A card is found by the text of its plain line or its label; returns a selector-free handle through an index on the page
-const scrollToCard = (match, block = 'start') => page.evaluate(([match, block]) => { const c = [...document.querySelectorAll('.claim')].find(k => k.textContent.includes(match)); if (c) { c.scrollIntoView({ behavior: 'smooth', block }); return true } return false }, [match, block])
+// the sped-up recording of a real run, full screen
+const runTimelapse = (seconds) => page.evaluate(async ([seconds]) => {   // the badge's factor matches demo/timelapse.sh at 8 s over a 3 to 4 minute run
+  const o = document.createElement('div'); o.id = '__tl'
+  const v = document.createElement('video'); v.muted = true; v.playsInline = true; v.preload = 'auto'; v.src = '/__tour/run.webm'
+  const s = document.createElement('div'); s.className = 'spd'; s.textContent = 'REAL RUN, 25X'
+  o.append(v, s); document.body.appendChild(o)
+  await new Promise(r => { v.addEventListener('loadeddata', r, { once: true }); v.load(); setTimeout(r, 5000) })
+  await new Promise(r => setTimeout(r, 30)); o.classList.add('on')
+  try { await v.play() } catch {}
+  return isFinite(v.duration) ? v.duration : seconds
+}, [seconds])
+// the number card: read from the page where it can be, so the numbers are the case's own
+const numbers = () => page.evaluate(async () => {
+  const txt = document.body.textContent
+  const facts = (txt.match(/of (\d[\d,]*) recorded facts/) || [])[1]
+  const ev = (txt.match(/Chain verified \((\d+) events/) || [])[1]
+  const bc = (document.getElementById('bisectCount')?.textContent.match(/(\d+) commits \. (\d+) steps/) || [])
+  const items = [[facts ? Number(facts).toLocaleString('en-US') : '15,432', 'facts compared', ''], [bc[1] || '41', 'commits searched', ''], [bc[2] || '5', 'builds to the culprit', ''],
+    ['3 of 3', 'runs each way', ''], [ev || '92', 'events in the chain', ''], ['0', 'model calls', 'ok']]
+  const o = document.createElement('div'); o.id = '__nums'; const g = document.createElement('div'); g.className = 'g'
+  for (const [n, l, k] of items) { const d = document.createElement('div'); d.className = 'n ' + k; d.innerHTML = `${n}<small>${l}</small>`; g.appendChild(d) }
+  o.appendChild(g); document.body.appendChild(o); await new Promise(r => setTimeout(r, 30)); o.classList.add('on')
+  const ns = [...o.querySelectorAll('.n')]; for (let i = 0; i < ns.length; i++) { await new Promise(r => setTimeout(r, 230)); ns[i].classList.add('on') }
+})
 
-// A title card drawn over the dashboard from its first paint, lifted once the case is on screen: nothing else is ever seen loading
-const card = (big, small) => `<div id="__card" style="position:fixed;inset:0;background:#0b0e14;color:#fff;font:600 54px/1.2 -apple-system,Helvetica,Arial,sans-serif;display:grid;place-items:center;z-index:2147483640;transition:opacity .6s"><div style="text-align:center"><div style="font-size:16px;letter-spacing:.3em;color:#ffa63d;font-family:ui-monospace,Menlo,monospace;margin-bottom:18px">BEHIQUE</div>${big}<div style="font-size:22px;font-weight:500;color:#9aa3b2;margin-top:22px">${small}</div></div></div>`
-const title = card('Release verification<br>with evidence', 'Two versions of an app. What changed, proven, bisected, recorded.')
-await page.addInitScript(html => { document.addEventListener('DOMContentLoaded', () => document.body.insertAdjacentHTML('beforeend', html)) }, title)
+// what the run did and when, read from the case's own event log: the ticker over the time-lapse says only what the record says
+const runLines = (() => {
+  const f = resolve('out/evidence', caseId, 'events.ndjson'); if (!existsSync(f)) return { lines: [], total: 0, changes: 0 }
+  const ev = readFileSync(f, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l))
+  const t0 = Date.parse(ev[0].ts), at = e => (Date.parse(e.ts) - t0) / 1000, mm = s => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
+  const lines = [], o = ev[0].data, refs = `${o.goodRef} and ${o.candRef}`
+  const push = (e, html, extra = {}) => lines.push({ t: at(e), html: `<i>${mm(at(e))}</i>${html}`, ...extra })
+  push(ev[0], `Clean installs of ${o.app} ${refs}`)
+  const m = ev.find(e => e.type === 'masking.summary'); if (m) push(m, `<b>${m.data.total.toLocaleString('en-US')}</b> facts recorded on each version. Noise between two installs of ${o.goodRef}: <b>${m.data.masked}</b>`)
+  const d = ev.find(e => e.type === 'claim' && /differs from/.test(e.data.text)); if (d) { const n = d.data.text.match(/in (\d+) recorded values, and (\d+) elements/); if (n) push(d, `${o.candRef}: <b>${n[1]}</b> values differ, <b>${n[2]}</b> elements missing`) }
+  const ex = ev.filter(e => e.type === 'test.exported'); if (ex.length) push(ex.at(-1), `<b>${ex.length}</b> tests written from the facts: ${ex.map(e => e.data.id).join(', ')}`)
+  const j = ev.filter(e => e.type === 'test.judged'); if (j.length) push(j.at(-1), `<span class="ok">${j.filter(e => e.data.verdict === 'confirmed').length} of ${j.length} reproduced</span>: pass ${j[0].data.goodPassed} of ${j[0].data.runs} on ${o.goodRef}, fail ${j[0].data.candFailed} of ${j[0].data.runs} on ${o.candRef}. Recorded.`)
+  const sh = ev.filter(e => e.type === 'shots.recorded'); if (sh.length) push(sh.at(-1), `Screenshots compared at ${sh.length} steps`)
+  const bs = ev.find(e => e.type === 'bisect.started'); if (bs) push(bs, `Bisect: <b>${bs.data.changes}</b> commits between the versions`, { bisect: 'start' })
+  for (const st of ev.filter(e => e.type === 'bisect.step')) push(st, `step ${st.data.step}: ${st.data.sha} <span class="${st.data.verdict === 'bad' ? 'bad' : 'ok'}">${st.data.verdict}</span>  ${st.data.subject}`, { bisect: st.data })
+  const v = ev.find(e => e.type === 'bisect.verifying'); if (v) push(v, `Rebuilding ${v.data.commit}, ${v.data.runs} more runs to be sure`)
+  const bd = ev.find(e => e.type === 'bisect.done'); if (bd) { const c = ev.find(e => e.type === 'claim' && /first change that makes the test fail/.test(e.data.text)); const sub = c ? c.data.text.match(/"([^"]+)"/)?.[1] : ''; push(bd, `<span class="bad">Culprit verified</span>: ${v?.data.commit ?? ''} ${sub ? `"${sub}"` : ''}`, { bisect: 'done' }) }
+  const cl = ev.find(e => e.type === 'case.closed'); if (cl) push(cl, `Case closed: <b>${cl.data.outcome}</b>`)
+  return { lines, total: at(ev.at(-1)), changes: bs?.data.changes ?? 0 }
+})()
+const ticker = (seconds) => page.evaluate(async ([run, seconds]) => {
+  const o = document.createElement('div'); o.id = '__tk'
+  const log = document.createElement('div'); log.className = 'log'
+  const bs = document.createElement('div'); bs.className = 'bs'; bs.innerHTML = `<h4>Bisect, ${run.changes} commits</h4><div class="dots"></div><div class="who"></div>`
+  const dots = bs.querySelector('.dots'); for (let i = 0; i < run.changes; i++) dots.appendChild(document.createElement('i'))
+  o.append(log, bs); document.body.appendChild(o)
+  const scale = seconds / Math.max(1, run.total), t0 = performance.now()
+  for (const l of run.lines) {
+    await new Promise(r => setTimeout(r, Math.max(0, l.t * scale * 1000 - (performance.now() - t0))))
+    const d = document.createElement('div'); d.innerHTML = l.html; log.appendChild(d); requestAnimationFrame(() => d.classList.add('on'))
+    while (log.children.length > 7) log.removeChild(log.firstChild)
+    if (l.bisect && l.bisect.index !== undefined) { const i = dots.children[l.bisect.index]; if (i) i.className = l.bisect.verdict === 'bad' ? 'bad' : 'good'; bs.querySelector('.who').textContent = `step ${l.bisect.step}  ${l.bisect.sha}  ${l.bisect.verdict}` }
+    if (l.bisect === 'done') { const bad = [...dots.children].find(i => i.className === 'bad'); if (bad) bad.className = 'c'; bs.querySelector('.who').textContent = 'culprit found and verified' }
+  }
+}, [runLines, seconds])
+
+// ---- the cut, timed to the track: hits at 2.4, 9.3, 11.6, 21.6, 25.9; loudest from 42; ends 59.6 ----
+await page.addInitScript(([html, css]) => { document.addEventListener('DOMContentLoaded', () => { const st = document.createElement('style'); st.id = '__tourcss'; st.textContent = css; document.head.appendChild(st); document.body.insertAdjacentHTML('beforeend', html) }) }, [card('Release verification<br>with evidence', 'Two versions of an app. What changed, proven, bisected, recorded.'), STYLE])
 await page.goto(`${base}/dashboard?case=${encodeURIComponent(caseId)}`, { waitUntil: 'networkidle' })
 await page.waitForFunction(() => [...document.querySelectorAll('.claim')].some(k => k.textContent.includes('Regression R3 in plain words')), null, { timeout: 30000 })
-await sleep(2600)
-await page.evaluate(() => { const c = document.getElementById('__card'); c.style.opacity = '0'; setTimeout(() => c.remove(), 650) })
-await sleep(1400)
-await caption('Behique compared Hoppscotch 2025.10.1 (good) with 2025.11.2 (candidate) and recommends HOLD.', { head: 'The verdict' })
-await caption('5 behaviour changes were reproduced on fresh builds, 3 of 3 runs each way. A person decides; the record keeps the reason.', { ms: 4200 })
-
-await scrollTo('#bisectCard'); await sleep(900)
-await spot('#bisectCard')
-await caption('41 commits between the versions, bisected in 5 steps to the one that broke it: d67a85b.', { head: 'Bisect timeline' })
-await unspot(); await sleep(400)
-
-await scrollTo('.builds'); await sleep(900)
-await caption('Both versions are measured the same way. R1, R2... are the regression tests, most noticeable first.', { head: 'Measured on both versions' })
-await caption('Only what differs is lit: amber where a class is lost, red where one is new.', { ms: 3600 })
-await page.evaluate(() => { const d = [...document.querySelectorAll('figure.shot figcaption')].find(e => e.textContent.startsWith('Difference')); d?.closest('figure')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) })
-await sleep(900)
-await page.evaluate(() => { const d = [...document.querySelectorAll('figure.shot figcaption')].find(e => e.textContent.startsWith('Difference')); d?.closest('figure')?.setAttribute('id', '__difffig') })
-await spot('#__difffig')
-await caption('Screenshots are compared pixel by pixel. Content that only moved is blue; what is new or changed is red.', { head: 'Moved, or new?' })
-await unspot(); await sleep(300)
-await page.evaluate(() => { const a = document.querySelector('figure.shot .dl'); if (a) { a.style.transform = 'scale(1.25)'; a.style.transition = 'transform .3s' } })
-await caption('Every picture has a download control in its corner.', { ms: 2600 })
-await page.evaluate(() => { const a = document.querySelector('figure.shot .dl'); if (a) a.style.transform = '' })
-
-// Before and after: drag the handle
-await scrollTo('#compareCard', 'center'); await sleep(900)
-await caption('Before and after: drag the handle. The good version is on the left of it, the candidate on the right.', { head: 'Before and after', ms: 2400 })
-const dragged = await page.evaluate(async () => {
-  const r = document.querySelector('#compareCard input[type=range]'); if (!r) return false
-  const set = v => { r.value = String(v); r.dispatchEvent(new Event('input', { bubbles: true })) }
-  for (let v = 50; v >= 2; v -= 2) { set(v); await new Promise(x => setTimeout(x, 28)) }
-  await new Promise(x => setTimeout(x, 700))
-  for (let v = 2; v <= 98; v += 2) { set(v); await new Promise(x => setTimeout(x, 28)) }
-  await new Promise(x => setTimeout(x, 700))
-  for (let v = 98; v >= 50; v -= 2) { set(v); await new Promise(x => setTimeout(x, 28)) }
-  return true
-})
-if (dragged) await caption('A new row pushed everything below it down, and the pane stopped scrolling.', { ms: 3200 })
-
-// The record of a reproduced failure
-await scrollToCard('Regression R3 in plain words'); await sleep(1000)
-await spot('claim:Regression R3 in plain words')
-await caption('Each reproduced failure is a record in a hash chain: what the test does, and the regression in plain words.', { head: 'Evidence chain' })
-await caption('R3: after a click, a pane cannot be scrolled on the candidate. On the good version it scrolls.', { ms: 3600 })
-await unspot(); await sleep(300)
-await caption('Both runs were recorded. The mouse wheel is marked in the footage, and the verdict is written into it.', { head: 'Recorded on both versions', ms: 1200 })
+await install()
+// the recordings start behind the card so they are ready on the first hit
 const longest = await lightbox('Regression R3 in plain words')
-if (longest) { await sleep(Math.min(14000, longest * 1000 + 1200)) }
-await caption('Green: it scrolled on 2025.10.1. Red: it did not move on 2025.11.2.', { ms: 3200 })
-await closeLightbox(); await sleep(500)
+await until(2.3); await page.evaluate(() => { const c = document.getElementById('__card'); c.style.transition = 'opacity .25s'; c.style.opacity = '0'; setTimeout(() => c.remove(), 300) })
+await flash(.22)
+await until(2.7); await caption('Behique found this regression in Hoppscotch 2025.11.2. <em>No one wrote a test.</em>', 'A real release, two real builds')
+await until(9.2); await flash(.12); await caption('The good build scrolls when the wheel turns. <em>The candidate does not move.</em>')
+await page.evaluate(() => document.querySelectorAll('#__lb video').forEach(v => { v.currentTime = 2; v.play().catch(() => {}) }))   // past the blank first frames of a recording (the page paints at about 1.5 s)
+await until(13.4); await flash(.1); await caption('Both runs recorded, the wheel marked in the footage, <em>the verdict written into it.</em>')
+await until(16.0); await overlayOff('__lb'); await hideCaption()
 
-// Copy and verify
-await page.evaluate(() => { const c = [...document.querySelectorAll('.claim')].find(k => k.textContent.includes('Regression R3 in plain words')); c?.scrollIntoView({ behavior: 'smooth', block: 'start' }) })
-await sleep(800)
-const copied = await page.evaluate(() => { const c = [...document.querySelectorAll('.claim')].find(k => k.textContent.includes('Regression R3 in plain words')); const b = c?.querySelector('.copy-btn'); if (b) { b.click(); return true } return false })
-if (copied) await caption('Every record copies to the clipboard as text, hash and all, for a ticket or a message.', { head: 'Copy', ms: 3200 })
-await scrollTo('#evidenceCard'); await sleep(900)
-await page.click('#verifyBtn').catch(() => {})
-await sleep(1400)
-await spot('#verifyStatus')
-await caption('Verify chain recomputes every hash. A changed record breaks the chain; nothing here can be edited quietly.', { head: 'Integrity', ms: 4200 })
-await unspot()
+// the feat: the New run dialog, then the time-lapse of a real run
+await until(16.5); await page.click('#replayBtn').catch(() => {}); await page.waitForSelector('#runOverlay.open', { timeout: 3000 }).catch(() => {})
+await caption('Two versions of an app it has never seen. <em>That is the whole input.</em>', 'New run')
+await page.selectOption('#runApp', 'hoppscotch').catch(() => {}); await sleep(250); await page.selectOption('#runType', 'crawl').catch(() => {})
+await page.fill('#runGood', '').catch(() => {}); await page.type('#runGood', '2025.10.1', { delay: 55 }).catch(() => {})
+await page.fill('#runCand', '').catch(() => {}); await page.type('#runCand', '2025.11.2', { delay: 55 }).catch(() => {})
+await until(21.3); await flash(.2); await page.evaluate(() => { document.getElementById('runOverlay')?.classList.remove('open') })   // the real start was recorded earlier; the dialog closes as it would
+if (timelapse) {
+  const d = await runTimelapse(8)
+  await caption('Two clean builds in Docker. The click paths came from a crawl, <em>not from a person.</em> Every failure rerun 3 times, then bisected.', 'Real run, 25x')
+  const tk = ticker(Math.max(7.5, Math.min(d, 9.5)) - 0.4)
+  await until(21.6 + Math.max(7.5, Math.min(d, 9.5))); await tk.catch(() => {})
+  await page.evaluate(() => document.getElementById('__tk')?.remove()); await overlayOff('__tl')
+} else {
+  await caption('Builds both versions in Docker, crawls the app with <em>no steps written by a person</em>, reruns each failure 3 times, then bisects.', 'The run')
+  await until(30.5)
+}
+await flash(.14); await caption('Three and a half minutes later: <em>HOLD</em>, with the reason.', 'The verdict')
+await until(33.2)
 
-await hideCaption(); await sleep(400)
-await page.evaluate(html => { document.body.insertAdjacentHTML('beforeend', html); const c = document.getElementById('__card'); c.style.opacity = '0'; requestAnimationFrame(() => requestAnimationFrame(() => { c.style.opacity = '1' })) }, card('Proven, bisected, recorded.', 'No model wrote the verdict. Every claim cites its evidence.'))
-await sleep(3600)
+// the proof
+await scrollTo('#bisectCard'); await sleep(550); await spot('#bisectCard')
+await caption('41 commits between the versions. <em>5 builds to the one that broke it.</em>', 'Bisect')
+await sleep(500); await punch('#bisectNodes .node.c', 1.8); await punch('#culpritTag', 1.15)
+await until(37.6); await unspot(); await scrollTo('.builds'); await sleep(500)
+await caption('Every fact measured on both builds. <em>Only what changed is lit.</em>', 'Measured')
+await until(41.4)
+await page.evaluate(() => { const d = [...document.querySelectorAll('figure.shot figcaption')].find(e => e.textContent.startsWith('Difference')); const f = d?.closest('figure'); if (f) { f.id = '__difffig'; f.scrollIntoView({ behavior: 'smooth', block: 'center' }) } })
+await sleep(550); await spot('#__difffig'); await flash(.12)
+await caption('Pixels compared. <em>Moved content blue, new content red.</em>', 'Screenshots')
+await until(44.8); await unspot(); await scrollTo('#compareCard', 'center'); await sleep(500)
+await caption('Drag the handle: <em>good on the left, candidate on the right.</em>', 'Before and after')
+await page.evaluate(async () => {
+  const r = document.querySelector('#compareCard input[type=range]'); if (!r) return
+  const set = v => { r.value = String(v); r.dispatchEvent(new Event('input', { bubbles: true })) }
+  for (let v = 50; v >= 4; v -= 3) { set(v); await new Promise(x => setTimeout(x, 22)) }
+  for (let v = 4; v <= 96; v += 3) { set(v); await new Promise(x => setTimeout(x, 22)) }
+  for (let v = 96; v >= 50; v -= 3) { set(v); await new Promise(x => setTimeout(x, 22)) }
+})
+
+// trust
+await until(48.2); await scrollToCard('Regression R3 in plain words'); await sleep(500); await spot('claim:Regression R3 in plain words')
+await caption('Every failure is a record in a hash chain: <em>what the test does, in plain words, with its evidence.</em>', 'Evidence')
+await until(50.3); await unspot(); await scrollTo('#evidenceCard'); await sleep(350); await page.click('#verifyBtn').catch(() => {})   // the scan runs down the records for about 3 s, then the status line says what it found
+await caption('Verify chain recomputes every hash. <em>Nothing here can be edited quietly.</em>', 'Integrity')
+await until(53.8); await spot('#verifyStatus', 8); await flash(.14)
+await until(55.3); await unspot(); await hideCaption(); await numbers()
+await until(58.2); await page.evaluate(html => { document.body.insertAdjacentHTML('beforeend', html); const c = document.getElementById('__card'); c.style.opacity = '0'; requestAnimationFrame(() => requestAnimationFrame(() => { c.style.opacity = '1' })) }, card('Proven, bisected, recorded.', 'No model wrote the verdict. Every claim cites its evidence.'))
+await until(61.5)
+console.log('recorded', now().toFixed(1), 's; recordings ran', longest.toFixed(1), 's')
 
 await ctx.close(); await browser.close()
 const webm = readdirSync(vidDir).find(f => f.endsWith('.webm'))
 if (!webm) { console.error('no recording was written'); process.exit(1) }
-const r = spawnSync('ffmpeg', ['-v', 'error', '-y', '-i', join(vidDir, webm), '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-movflags', '+faststart', out], { encoding: 'utf8' })
+const offset = Number(process.env.BEHIQUE_VIDEO_OFFSET ?? 0)   // seconds trimmed from the start of the recording before the music begins
+const args = ['-v', 'error', '-y', '-ss', String(offset), '-i', join(vidDir, webm)]
+if (music) args.push('-i', music, '-map', '0:v', '-map', '1:a', '-c:a', 'aac', '-b:a', '192k', '-shortest')
+args.push('-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-crf', '20', '-r', '30', '-movflags', '+faststart', out)
+const r = spawnSync('ffmpeg', args, { encoding: 'utf8' })
 if (r.status !== 0) { console.error(r.stderr); renameSync(join(vidDir, webm), out.replace(/\.mp4$/, '.webm')); console.log('ffmpeg failed; kept the webm') }
-else { rmSync(vidDir, { recursive: true, force: true }); console.log('wrote', out) }
+else { renameSync(join(vidDir, webm), out.replace(/\.mp4$/, '.raw.webm')); rmSync(vidDir, { recursive: true, force: true }); console.log('wrote', out) }

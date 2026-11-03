@@ -136,6 +136,10 @@ In the standard and short cuts, trim each kept beat to its first sentences; keep
 - Keep the archive folder if you want the take's reports as a record.
 - If you spent AI guesses during rehearsal, each was about three-quarters of a cent at the estimated price.
 
-## 8. The scripted tour (no voice, text captions)
+## 8. The scripted tour (no voice, text captions, cut to a track)
 
-`node demo/tour.mjs <caseId> [out/demo/tour.mp4]` records a 94 s walk through a finished report with the demo server on 8790: title card, the verdict, the bisect timeline, the lit tokens in Measured, the pixel diff (moved in blue, new in red), the before-and-after handle dragged, the R3 record under a spotlight, both recordings played large with the wheel marker and the written verdict, Copy, and Verify chain. Captions are drawn into the page for the recording only; nothing in the case changes. Needs ffmpeg for the mp4. The last take: Hoppscotch case `20261103T011307Z_2025.10.1-vs-2025.11.2`.
+Three scripts, all free (no model calls):
+
+- `node demo/tour-run.mjs hoppscotch 2025.10.1 2025.11.2 out/demo/run-raw.webm` records the dashboard while a real crawl run happens: the New run dialog filled and started on screen, then the page until the verdict (about 3.5 minutes over the tailnet). It also writes `run-raw.json` with the moments to cut at.
+- `sh demo/timelapse.sh out/demo/run-raw.webm 8` squeezes that run, from Start run to the verdict, into 8 seconds (`out/demo/run-timelapse.webm`).
+- `BEHIQUE_MUSIC=<track> BEHIQUE_RUN_TIMELAPSE=out/demo/run-timelapse.webm node demo/tour.mjs <caseId> out/demo/tour2.mp4` records the 60 second cut over the finished case and lays the track under it. The scenes are timed to the hits of "Controlled Impact" (2.4, 9.3, 21.6, 25.9 s; the track ends at 59.6 s): the R3 recordings large on the first hit, the New run dialog, the time-lapse with a ticker read from the case's own event log and the bisect dots, the verdict, the culprit, the lit tokens, the pixel diff, the handle dragged, the record, Verify chain, a number card read from the page, the end card. Captions, spotlights, ticker and cards are drawn into the page for the recording only; nothing in the case changes. Without `BEHIQUE_MUSIC` the video is silent; without the time-lapse the run scene is a caption over the dashboard. Needs ffmpeg. The last take: Hoppscotch case `20261103T044736Z_2025.10.1-vs-2025.11.2`, delivered as `~/Downloads/behique-demo-60s.mp4`.
