@@ -1,8 +1,16 @@
+<p align="center">
+  <img src="docs/img/logo.png" alt="Behique CI" width="220">
+</p>
+
 # Behique
 
 Release verification for web apps. Give it a known-good version and a candidate; it builds both, walks the app along click paths it found on its own, records what each page says and does, and turns every difference into a Playwright test that must pass on the good version and fail on the candidate, run after run, on fresh builds. With `--bisect` it then finds the first commit that makes the test fail. The result is a recommendation (SHIP, HOLD, REVIEW) with the evidence behind it, in a dashboard, on the command line, or as a comment on a pull request.
 
 A model proposes, code verifies, a person approves. The verdict and exit code are computed with no model. Model calls are optional, capped and labelled AI guesses: a hypothesis about the culprit commit (`--explain`, its exact text and cost shown first in the dashboard), and the AI stages (`--ai`, `--ai-budget`, or the AI stages tab of a report): Spark writes readable tests that code keeps only if they pass on good and fail on the candidate every run, proposes click paths that code replays, describes picture differences that code checks against the pixels, and ranks unproven differences. They run after the verdict is fixed and cannot change it.
+
+![The dashboard showing a HOLD for FreshRSS 1.29.1 against 1.30.0, with the bisect timeline and evidence chain](docs/img/dashboard.png)
+
+*FreshRSS 1.29.1 (good) against 1.30.0 (candidate): four reproduced changes, and the bisect narrowed 227 commits to one in 8 steps.*
 
 ## Start
 
@@ -46,7 +54,15 @@ The command and the Action, their inputs, exit codes and limits: [docs/ci.md](do
 
 Findings are ranked by whether a person would notice them, so the first finding is the one to read and the bisect follows it. Each report also says what the check could not see: how many recorded facts were masked as noise (values that differ between two runs of the same version) and where on the page they sit. A change inside a masked fact is invisible to the check, and the report says so rather than claiming coverage it does not have.
 
+| Bisect and your decision | Evidence chain |
+| :---: | :---: |
+| [![Bisect timeline with the Ship and Hold buttons](docs/img/bisect-decision.png)](docs/img/bisect-decision.png) | [![Hash-chained evidence claims, each labelled by how it was established](docs/img/evidence-chain.png)](docs/img/evidence-chain.png) |
+
 Every run is an evidence case under `out/evidence/<case>/`: a hash-chained event log and the artifacts (facts, diffs, tests, test runs, screenshots, the bisect log) by content hash. Claims are labelled by how they were established (a verified fact, a reproduced failure, a statistical observation, or a hypothesis from a model), and the report page shows each claim with the artifact that backs it.
+
+The AI stages tab shows what the optional model calls filed on the same run, labelled as guesses, with their cost. Each AI-written test is marked verified only after code saw it pass on the good version and fail on the candidate.
+
+[![AI stages tab with verified AI-written tests and their cost](docs/img/ai-stages.png)](docs/img/ai-stages.png)
 
 ## Limits
 
