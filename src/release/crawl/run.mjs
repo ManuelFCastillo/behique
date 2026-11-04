@@ -7,6 +7,9 @@ import { createPlanner } from './plan.mjs'
 export const EXTRACT = () => {
   const clean = s => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, 60)
   const sels = 'a[href], button, summary, input, select, textarea, [role], [tabindex], [onclick]'
+  // The parts of a page a control can sit in. The enumerator spreads its picks across them, so a navbar does not keep a sidebar's
+  // links out of the limit.
+  const LANDMARKS = 'header, nav, aside, main, footer, form, dialog, [role="banner"], [role="navigation"], [role="complementary"], [role="main"], [role="contentinfo"], [role="dialog"], [role="search"]'
   const implied = el => {
     const r = (el.getAttribute('role') || '').trim()
     if (r) return r.split(/\s+/)[0]
@@ -102,6 +105,12 @@ export const EXTRACT = () => {
       } catch {}
     }
     const form = el.closest ? el.closest('form') : null
+    // region: the nearest landmark the control sits in (a nav, a sidebar, the main area, a footer, a dialog), as that element's path.
+    let region = 'body'
+    try { const lm = el.parentElement && el.parentElement.closest ? el.parentElement.closest(LANDMARKS) : null; if (lm) region = cssPath(lm) } catch {}
+    // current: a link to the page we are on (marked current, or its address is this one), which does nothing when clicked.
+    let current = el.getAttribute('aria-current') === 'page'
+    try { if (!current && tag === 'a' && href) current = href.split('#')[0] === location.href.split('#')[0] } catch {}
     return {
       tag,
       role,
@@ -113,6 +122,8 @@ export const EXTRACT = () => {
       inForm: !!form,
       formMethod: form ? String(form.getAttribute('method') || '').toLowerCase() : '',
       download: el.hasAttribute('download'),
+      region,
+      current,
       path: cssPath(el),
       nth: 0,
       x: Math.round(rect.x || 0),
@@ -156,7 +167,7 @@ export async function crawlApp(base, options = {}) {
     viewport = { width: 1280, height: 900 },
     maxDepth = 2,
     maxPaths = 40,
-    maxPerPage = 12,
+    maxPerPage = 18, // the start page of an app offers most of what it does: eighteen picks there, before the deeper, cheaper ones
     maxFlows = 20, // a recorded step is cheap, and the release check compares what every one of them shows
     budgetMs = 120000,
     login = [], // a profile's login step (recorder actions), performed in every fresh browser before anything else
@@ -176,20 +187,9 @@ export async function crawlApp(base, options = {}) {
     }
     const path = planner.next()
     if (path === null) break
-    const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
+    const s = new Session(base, { viewport, navigationTimeoutMs: 30000, readOnly: true }) // the session refuses writes (except while the profile's login step runs) and other hosts
     try {
       await s.open()
-      await s.ctx.route('**/*', route => {
-        const req = route.request()
-        const m = req.method()
-        if (m !== 'GET' && m !== 'HEAD' && !s.writesAllowed) return route.abort() // writes pass only while the profile's login step runs
-        try {
-          if (new URL(req.url()).origin !== origin) return route.abort()
-        } catch {
-          return route.abort()
-        }
-        return route.continue()
-      })
       s.page.removeAllListeners('dialog')
       s.page.on('dialog', d => d.dismiss().catch(() => {}))
       for (const a of login) await s.act(a)

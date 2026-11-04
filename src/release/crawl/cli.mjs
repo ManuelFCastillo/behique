@@ -20,10 +20,13 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..')
 /** The crawl options when none are given; a saved crawl is reused only for the same options (see reuse.mjs). */
 export const CRAWL_DEFAULTS = { maxDepth: 2, maxPaths: 40, maxFlows: 20, budgetMs: 120_000 }
 
+/** The crawl limits for an app: the defaults, or what its profile asks for. */
+export const crawlLimits = resolved => ({ ...CRAWL_DEFAULTS, ...(resolved?.crawl ?? {}) })
+
 export async function resolveApp(name) {
   if (listProfileNames().includes(name)) {
     const profile = loadProfile(name)
-    return { adapter: profileToAdapter(profile), defaultRef: profile.defaults?.good ?? null, kind: 'profile', login: profile.login ?? null }
+    return { adapter: profileToAdapter(profile), defaultRef: profile.defaults?.good ?? null, kind: 'profile', login: profile.login ?? null, crawl: profile.crawl ?? null }
   }
   if (APPS[name]) return { adapter: (await import(`../adapters/${APPS[name].adapter}.mjs`)).default, defaultRef: APPS[name].defaults.good, kind: 'builtin' }
   throw new Error(`unknown app "${String(name).slice(0, 30)}"; saved apps: ${listProfileNames().join(', ') || 'none'}; built in: ${Object.keys(APPS).join(', ')}`)
@@ -40,7 +43,8 @@ export async function runCrawlCli(argv, { log = console.log } = {}) {
   const ref = refArg ?? resolved.defaultRef
   if (!ref) { log('no version given and the app has no default: pass a tag or branch'); return { code: 2 } }
   const num = (name, d) => { const v = Number(opt(name, d)); return Number.isFinite(v) && v > 0 ? v : d }
-  const options = withStart({ maxDepth: num('max-depth', CRAWL_DEFAULTS.maxDepth), maxPaths: num('max-paths', CRAWL_DEFAULTS.maxPaths), maxFlows: num('max-flows', CRAWL_DEFAULTS.maxFlows), budgetMs: num('budget', CRAWL_DEFAULTS.budgetMs / 1000) * 1000 }, startPathOf(resolved)) // the crawl starts where the profile says the app is ready
+  const limits = crawlLimits(resolved)
+  const options = withStart({ maxDepth: num('max-depth', limits.maxDepth), maxPaths: num('max-paths', limits.maxPaths), maxFlows: num('max-flows', limits.maxFlows), budgetMs: num('budget', limits.budgetMs / 1000) * 1000 }, startPathOf(resolved)) // the crawl starts where the profile says the app is ready
   let build
   try {
     build = await startBuild({ adapter: resolved.adapter, ref, port: num('port', 8300) })

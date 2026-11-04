@@ -266,3 +266,68 @@ describe('risk words in content versus labels', () => {
     assert.ok(isRisky({ name: long, inForm: true, formMethod: 'post' }))
   })
 })
+
+describe('candidates across page parts', () => {
+  const link = (name, region, y, over = {}) => ({ tag: 'a', role: 'link', name, href: 'http://x/' + name.toLowerCase().replace(/\s+/g, '-'), visible: true, disabled: false, path: 'a-' + name, nth: 0, x: 0, y, w: 1, h: 1, region, ...over })
+  const NAV = 'body > nav:nth-of-type(1)', SIDE = 'body > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(1)'
+  it('a navbar with many links does not keep a sidebar link out of the limit', () => {
+    const navbar = Array.from({ length: 20 }, (_, i) => link('Top ' + i, NAV, i))
+    const sidebar = ['Introduction', 'Getting Started', 'Installation'].map((n, i) => link(n, SIDE, 100 + i * 30))
+    const out = candidates([...navbar, ...sidebar], { origin: 'http://x', perPage: 6 })
+    assert.deepEqual(out.map(c => c.name), ['Top 0', 'Introduction', 'Top 1', 'Getting Started', 'Top 2', 'Installation'])
+    assert.deepEqual(candidates([...sidebar, ...navbar].reverse(), { origin: 'http://x', perPage: 6 }).map(c => c.key), out.map(c => c.key), 'still deterministic')
+  })
+  it('a link to the page we are on goes last of all', () => {
+    const sidebar = [link('Introduction', SIDE, 100, { current: true }), link('Getting Started', SIDE, 130), link('Installation', SIDE, 160)]
+    assert.deepEqual(candidates(sidebar, { origin: 'http://x', perPage: 2 }).map(c => c.name), ['Getting Started', 'Installation'])
+    const skip = link('Skip to main content', 'body', 0, { current: true })
+    assert.deepEqual(candidates([skip, ...sidebar, link('Blog', NAV, 20)], { origin: 'http://x' }).map(c => c.name), ['Blog', 'Getting Started', 'Installation', 'Introduction', 'Skip to main content'])
+  })
+  it('the same link in two parts of the page is two controls', () => {
+    const crumb = link('Getting Started', 'body > main:nth-of-type(1) > nav:nth-of-type(1)', 90)
+    const out = candidates([crumb, link('Getting Started', SIDE, 130)], { origin: 'http://x' })
+    assert.equal(out.length, 2)
+    assert.notEqual(out[0].key, out[1].key)
+    assert.equal(candidates([link('A', undefined, 1), link('A', undefined, 2)], { origin: 'http://x' }).length, 1, 'without regions the old key still de-duplicates')
+  })
+  it('without regions the order is as before: by role, then down the page', () => {
+    const items = [link('B', undefined, 20), link('A', undefined, 10), { ...link('C', undefined, 5), tag: 'button', role: 'button', href: '' }]
+    assert.deepEqual(candidates(items, { origin: 'http://x' }).map(c => c.name), ['C', 'A', 'B'])
+  })
+})
+
+describe('candidates in a navigation part', () => {
+  const NAV = 'body > div:nth-of-type(1) > aside:nth-of-type(1) > nav:nth-of-type(1)', MAIN = 'body > div:nth-of-type(1) > main:nth-of-type(1)'
+  const el = (role, name, region, y, over = {}) => ({ tag: role === 'link' ? 'a' : 'button', role, name, href: role === 'link' ? 'http://x/' + name.toLowerCase().replace(/\s+/g, '-') : '', visible: true, disabled: false, path: 'p-' + name, nth: 0, x: 0, y, w: 1, h: 1, region, ...over })
+  it('links come before buttons inside a nav or an aside, and after them elsewhere', () => {
+    const items = [el('button', "Collapse sidebar category 'Getting Started'", NAV, 130), el('link', 'Introduction', NAV, 100), el('link', 'Getting Started', NAV, 130), el('button', 'Copy code', MAIN, 300), el('link', 'Home page', MAIN, 400)]
+    assert.deepEqual(candidates(items, { origin: 'http://x' }).map(c => c.name), ['Introduction', "Collapse sidebar category 'Getting Started'", 'Copy code', 'Home page', 'Getting Started'])
+  })
+  it('a docs page like Docusaurus: eighteen picks reach the second sidebar link', () => {
+    const BODY = 'body', TOP = 'body > nav:nth-of-type(1)', ASIDE = 'body > div:nth-of-type(1) > aside:nth-of-type(1)'
+    const items = [
+      { ...el('button', 'Close', BODY, 10) }, el('button', 'Search', TOP, 20), el('button', 'Theme', TOP, 20, { x: 50 }), el('link', 'API', TOP, 20, { x: 100 }), el('link', 'Blog', TOP, 20, { x: 150 }),
+      el('button', 'Collapse sidebar', ASIDE, 700),
+      el('link', 'Introduction', NAV, 100), el('button', "Collapse sidebar category 'Getting Started'", NAV, 130), el('link', 'Getting Started', NAV, 130, { x: 5 }), el('link', 'Installation', NAV, 160, { current: true }), el('button', "Expand sidebar category 'Guides'", NAV, 300),
+      { ...el('button', 'Alternative installation commands', MAIN, 250), tag: 'summary', role: 'summary' }, el('button', 'Copy code to clipboard', MAIN, 280), el('button', 'Copy code 2', MAIN, 320), el('link', 'Fast Track', MAIN, 400), el('link', 'create-docusaurus', MAIN, 420),
+      el('link', 'Skip to main content', BODY, 0, { current: true }), ...['npm', 'Yarn', 'pnpm', 'Bun'].map((n, i) => ({ ...el('button', n, MAIN, 260, { x: i * 40 }), role: 'tab', href: '' })),
+      el('link', 'Home page', 'body > div:nth-of-type(1) > main:nth-of-type(1) > article:nth-of-type(1) > nav:nth-of-type(1)', 110), el('link', 'Getting Started', 'body > div:nth-of-type(1) > main:nth-of-type(1) > article:nth-of-type(1) > nav:nth-of-type(1)', 110, { x: 60 }),
+      el('link', 'Previous Getting Started', 'body > div:nth-of-type(1) > main:nth-of-type(1) > nav:nth-of-type(1)', 600), el('link', 'Next Configuration', 'body > div:nth-of-type(1) > main:nth-of-type(1) > nav:nth-of-type(1)', 600, { x: 300 }),
+      el('link', 'Feature Requests', 'body > footer:nth-of-type(1)', 900), el('link', 'Changelog', 'body > footer:nth-of-type(1)', 900, { x: 80 }),
+    ]
+    const out = candidates(items, { origin: 'http://x', perPage: 18 })
+    const side = out.findIndex(c => c.name === 'Getting Started' && c.key.endsWith(NAV))
+    assert.ok(side >= 0 && side < 18, out.map(c => c.name).join(' | '))
+    assert.equal(out.filter(c => c.name === 'Getting Started').length, 2, 'the breadcrumb and the sidebar link are both picked')
+  })
+})
+
+describe('index pickers', () => {
+  const pick = names => candidates(names.map((name, i) => desc({ role: 'button', name, y: i, region: 'main' })), { origin: ORIGIN, perPage: 50 }).map(c => c.name)
+  it('keeps one letter of an A to Z picker', () => {
+    assert.deepEqual(pick(['Sort', 'A', 'B', 'C', 'D', 'E', 'F']), ['Sort', 'A'])
+  })
+  it('keeps a few one-character buttons that are not a picker', () => {
+    assert.deepEqual(pick(['+', '-', 'Sort']), ['+', '-', 'Sort'])
+  })
+})

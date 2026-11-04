@@ -114,6 +114,7 @@ export function releaseLabel(was, now, refs) {
 export function noticeOf(fact, { origin = null, refs = null } = {}) {
   const key = str(fact?.key), was = fact?.was, now = fact?.now
   if (key === 'window@scrollY') return { cls: 'visible', why: 'the page scrolls differently' }
+  if (key === 'window@path') return { cls: 'visible', why: 'where the page ends up' }
   if (key.endsWith('#scrolls')) return { cls: 'visible', why: 'whether an area can scroll' }
   const label = refs ? releaseLabel(was, now, refs) : null
   if (key.endsWith('#text')) return label ? { cls: 'churn', why: label } : { cls: 'visible', why: 'text a person reads' }
@@ -148,7 +149,12 @@ export function noticeOf(fact, { origin = null, refs = null } = {}) {
 /** The list sorted by class rank (visible, churn, third_party), keeping the given order inside a class. Items without a notice rank last. */
 export function rankFindings(list) {
   const rank = f => RANK[f?.notice?.cls] ?? 9
-  return (Array.isArray(list) ? list : []).map((f, i) => [f, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || a[1] - b[1]).map(([f]) => f)
+  // Where the page ended up comes before the rest of what a person would notice: a click that lands somewhere else (or stays put
+  // where the old version went on) is the one thing they did, and everything else on the page follows from it.
+  const landed = f => (f?.fact?.key === 'window@path' ? 0 : 1)
+  // A new list item is a person would notice, but it is usually the release doing what it meant to: anything else they would notice goes first, and the bisect follows that.
+  const added = f => (f?.notice?.addition ? 1 : 0)
+  return (Array.isArray(list) ? list : []).map((f, i) => [f, i]).sort((a, b) => rank(a[0]) - rank(b[0]) || added(a[0]) - added(b[0]) || landed(a[0]) - landed(b[0]) || a[1] - b[1]).map(([f]) => f)
 }
 
 /** Counts by class among the confirmed findings, and whether every confirmed one is churn. */
@@ -175,7 +181,7 @@ export function maskedAreas(volatile, { depth = 3, top = 3 } = {}) {
   for (const id of Object.keys(volatile ?? {})) {
     total++
     const key = id.slice(id.indexOf('|') + 1)
-    if (key === 'window@scrollY') { counts.set('window', (counts.get('window') ?? 0) + 1); continue }
+    if (key.startsWith('window@')) { counts.set('window', (counts.get('window') ?? 0) + 1); continue }
     const path = key.replace(/(@[^/]+|#text|#scrolls)$/, '')
     const area = path.split('/').slice(0, depth).join('/')
     counts.set(area, (counts.get(area) ?? 0) + 1)

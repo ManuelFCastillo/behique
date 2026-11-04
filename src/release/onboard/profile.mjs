@@ -11,6 +11,7 @@ import { cleanLogs } from './repair.mjs'
 import { validateServices, describeServices } from '../sandbox/services.mjs'
 import { describeSeeds, validateSeeds } from '../sandbox/seed.mjs'
 import { describeLogin, validateLogin } from '../login.mjs'
+import { isImage } from '../sandbox/docker-args.mjs'
 
 const runFile = promisify(execFile)
 
@@ -20,7 +21,7 @@ const HERE = dirname(fileURLToPath(import.meta.url))
 export const PROFILE_DIR = join(HERE, 'profiles')
 const DEFAULT_SERVER = join(HERE, 'static-server.mjs')
 
-const TOP_FIELDS = new Set(['name', 'repo', 'workRoot', 'defaults', 'serve', 'ready', 'viewport', 'setup', 'regions', 'anchors', 'services', 'seed', 'login', 'notes'])
+const TOP_FIELDS = new Set(['name', 'repo', 'workRoot', 'defaults', 'serve', 'ready', 'viewport', 'setup', 'regions', 'anchors', 'services', 'seed', 'login', 'crawl', 'notes'])
 const NAME_RE = /^[a-z0-9-]+$/
 // Arguments that make a command run inline code or a shell string. What counts depends on the program: -p is node's --print but
 // a port flag for next, -c is python's inline code and npm's or pnpm's shell mode.
@@ -112,6 +113,14 @@ export function validateProfile(profile) {
       }
     }
   }
+  if (profile.crawl !== undefined) { // a bigger app can ask for a deeper, longer crawl
+    const c = profile.crawl
+    if (typeof c !== 'object' || c === null || Array.isArray(c)) problems.push('crawl must be an object')
+    else for (const [k, v] of Object.entries(c)) {
+      if (!['maxDepth', 'maxPaths', 'maxFlows', 'budgetMs'].includes(k)) problems.push(`crawl has unknown field "${k}"`)
+      else if (!Number.isInteger(v) || v < 1 || v > (k === 'budgetMs' ? 3_600_000 : 500)) problems.push(`crawl.${k} is out of range`)
+    }
+  }
   const serve = profile.serve
   if (typeof serve !== 'object' || serve === null || Array.isArray(serve)) {
     problems.push('serve must be an object')
@@ -144,6 +153,17 @@ export function validateProfile(profile) {
     if (serve.root !== undefined) {
       if (serve.kind !== 'static') problems.push('serve.root only applies to a static serve')
       else if (typeof serve.root !== 'string' || serve.root.startsWith('/') || serve.root.includes('..') || /[\0\\]/.test(serve.root) || serve.root.length > 100) problems.push('serve.root must be a relative sub-directory without ..')
+    }
+    if (serve.image !== undefined && !isImage(serve.image)) problems.push('serve.image must be a pinned Docker Hub image such as node:24-bookworm')
+    if (serve.proxy !== undefined) { // a static bundle under a mount, every other path sent to a sidecar on the same origin
+      const px = serve.proxy, names = (Array.isArray(profile.services) ? profile.services : []).map(x => x?.name)
+      if (serve.kind !== 'static') problems.push('serve.proxy only applies to a static serve')
+      else if (typeof px !== 'object' || px === null || Array.isArray(px)) problems.push('serve.proxy must be an object with mount, service and port')
+      else {
+        if (typeof px.mount !== 'string' || !/^\/[a-z0-9-]{1,40}$/.test(px.mount)) problems.push('serve.proxy.mount must look like /web')
+        if (!names.includes(px.service)) problems.push('serve.proxy.service must name one of the profile\'s services')
+        if (!Number.isInteger(px.port) || px.port < 1 || px.port > 65535) problems.push('serve.proxy.port must be a port number')
+      }
     }
     if (serve.kind === 'static' || serve.kind === undefined) {
       if (serve.overrides !== undefined) {
@@ -456,7 +476,15 @@ export function loadProfile(name, dir) {
   } catch {
     throw new Error(`profile "${name}" at ${path} is not valid JSON`)
   }
-  return normalizeProfile(parsed)
+  return normalizeProfile(relocated(parsed))
+}
+
+/** A profile saved on another machine: its clones live under this machine's ~/dev/behique-apps, the same layout. */
+export function relocated(p, home = homedir()) {
+  const here = join(home, 'dev', 'behique-apps')
+  const move = v => typeof v === 'string' ? v.replace(/^\/.*?\/dev\/behique-apps(?=\/|$)/, here) : v
+  if (!p || typeof p !== 'object') return p
+  return { ...p, ...(p.repo !== undefined ? { repo: move(p.repo) } : {}), ...(p.workRoot !== undefined ? { workRoot: move(p.workRoot) } : {}) }
 }
 
 /** The names of the saved profiles, sorted. */

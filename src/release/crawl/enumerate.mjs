@@ -152,11 +152,16 @@ export function candidates(descs, { origin, perPage = 12 } = {}) {
     if (!isInternal(d, origin)) continue
     const name = cleanName(d.name)
     const href = typeof d.href === 'string' ? d.href : ''
-    const key = `${role}|${name}|${href}`
+    // the same link in two places (a sidebar and a breadcrumb) is two controls: a release can break one and not the other
+    const key = `${role}|${name}|${href}${d.region ? `|${d.region}` : ''}`
     if (seen.has(key)) continue
     seen.add(key)
     out.push({ d, name, key, href, role })
   }
+  // An index picker (A, B, C ... Z) is many controls that all do the same thing: one of them stands for the rest, or it eats the crawl's budget.
+  const picker = new Map()
+  for (const o of out) if (o.role === 'button' && [...o.name].length === 1) { const r = o.d.region ?? ''; picker.set(r, [...(picker.get(r) ?? []), o]) }
+  for (const group of picker.values()) if (group.length >= 5) for (const o of group.slice(1)) out.splice(out.indexOf(o), 1)
   const num = v => (typeof v === 'number' && Number.isFinite(v) ? v : 0)
   out.sort((a, b) => {
     const ra = RANK.indexOf(a.role)
@@ -168,11 +173,28 @@ export function candidates(descs, { origin, perPage = 12 } = {}) {
     if (a.key > b.key) return 1
     return 0
   })
-  // Take them round-robin across roles (in role order), so that a page with thirty links still gets its buttons and clickable rows
-  // into the limit, instead of the first role filling every slot.
-  const byRole = new Map(RANK.map(r => [r, out.filter(o => o.role === r)]))
-  const mixed = []
-  for (let i = 0; mixed.length < out.length; i++) for (const r of RANK) if (byRole.get(r)[i]) mixed.push(byRole.get(r)[i])
+  // Take them round-robin across lanes, one lane per role and part of the page the controls sit in (a nav, a sidebar, the main area,
+  // a footer: `region`), lanes in role order and, inside a role, in the order the parts appear down the page. So a page with thirty
+  // links still gets its buttons and clickable rows into the limit, and a navbar does not keep every sidebar link out of it. In a
+  // navigation part (a nav or an aside) the links come before the buttons: the links are what the part is for, the buttons are its
+  // chrome (carets, collapse, search). A link to the page we are on (`current`) goes last of all, since clicking it changes nothing.
+  const regionOf = o => String(o.d.region ?? 'body')
+  const isNav = region => /(^|> )(nav|aside):nth-of-type\(\d+\)$/.test(region)
+  const lanes = []
+  for (const o of out) {
+    const region = regionOf(o)
+    let lane = lanes.find(l => l.role === o.role && l.region === region)
+    if (!lane) {
+      const rank = o.role === 'link' && isNav(region) ? RANK.indexOf('button') - 0.5 : RANK.indexOf(o.role)
+      lane = { role: o.role, region, rank, order: lanes.length, list: [] }
+      lanes.push(lane)
+    }
+    lane.list.push(o)
+  }
+  lanes.sort((a, b) => a.rank - b.rank || a.order - b.order)
+  const round = []
+  for (let i = 0; round.length < out.length; i++) for (const l of lanes) if (l.list[i]) round.push(l.list[i])
+  const mixed = [...round.filter(o => o.d.current !== true), ...round.filter(o => o.d.current === true)]
   return mixed.slice(0, perPage).map(({ d, name, key, href, role }) => ({
     action: { type: 'click', selector: selectorFor(d) },
     label: `${role} "${name}"`,

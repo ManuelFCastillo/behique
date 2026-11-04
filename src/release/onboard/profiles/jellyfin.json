@@ -1,0 +1,77 @@
+{
+  "name": "jellyfin",
+  "repo": "/Users/mcastillo/dev/behique-apps/jellyfin-web",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "v12.0-rc3",
+    "cand": "v12.0-rc4"
+  },
+  "serve": {
+    "kind": "static",
+    "image": "node:24-bookworm",
+    "root": "dist",
+    "proxy": {
+      "mount": "/web",
+      "service": "jellyfin",
+      "port": 8096
+    },
+    "install": [
+      {
+        "cmd": "npm",
+        "args": [
+          "ci",
+          "--no-audit",
+          "--no-fund"
+        ]
+      },
+      {
+        "cmd": "npm",
+        "args": [
+          "run",
+          "build:production"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/web/#/mypreferencesmenu",
+    "timeoutMs": 60000
+  },
+  "crawl": {
+    "maxDepth": 2,
+    "maxPaths": 40,
+    "maxFlows": 20,
+    "budgetMs": 300000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 2
+  },
+  "setup": [],
+  "login": {
+    "path": "/web/#/login",
+    "user": {
+      "selector": "#txtManualName",
+      "value": "demo"
+    },
+    "password": {
+      "selector": "#txtManualPassword",
+      "value": "demo-demo"
+    },
+    "submit": {
+      "selector": ".manualLoginForm button[type=submit]"
+    },
+    "public": true,
+    "note": "the seeded demo account from tools/jellyfin-seed; the password exists only inside the sandbox's sidecar, so it may sit in the profile"
+  },
+  "regions": {},
+  "anchors": {},
+  "services": [
+    {
+      "kind": "jellyfin",
+      "name": "jellyfin"
+    }
+  ],
+  "notes": "Only the web client is built at each commit. The C# server is one pinned image with a seeded library, baked by tools/jellyfin-seed/build-image.sh on the sandbox host. See docs/jellyfin.md."
+}

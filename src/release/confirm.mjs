@@ -55,10 +55,10 @@ const close = data => {
 // A cancelled run stops its builds, closes its record honestly, and exits; it never leaves servers or an unfinished record.
 process.on('SIGTERM', async () => { await stopAll(); try { close({ outcome: 'cancelled' }) } catch {} ; console.log('run cancelled'); process.exit(130) })
 
-// How many builds run at once (BEHIQUE_POOL, default 3), each on its own port; on this machine builds share the port, so they run one at a time.
+// How many builds run at once (BEHIQUE_POOL, default 3), each on its own port; on this machine builds share the port, so they run one at a time. An adapter with no profile (FreshRSS) always builds here, sandbox or not (build.mjs).
 // Used by the canvas comparison, the test runs and the screenshots alike.
 const sandboxCfg = sandboxConfigFromEnv(process.env)
-const pool = poolSize({ setting: Number(process.env.BEHIQUE_POOL), sandbox: Boolean(sandboxCfg), perBuildMemoryMb: sandboxCfg?.limits?.memoryMb, freeMemoryMb: Number(process.env.BEHIQUE_POOL_MEMORY_MB) || undefined })
+const pool = poolSize({ setting: Number(process.env.BEHIQUE_POOL), sandbox: Boolean(sandboxCfg && adapter.profile), perBuildMemoryMb: sandboxCfg?.limits?.memoryMb, freeMemoryMb: Number(process.env.BEHIQUE_POOL_MEMORY_MB) || undefined })
 if (pool > 1) console.log(`running ${pool} builds at once`)
 const onBuild = async (ref, slot, work) => { // one fresh build on the slot's port, then `work`, then the build is stopped whatever happened
   const p = slotPort(port, slot) ?? port

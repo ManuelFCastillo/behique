@@ -48,10 +48,13 @@
         ]
       }
     ],
-    "gitHistory": true
+    "gitHistory": true,
+    "env": {
+      "DOCUSAURUS_SLOWER": "true"
+    }
   },
   "ready": {
-    "path": "/docs",
+    "path": "/docs/installation",
     "timeoutMs": 60000
   },
   "viewport": {
@@ -62,5 +65,5 @@
   "setup": [],
   "regions": {},
   "anchors": {},
-  "notes": "The docusaurus.io website (website/) as a production build of the current docs version only (build:fast = BUILD_FAST=true, --locale en), served by docusaurus serve. Behique installs with scripts off, so the postinstall work is done by hand: yarn build:packages (lerna builds every package; the website resolves @docusaurus/* to the workspace, so each bisect commit is tested with its own code). The website config reads every page's last-update date from git and the sandbox copy has none, so gitHistory gives the copy one commit first. sharp 0.32 (the ideal-image plugin) gets its binary from its own install script, so npm rebuild sharp runs that one script and nothing else. patch-package is skipped: the repo has no patches/ in this range. Made for the blind bisect of issue #11213 (docs/blind-bisect-runs.md): inside a sidebar category, clicking the category collapses it instead of opening its page."
+  "notes": "The docusaurus.io website (website/) as a production build of the current docs version only (build:fast = BUILD_FAST=true, --locale en), served by docusaurus serve. Behique installs with scripts off, so the postinstall work is done by hand: yarn build:packages (lerna builds every package; the website resolves @docusaurus/* to the workspace, so each bisect commit is tested with its own code). The website config reads every page's last-update date from git and the sandbox copy has none, so gitHistory gives the copy one commit first. sharp 0.32 (the ideal-image plugin) gets its binary from its own install script, so npm rebuild sharp runs that one script and nothing else. patch-package is skipped: the repo has no patches/ in this range. Made for the blind bisect of issue #11213 (docs/blind-bisect-runs.md): inside a sidebar category, clicking the category collapses it instead of opening its page. The ready path (where the crawl starts) is a doc inside the Getting Started category rather than /docs: the first run started at /docs, where the bug needs two clicks (into the category, then on its link) and the crawl never got there; from a doc inside the category one click on the category link is the whole action. DOCUSAURUS_SLOWER=true builds the website with webpack instead of Rspack: on an arm64 Docker host (OrbStack on a Mac) the v3.8.0 Rspack build panics in its persistent cache (rancor: out of range integral type conversion) and aborts with 134; the bug under test is theme code and does not care which bundler built the site."
 }

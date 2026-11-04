@@ -36,6 +36,7 @@ const cut = (v, n) => { const t = JSON.stringify(v); return t.length > n ? t.sli
 export function symptomsOf({ changed = [], regions = [] } = {}) {
   if (changed.length) {
     const lines = changed.slice(0, 16).map(d => {
+      if (d.key === 'window@path') return `the address of the page after step ${d.i} (${d.step.replace(/^\d+:/, '')}): the old version is at ${cut(d.was, 80)} and the new version at ${cut(d.now, 80)}`
       if (d.key === 'window@scrollY') return `the vertical scroll position of the page after step ${d.i} (${d.step.replace(/^\d+:/, '')}): the old version left it at ${cut(d.was, 40)} pixels and the new version at ${cut(d.now, 40)} pixels`
       const attr = d.key.match(/@([^/]+)$/)?.[1]
       const what = `${attr ? `the "${attr}" attribute` : 'the text'} of the element at ${d.key.replace(/(@[^/]+|#text|#scrolls)$/, '').split('/').slice(-2).join('/')}`

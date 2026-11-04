@@ -11,9 +11,12 @@ import { EXIT, caseIdFrom, exitCodeOf, markdownOf, parseCheckArgs, resultOf } fr
 test('parseCheckArgs: the three names, the options, and plain refusals', () => {
   const p = parseCheckArgs(['umami', 'v3.3.1', 'v3.4.1', '--bisect', '--max-findings', '3', '--recrawl', '--json', '--out', 'r.json', '--timeout-min', '20'])
   assert.equal(p.ok, true); assert.deepEqual([p.app, p.good, p.cand], ['umami', 'v3.3.1', 'v3.4.1'])
-  assert.deepEqual(p.options, { bisect: true, recrawl: true, explain: false, maxFindings: 3, profile: null, repo: null, out: 'r.json', timeoutMin: 20, dashboard: 'http://127.0.0.1:8790', json: true })
+  assert.deepEqual(p.options, { bisect: true, recrawl: true, explain: false, ai: false, aiTests: false, aiFlows: false, aiDescribe: false, aiTriage: false, aiCanvas: false, aiBudget: 0.25, maxFindings: 3, profile: null, repo: null, out: 'r.json', timeoutMin: 20, dashboard: 'http://127.0.0.1:8790', json: true })
   assert.equal(parseCheckArgs(['a', 'b', 'c', '--no-dashboard']).options.dashboard, null)
   assert.equal(parseCheckArgs(['a', 'b', 'c', '--bisect', '--explain']).options.explain, true)
+  const ai = parseCheckArgs(['a', 'b', 'c', '--ai', '--ai-tests', '--ai-flows', '--ai-describe', '--ai-triage', '--ai-canvas', '--ai-budget', '0.5']).options
+  assert.deepEqual([ai.ai, ai.aiTests, ai.aiFlows, ai.aiDescribe, ai.aiTriage, ai.aiCanvas, ai.aiBudget], [true, true, true, true, true, true, 0.5])
+  for (const v of ['0', '-1', 'x', '11']) assert.equal(parseCheckArgs(['a', 'b', 'c', '--ai-budget', v]).ok, false, v)
   assert.equal(parseCheckArgs(['a', 'b', 'c', '--dashboard', 'https://ci.example.com']).options.dashboard, 'https://ci.example.com')
   for (const [argv, re] of [
     [['umami', 'v1'], /Usage/], [['Umami', 'v1', 'v2'], /lower-case/], [['umami', '-rf', 'v2'], /not a git/], [['umami', 'v1', 'v1'], /same/],

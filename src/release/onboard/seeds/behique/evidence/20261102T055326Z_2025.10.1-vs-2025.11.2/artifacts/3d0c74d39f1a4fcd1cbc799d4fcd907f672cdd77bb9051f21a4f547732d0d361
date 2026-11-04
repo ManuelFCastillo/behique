@@ -1,0 +1,42 @@
+{
+ "result": {
+  "conclusive": true,
+  "verified": true,
+  "commit": "d67a85b1287e8224b0f72a931b96fec184ebf9b9",
+  "parent": "e51676eea0ad4ca616d865ab39c8639f217362d7",
+  "subject": "fix(common): remove double scrollbar in response pane (#5665)",
+  "author": "preeyaX",
+  "date": "2025-12-09",
+  "files": [
+   "packages/hoppscotch-common/src/components/app/PaneLayout.vue",
+   "packages/hoppscotch-common/src/layouts/default.vue"
+  ],
+  "url": "https://github.com/hoppscotch/hoppscotch/commit/d67a85b1287e8224b0f72a931b96fec184ebf9b9",
+  "changes": 41,
+  "steps": 5,
+  "seconds": 1151.7
+ },
+ "log": [
+  "bisect: 41 changes between 2025.10.1 and 2025.11.2",
+  "  bisect step 1: fdbec04 (#20 of 41) good | fix: guard tauri calls with kernel check (#5619)",
+  "  bisect range: good through #20, bad from #41, of 41",
+  "  bisect step 2: cd82eb2 (#30 of 41) good | fix: remove `ref_id` field before collection exports and address race ",
+  "  bisect range: good through #30, bad from #41, of 41",
+  "  bisect step 3: f88c81f (#35 of 41) good | test(cli): prevent flaky CLI E2E tests by detecting generic `REQUEST_E",
+  "  bisect range: good through #35, bad from #41, of 41",
+  "  bisect step 4: e51676e (#38 of 41) good | fix(common): environment variables not detected in request body editor",
+  "  bisect range: good through #38, bad from #41, of 41",
+  "  bisect step 5: d67a85b (#39 of 41) bad | fix(common): remove double scrollbar in response pane (#5665)",
+  "  bisect range: good through #38, bad from #39, of 41",
+  "bisect: first bad change is #39 of 41, found in 5 steps",
+  "  commit: d67a85b1287e8224b0f72a931b96fec184ebf9b9",
+  "  subject: fix(common): remove double scrollbar in response pane (#5665)",
+  "  author: preeyaX",
+  "  date: 2025-12-09",
+  "  files: 2: packages/hoppscotch-common/src/components/app/PaneLayout.vue, packages/hoppscotch-common/src/layouts/default.vue",
+  "  url: https://github.com/hoppscotch/hoppscotch/commit/d67a85b1287e8224b0f72a931b96fec184ebf9b9",
+  "  verify parent e51676e: passed 3/3",
+  "  verify d67a85b: failed 3/3",
+  "BISECT CONFIRMED: d67a85b is the first change that breaks it"
+ ]
+}

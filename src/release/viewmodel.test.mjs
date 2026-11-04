@@ -83,6 +83,12 @@ test('a run that never closed becomes "fail" once it is stale, not "running" for
   assert.equal(verdictOf(c.read(), summarize(c.read()), Date.now() + 16 * 60 * 1000), 'fail')
 })
 
+test('a quiet run whose process is still going stays "running", however long it has been quiet', () => {
+  const c = report({ proven: false, close: false }), later = Date.now() + 40 * 60 * 1000
+  assert.equal(buildViewModel(c, { caseId: 'x', now: later }).verdict, 'fail')
+  assert.equal(buildViewModel(c, { caseId: 'x', now: later, live: true }).verdict, 'running')
+})
+
 test('every claim carries its real hash, and the hashes chain back to the first event', () => {
   const c = report(), vm = buildViewModel(c, { caseId: 'x' }), raw = c.rawLines()
   assert.ok(vm.claims.length >= 3)
@@ -223,6 +229,24 @@ test('while a search is running only the commits actually tested are drawn, with
   assert.equal(b.partial, true); assert.equal(b.changes, 100)
   assert.deepEqual(b.nodes.map(n => [n.hash, n.verdict, n.tested]), [['aaaaaaa', 'good', true], ['bbbbbbb', 'bad', true]], 'tested only, a skipped commit is not drawn')
   assert.equal(vm().culpritClaimId, null)
+})
+
+test('a finished search that could not decide shows skipped steps and unknown commits, never a made-up good', () => {
+  const c = openCase(mkdtempSync(join(tmpdir(), 'vm-')))
+  c.event('case.opened', { goodRef: '1.0', candRef: '2.0', adapter: 'freshrss', steps: [], options: { bisect: true, runs: 3 }, scenario: null })
+  c.event('builds.compared', { good: { ref: '1.0', sha: 'a'.repeat(40) }, candidate: { ref: '2.0', sha: 'b'.repeat(40) } })
+  c.event('bisect.started', { changes: 100 })
+  c.event('bisect.step', { step: 1, sha: 'aaaaaaa', index: 50, verdict: 'skip', why: 'toBeAttached() failed', goodThrough: 0, badFrom: 101, changes: 100 })
+  c.event('bisect.step', { step: 2, sha: 'bbbbbbb', index: 51, verdict: 'skip', why: 'toBeAttached() failed', goodThrough: 0, badFrom: 101, changes: 100 })
+  c.event('bisect.done', { conclusive: false, verified: false, steps: 2, seconds: 5 })
+  c.artifact('bisect.json', { result: { conclusive: false, verified: false, commit: null, changes: 100, steps: 2 } }, 'application/json')
+  const b = buildViewModel(c, { caseId: 'x' }).bisect
+  assert.ok(b, 'the finished search is in the view model')
+  assert.equal(b.conclusive, false)
+  assert.equal(b.skipped, 2)
+  assert.ok(!b.nodes.some(n => n.verdict === 'good'), 'no commit is called good when nothing was decided')
+  assert.deepEqual(b.nodes.filter(n => n.tested).map(n => [n.hash, n.verdict]), [['aaaaaaa', 'skip'], ['bbbbbbb', 'skip']])
+  assert.ok(b.nodes.filter(n => !n.tested).every(n => n.verdict === 'unknown'))
 })
 
 test('structured search events give the same picture as the finished record', () => {

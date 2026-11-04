@@ -78,6 +78,17 @@ describe('testSentence says what an exported test checks', () => {
   })
 })
 
+describe('where the page ends up', () => {
+  const t = { id: 'R1', fact: 'window@path', i: 1, good: '"/docs/category/getting-started"', candidate: 'stays at "/docs/installation"', notice: { cls: 'visible', why: 'where the page ends up' } }
+  const refs = { goodRef: '1.0', candRef: '2.0' }
+  it('is said as the page, not an element', () => {
+    assert.equal(testSentence(t, { ...refs, label: '1:click role=link[name="Getting Started"]' }), 'Checks that after step 1 (click role=link[name=\\"Getting Started\\"]) the page is at "/docs/category/getting-started", as on 1.0. On 2.0 it stays at "/docs/installation".')
+    assert.deepEqual(outcomeText(t, { ...refs, id: 'R1' }), { pass: 'R1 passes on 1.0: the page is at "/docs/category/getting-started".', fail: 'R1 fails on 2.0: the page stays at "/docs/installation".' })
+    assert.equal(regressionText(t, { ...refs, label: '1:click role=link[name="Getting Started"]' }), 'After click role=link[name=\\"Getting Started\\"] on 2.0, the page stays at "/docs/installation", where 1.0 goes to "/docs/category/getting-started".')
+    assert.equal(regressionText({ ...t, candidate: 'goes to "/docs/other"' }, refs), 'After step 1 on 2.0, the page goes to "/docs/other", where 1.0 goes to "/docs/category/getting-started".')
+  })
+})
+
 describe('regressionText says what the regression is for a person', () => {
   const refs = { goodRef: '1.0', candRef: '2.0' }
   it('names the element from its classes and reads layout classes', () => {
@@ -131,4 +142,10 @@ describe('outcomeText says what each recording shows', () => {
     assert.deepEqual(outcomeText({ fact: 'body/div[1]@class', i: 9, good: '"-mx-1 cursor-pointer inline-flex px-1 rounded"', candidate: '"flex"' }, refs), { pass: 'R1 passes on 1.0: the block still has the class "inline-flex".', fail: 'R1 fails on 2.0: the block has "flex" instead of "inline-flex".' })
     assert.equal(outcomeText(null), null)
   })
+})
+
+it('regressionText: a new list item is said as an addition, not a rename', () => {
+  const t = { fact: 'body/div[1]/button[3]/span[1]#text', i: 2, good: '"excalidraw"', candidate: '"docusaurus"', notice: { cls: 'visible', why: 'an item was added', addition: 'docusaurus', displaced: 'excalidraw' } }
+  const s = regressionText(t, { goodRef: 'v1', candRef: 'v2' })
+  assert.match(s, /a new item, "docusaurus", was added to a list/); assert.match(s, /held "excalidraw" on v1; that item is still in the list/); assert.doesNotMatch(s, /reads/)
 })

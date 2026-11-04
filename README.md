@@ -2,7 +2,7 @@
 
 Release verification for web apps. Give it a known-good version and a candidate; it builds both, walks the app along click paths it found on its own, records what each page says and does, and turns every difference into a Playwright test that must pass on the good version and fail on the candidate, run after run, on fresh builds. With `--bisect` it then finds the first commit that makes the test fail. The result is a recommendation (SHIP, HOLD, REVIEW) with the evidence behind it, in a dashboard, on the command line, or as a comment on a pull request.
 
-A model proposes, code verifies, a person approves. The pipeline makes no model calls. The one optional model call (a hypothesis about the culprit commit) shows its exact text and cost before it is sent.
+A model proposes, code verifies, a person approves. The verdict and exit code are computed with no model. Model calls are optional, capped and labelled AI guesses: a hypothesis about the culprit commit (`--explain`, its exact text and cost shown first in the dashboard), and the AI stages (`--ai`, `--ai-budget`, or the AI stages tab of a report): Spark writes readable tests that code keeps only if they pass on good and fail on the candidate every run, proposes click paths that code replays, describes picture differences that code checks against the pixels, and ranks unproven differences. They run after the verdict is fixed and cannot change it.
 
 ## Start
 

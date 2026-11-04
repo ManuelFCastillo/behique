@@ -98,3 +98,11 @@ test('a recorded element check outlines the element and tags it with what is che
   assert.equal(markWords(finding('x', { assert: { kind: 'scrolls', selector: 'xpath=/html/body/main[1]' } })), null, 'the scroll test has its own marker')
   assert.ok(!specSource(finding('x', { assert: { kind: 'api', steps: [{ path: '/api/x', method: 'GET' }], status: 200 } })).includes('marked'), 'an api check has no element to outline')
 })
+
+test('a url check reads the page address without the host and outlines nothing', () => {
+  const u = specSource(finding('/docs/category/getting-started', { assert: { kind: 'url', op: 'equals', value: '/docs/category/getting-started' } }))
+  assert.ok(u.includes('const url = new URL(page.url())') && u.includes('const path = url.pathname + url.search'))
+  assert.ok(u.includes('expect(String(path)).toBe("/docs/category/getting-started")'))
+  assert.ok(!u.includes('marked'), 'an address has no element to outline')
+  new Function(u.replace(/^import .*$/mg, '').replace(/\btest\(/, '(function(a,b){})('))
+})

@@ -1,0 +1,706 @@
+{
+ "labels": [
+  "start",
+  "1:click .flux .title:has-text(\"First post\")",
+  "2:click .flux.current a[href^=\"#dropdown-share\"]"
+ ],
+ "stable": 1093,
+ "volatile": {
+  "0|body/header[1]/nav[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "0|body/div[1]/nav[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "0|body/div[1]/nav[1]/form[1]/ul[1]/li[5]/ul[1]/li[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "0|body/div[1]/nav[2]/div[2]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=3",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=3"
+  },
+  "0|body/div[1]/nav[2]/div[2]/a[2]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=0",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=0"
+  },
+  "0|body/div[1]/nav[2]/div[2]/a[3]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=6",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=6"
+  },
+  "0|body/div[1]/nav[2]/div[2]/a[4]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=10",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=10"
+  },
+  "0|body/div[1]/nav[2]/div[2]/div[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "0|body/div[1]/nav[2]/div[3]/form[1]/div[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "0|body/div[1]/nav[2]/div[4]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8",
+   "b": "./?a=normal&rid=6ae6061c0c79b"
+  },
+  "0|body/div[1]/nav[2]/div[4]/a[2]@href": {
+   "a": "./?a=global&rid=6ae60618f01e8",
+   "b": "./?a=global&rid=6ae6061c0c79b"
+  },
+  "0|body/div[1]/nav[2]/div[4]/a[3]@href": {
+   "a": "./?a=reader&rid=6ae60618f01e8",
+   "b": "./?a=reader&rid=6ae6061c0c79b"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=id&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=id&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=date&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=date&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[3]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=lastUserModified&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=lastUserModified&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[4]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=length&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=length&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[5]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=link&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=link&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[6]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=title&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=title&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[7]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=f.name&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=f.name&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[8]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=c.name&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=c.name&order=DESC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[9]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=rand",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=rand"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[10]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=id&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=id&order=ASC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[11]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=date&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=date&order=ASC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[12]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=lastUserModified&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=lastUserModified&order=ASC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[13]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=length&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=length&order=ASC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[14]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=link&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=link&order=ASC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[15]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=title&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=title&order=ASC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[16]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=f.name&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=f.name&order=ASC"
+  },
+  "0|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[17]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=c.name&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=c.name&order=ASC"
+  },
+  "0|body/div[1]/main[1]/div[1]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8",
+   "b": "./?a=normal&rid=6ae6061c0c79b"
+  },
+  "0|body/div[1]/main[1]/div[3]@data-entry": {
+   "a": "1793459736070768",
+   "b": "1793459739548469"
+  },
+  "0|body/div[1]/main[1]/div[3]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070768",
+   "b": "./?c=entry&a=read&id=1793459739548469"
+  },
+  "0|body/div[1]/main[1]/div[3]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070768",
+   "b": "./?c=entry&a=bookmark&id=1793459739548469"
+  },
+  "0|body/div[1]/main[1]/div[3]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "0|body/div[1]/main[1]/div[3]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "0|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070768",
+   "b": "./?c=entry&a=read&id=1793459739548469"
+  },
+  "0|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070768",
+   "b": "./?c=entry&a=bookmark&id=1793459739548469"
+  },
+  "0|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070768",
+   "b": "#dropdown-labels-1793459739548469"
+  },
+  "0|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070768",
+   "b": "#dropdown-share-1793459739548469"
+  },
+  "0|body/div[1]/main[1]/div[4]@data-entry": {
+   "a": "1793459736070767",
+   "b": "1793459739548468"
+  },
+  "0|body/div[1]/main[1]/div[4]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070767",
+   "b": "./?c=entry&a=read&id=1793459739548468"
+  },
+  "0|body/div[1]/main[1]/div[4]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070767",
+   "b": "./?c=entry&a=bookmark&id=1793459739548468"
+  },
+  "0|body/div[1]/main[1]/div[4]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "0|body/div[1]/main[1]/div[4]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "0|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070767",
+   "b": "./?c=entry&a=read&id=1793459739548468"
+  },
+  "0|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070767",
+   "b": "./?c=entry&a=bookmark&id=1793459739548468"
+  },
+  "0|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070767",
+   "b": "#dropdown-labels-1793459739548468"
+  },
+  "0|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070767",
+   "b": "#dropdown-share-1793459739548468"
+  },
+  "0|body/div[1]/main[1]/div[5]@data-entry": {
+   "a": "1793459736070766",
+   "b": "1793459739548467"
+  },
+  "0|body/div[1]/main[1]/div[5]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070766",
+   "b": "./?c=entry&a=read&id=1793459739548467"
+  },
+  "0|body/div[1]/main[1]/div[5]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070766",
+   "b": "./?c=entry&a=bookmark&id=1793459739548467"
+  },
+  "0|body/div[1]/main[1]/div[5]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "0|body/div[1]/main[1]/div[5]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "0|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070766",
+   "b": "./?c=entry&a=read&id=1793459739548467"
+  },
+  "0|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070766",
+   "b": "./?c=entry&a=bookmark&id=1793459739548467"
+  },
+  "0|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070766",
+   "b": "#dropdown-labels-1793459739548467"
+  },
+  "0|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070766",
+   "b": "#dropdown-share-1793459739548467"
+  },
+  "0|body/div[1]/main[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "1|body/header[1]/nav[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "1|body/div[1]/nav[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "1|body/div[1]/nav[1]/form[1]/ul[1]/li[5]/ul[1]/li[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "1|body/div[1]/nav[2]/div[2]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=3",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=3"
+  },
+  "1|body/div[1]/nav[2]/div[2]/a[2]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=0",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=0"
+  },
+  "1|body/div[1]/nav[2]/div[2]/a[3]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=6",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=6"
+  },
+  "1|body/div[1]/nav[2]/div[2]/a[4]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=10",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=10"
+  },
+  "1|body/div[1]/nav[2]/div[2]/div[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "1|body/div[1]/nav[2]/div[3]/form[1]/div[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "1|body/div[1]/nav[2]/div[4]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8",
+   "b": "./?a=normal&rid=6ae6061c0c79b"
+  },
+  "1|body/div[1]/nav[2]/div[4]/a[2]@href": {
+   "a": "./?a=global&rid=6ae60618f01e8",
+   "b": "./?a=global&rid=6ae6061c0c79b"
+  },
+  "1|body/div[1]/nav[2]/div[4]/a[3]@href": {
+   "a": "./?a=reader&rid=6ae60618f01e8",
+   "b": "./?a=reader&rid=6ae6061c0c79b"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=id&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=id&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=date&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=date&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[3]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=lastUserModified&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=lastUserModified&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[4]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=length&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=length&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[5]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=link&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=link&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[6]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=title&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=title&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[7]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=f.name&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=f.name&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[8]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=c.name&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=c.name&order=DESC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[9]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=rand",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=rand"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[10]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=id&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=id&order=ASC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[11]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=date&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=date&order=ASC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[12]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=lastUserModified&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=lastUserModified&order=ASC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[13]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=length&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=length&order=ASC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[14]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=link&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=link&order=ASC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[15]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=title&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=title&order=ASC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[16]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=f.name&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=f.name&order=ASC"
+  },
+  "1|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[17]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=c.name&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=c.name&order=ASC"
+  },
+  "1|body/div[1]/main[1]/div[1]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8",
+   "b": "./?a=normal&rid=6ae6061c0c79b"
+  },
+  "1|body/div[1]/main[1]/div[3]@data-entry": {
+   "a": "1793459736070768",
+   "b": "1793459739548469"
+  },
+  "1|body/div[1]/main[1]/div[3]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070768",
+   "b": "./?c=entry&a=read&id=1793459739548469"
+  },
+  "1|body/div[1]/main[1]/div[3]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070768",
+   "b": "./?c=entry&a=bookmark&id=1793459739548469"
+  },
+  "1|body/div[1]/main[1]/div[3]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "1|body/div[1]/main[1]/div[3]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "1|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070768",
+   "b": "./?c=entry&a=read&id=1793459739548469"
+  },
+  "1|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070768",
+   "b": "./?c=entry&a=bookmark&id=1793459739548469"
+  },
+  "1|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070768",
+   "b": "#dropdown-labels-1793459739548469"
+  },
+  "1|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070768",
+   "b": "#dropdown-share-1793459739548469"
+  },
+  "1|body/div[1]/main[1]/div[4]@data-entry": {
+   "a": "1793459736070767",
+   "b": "1793459739548468"
+  },
+  "1|body/div[1]/main[1]/div[4]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070767",
+   "b": "./?c=entry&a=read&id=1793459739548468"
+  },
+  "1|body/div[1]/main[1]/div[4]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070767",
+   "b": "./?c=entry&a=bookmark&id=1793459739548468"
+  },
+  "1|body/div[1]/main[1]/div[4]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "1|body/div[1]/main[1]/div[4]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "1|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070767",
+   "b": "./?c=entry&a=read&id=1793459739548468"
+  },
+  "1|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070767",
+   "b": "./?c=entry&a=bookmark&id=1793459739548468"
+  },
+  "1|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070767",
+   "b": "#dropdown-labels-1793459739548468"
+  },
+  "1|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070767",
+   "b": "#dropdown-share-1793459739548468"
+  },
+  "1|body/div[1]/main[1]/div[5]@data-entry": {
+   "a": "1793459736070766",
+   "b": "1793459739548467"
+  },
+  "1|body/div[1]/main[1]/div[5]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070766",
+   "b": "./?c=entry&a=read&id=1793459739548467"
+  },
+  "1|body/div[1]/main[1]/div[5]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070766",
+   "b": "./?c=entry&a=bookmark&id=1793459739548467"
+  },
+  "1|body/div[1]/main[1]/div[5]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "1|body/div[1]/main[1]/div[5]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "1|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070766",
+   "b": "./?c=entry&a=read&id=1793459739548467"
+  },
+  "1|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070766",
+   "b": "./?c=entry&a=bookmark&id=1793459739548467"
+  },
+  "1|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070766",
+   "b": "#dropdown-labels-1793459739548467"
+  },
+  "1|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070766",
+   "b": "#dropdown-share-1793459739548467"
+  },
+  "1|body/div[1]/main[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "2|body/header[1]/nav[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "2|body/div[1]/nav[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "2|body/div[1]/nav[1]/form[1]/ul[1]/li[5]/ul[1]/li[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "2|body/div[1]/nav[2]/div[2]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=3",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=3"
+  },
+  "2|body/div[1]/nav[2]/div[2]/a[2]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=0",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=0"
+  },
+  "2|body/div[1]/nav[2]/div[2]/a[3]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=6",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=6"
+  },
+  "2|body/div[1]/nav[2]/div[2]/a[4]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&state=10",
+   "b": "./?a=normal&rid=6ae6061c0c79b&state=10"
+  },
+  "2|body/div[1]/nav[2]/div[2]/div[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "2|body/div[1]/nav[2]/div[3]/form[1]/div[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  },
+  "2|body/div[1]/nav[2]/div[4]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8",
+   "b": "./?a=normal&rid=6ae6061c0c79b"
+  },
+  "2|body/div[1]/nav[2]/div[4]/a[2]@href": {
+   "a": "./?a=global&rid=6ae60618f01e8",
+   "b": "./?a=global&rid=6ae6061c0c79b"
+  },
+  "2|body/div[1]/nav[2]/div[4]/a[3]@href": {
+   "a": "./?a=reader&rid=6ae60618f01e8",
+   "b": "./?a=reader&rid=6ae6061c0c79b"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=id&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=id&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=date&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=date&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[3]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=lastUserModified&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=lastUserModified&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[4]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=length&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=length&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[5]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=link&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=link&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[6]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=title&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=title&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[7]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=f.name&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=f.name&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[8]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=c.name&order=DESC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=c.name&order=DESC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[9]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=rand",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=rand"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[10]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=id&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=id&order=ASC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[11]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=date&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=date&order=ASC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[12]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=lastUserModified&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=lastUserModified&order=ASC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[13]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=length&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=length&order=ASC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[14]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=link&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=link&order=ASC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[15]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=title&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=title&order=ASC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[16]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=f.name&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=f.name&order=ASC"
+  },
+  "2|body/div[1]/nav[2]/div[5]/div[1]/ul[1]/li[17]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8&sort=c.name&order=ASC",
+   "b": "./?a=normal&rid=6ae6061c0c79b&sort=c.name&order=ASC"
+  },
+  "2|body/div[1]/main[1]/div[1]/a[1]@href": {
+   "a": "./?a=normal&rid=6ae60618f01e8",
+   "b": "./?a=normal&rid=6ae6061c0c79b"
+  },
+  "2|body/div[1]/main[1]/div[3]@data-entry": {
+   "a": "1793459736070768",
+   "b": "1793459739548469"
+  },
+  "2|body/div[1]/main[1]/div[3]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070768",
+   "b": "./?c=entry&a=read&id=1793459739548469"
+  },
+  "2|body/div[1]/main[1]/div[3]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070768",
+   "b": "./?c=entry&a=bookmark&id=1793459739548469"
+  },
+  "2|body/div[1]/main[1]/div[3]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "2|body/div[1]/main[1]/div[3]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "2|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070768",
+   "b": "./?c=entry&a=read&id=1793459739548469"
+  },
+  "2|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070768",
+   "b": "./?c=entry&a=bookmark&id=1793459739548469"
+  },
+  "2|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070768",
+   "b": "#dropdown-labels-1793459739548469"
+  },
+  "2|body/div[1]/main[1]/div[3]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070768",
+   "b": "#dropdown-share-1793459739548469"
+  },
+  "2|body/div[1]/main[1]/div[4]@data-entry": {
+   "a": "1793459736070767",
+   "b": "1793459739548468"
+  },
+  "2|body/div[1]/main[1]/div[4]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070767",
+   "b": "./?c=entry&a=read&id=1793459739548468"
+  },
+  "2|body/div[1]/main[1]/div[4]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070767",
+   "b": "./?c=entry&a=bookmark&id=1793459739548468"
+  },
+  "2|body/div[1]/main[1]/div[4]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "2|body/div[1]/main[1]/div[4]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "2|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070767",
+   "b": "./?c=entry&a=read&id=1793459739548468"
+  },
+  "2|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070767",
+   "b": "./?c=entry&a=bookmark&id=1793459739548468"
+  },
+  "2|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070767",
+   "b": "#dropdown-labels-1793459739548468"
+  },
+  "2|body/div[1]/main[1]/div[4]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070767",
+   "b": "#dropdown-share-1793459739548468"
+  },
+  "2|body/div[1]/main[1]/div[5]@data-entry": {
+   "a": "1793459736070766",
+   "b": "1793459739548467"
+  },
+  "2|body/div[1]/main[1]/div[5]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070766",
+   "b": "./?c=entry&a=read&id=1793459739548467"
+  },
+  "2|body/div[1]/main[1]/div[5]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070766",
+   "b": "./?c=entry&a=bookmark&id=1793459739548467"
+  },
+  "2|body/div[1]/main[1]/div[5]/ul[1]/li[3]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "2|body/div[1]/main[1]/div[5]/article[1]/div[1]/header[1]/div[1]/div[1]/a[1]/img[1]@src": {
+   "a": "../f.php?h=9a79a510",
+   "b": "../f.php?h=665ebc4d"
+  },
+  "2|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[1]/a[1]@href": {
+   "a": "./?c=entry&a=read&id=1793459736070766",
+   "b": "./?c=entry&a=read&id=1793459739548467"
+  },
+  "2|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[2]/a[1]@href": {
+   "a": "./?c=entry&a=bookmark&id=1793459736070766",
+   "b": "./?c=entry&a=bookmark&id=1793459739548467"
+  },
+  "2|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[3]/div[1]/a[1]@href": {
+   "a": "#dropdown-labels-1793459736070766",
+   "b": "#dropdown-labels-1793459739548467"
+  },
+  "2|body/div[1]/main[1]/div[5]/article[1]/footer[1]/ul[1]/li[4]/div[1]/a[1]@href": {
+   "a": "#dropdown-share-1793459736070766",
+   "b": "#dropdown-share-1793459739548467"
+  },
+  "2|body/div[1]/main[1]/form[1]/input[1]@value": {
+   "a": "1570b7b28d3d05b784cadb5c3e7e88c3efe56cfebea70a14fdac7630daa8cfeb",
+   "b": "2e1689d19b5c3f748187b8f5e605930d522a7a44feb3acda1c110345eb30baaf"
+  }
+ }
+}

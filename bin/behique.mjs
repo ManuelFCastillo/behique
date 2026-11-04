@@ -1,12 +1,15 @@
 #!/usr/bin/env node
 // behique: the command.
-//   behique check <app> <good> <cand> [--bisect [--explain]] [--max-findings 5] [--recrawl] [--profile file.json --repo path] [--out file] [--json]
+//   behique check <app> <good> <cand> [--bisect [--explain]] [--ai | --ai-tests --ai-flows --ai-describe --ai-triage --ai-canvas] [--ai-budget 0.25] [--max-findings 5] [--recrawl] [--profile file.json --repo path] [--out file] [--json]
+//   behique ai <caseId> [--ai ...] [--ai-budget 0.25]   (run the AI stages on a saved case)
 //   behique comment --result out/check/<case>.json --repo owner/name --pr 12 [--dry-run]
 //   behique help
 // `check` runs the same pipeline as the dashboard (crawl the good version, compare, prove each change with a test, optional
 // bisect), then prints the result as Markdown, writes it as JSON and Markdown next to the evidence, and exits 0 for SHIP,
 // 1 for HOLD, 2 for REVIEW, 3 when the evidence is incomplete. `--explain` (with --bisect) makes one paid model call about the first bad
-// change and adds the answer, labelled a guess, to the result; it never changes the verdict or the exit code. `comment` posts a result on a pull request through `gh`.
+// change and adds the answer, labelled a guess, to the result; it never changes the verdict or the exit code. The --ai flags run the
+// optional AI stages (src/release/cli/ai-stages.mjs) AFTER the verdict is computed, under one cost cap (--ai-budget, default US$0.25),
+// and add their output, labelled AI guesses, to the result and the comment; the recommendation and exit code are taken before they run. `comment` posts a result on a pull request through `gh`.
 import { execFile, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
@@ -14,22 +17,26 @@ import { fileURLToPath } from 'node:url'
 import { openCase } from '../src/release/evidence.mjs'
 import { buildViewModel } from '../src/release/viewmodel.mjs'
 import { normalizeProfile, saveProfile, validateProfile } from '../src/release/onboard/profile.mjs'
-import { caseIdFrom, markdownOf, parseCheckArgs, resultOf } from '../src/release/cli/result.mjs'
+import { aiSection, caseIdFrom, markdownOf, parseCheckArgs, resultOf } from '../src/release/cli/result.mjs'
 import { commentBody, postComment } from '../src/release/cli/comment.mjs'
 import { explainCase } from '../src/release/cli/explain.mjs'
+import { runAiStages, selectedStages, verdictFingerprint } from '../src/release/cli/ai-stages.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const [cmd, ...rest] = process.argv.slice(2)
 const USAGE = `usage:
-  behique check <app> <good> <cand> [--bisect [--explain]] [--max-findings 5] [--recrawl] [--profile file.json --repo path] [--out file] [--json] [--timeout-min 45] [--dashboard http://127.0.0.1:8790 | --no-dashboard]
+  behique check <app> <good> <cand> [--bisect [--explain]] [--ai | --ai-tests --ai-flows --ai-describe --ai-triage --ai-canvas] [--ai-budget 0.25] [--max-findings 5] [--recrawl] [--profile file.json --repo path] [--out file] [--json] [--timeout-min 45] [--dashboard http://127.0.0.1:8790 | --no-dashboard]
+  behique ai <caseId> [--explain] [--full] [--ai | --ai-tests --ai-flows --ai-describe --ai-triage --ai-canvas] [--ai-budget 0.25] [--json]   (run the AI stages on a saved case; prints the "AI guesses" section only)
   behique comment --result out/check/<case>.json --repo owner/name --pr 12 [--dry-run]
 --explain: after the search names a first bad change, ask Meta's Muse Spark once why (about a cent). It sends the observed difference and that one commit's message and diff to Meta, needs META_API_KEY, and is recorded as a guess.
+--ai: also run the four optional AI stages after the verdict (tests a model wrote, click paths it proposed, a description of the pictures, a ranking of unproven differences); each is skipped if its module is not in this build. --ai-tests, --ai-flows, --ai-describe, --ai-triage pick one. --ai-canvas (not part of --ai): for a canvas app such as Music Blocks, one screenshot of a PUBLIC app goes to the model, which lists the controls; code clicks them on both versions. --ai-budget caps the total AI spend in US dollars (default 0.25, counting --explain). Everything a model writes is labelled an AI guess, shows its cost, and never changes the verdict or the exit code.
 exit codes for check: 0 SHIP (nothing a person would notice changed), 1 HOLD (a proven change a person would notice), 2 REVIEW (changes seen, not proven), 3 evidence incomplete`
 
 const fail = (msg, code = 2) => { console.error(msg); process.exit(code) }
 
 if (!cmd || cmd === 'help' || cmd === '--help' || cmd === '-h') { console.log(USAGE); process.exit(cmd ? 0 : 2) }
 if (cmd === 'check') await check(rest)
+else if (cmd === 'ai') await aiOnCase(rest)
 else if (cmd === 'comment') await comment(rest)
 else fail(`unknown command "${String(cmd).slice(0, 20)}"\n${USAGE}`)
 
@@ -65,7 +72,19 @@ async function check(argv) {
     if (explainNote) console.log(`explain: skipped (${explainNote}); the verdict is unaffected`)
   }
   const vm = buildViewModel(evidenceCase, { caseId })
-  const result = { ...resultOf(vm, { caseId, dashboard: options.dashboard }), ...(explainNote ? { explanationSkipped: explainNote } : {}) }
+  let result = { ...resultOf(vm, { caseId, dashboard: options.dashboard }), ...(explainNote ? { explanationSkipped: explainNote } : {}) }
+  const stages = selectedStages(options)
+  if (stages.length && !['ship', 'hold', 'inconclusive'].includes(result.recommendation)) console.log(`ai: skipped (the check ended without finished evidence: ${result.word}), nothing was sent to a model`)
+  else if (stages.length) {
+    // the verdict and exit code are already in `result`; the stages only add a separate, labelled section
+    const fingerprint = verdictFingerprint(result)
+    const ai = await runAiStages({ caseDir: join(ROOT, 'out', 'evidence', caseId), stages, budgetUsd: options.aiBudget, spentBeforeUsd: result.explanation?.estUsd ?? 0, context: { app, good, cand, prepare: prepareStage(app, good) }, log: l => console.log(l) })
+    result = { ...result, ai }
+    for (const s of ai.stages) console.log(`ai: ${s.id}: ${s.status}${s.reason ? ` (${s.reason})` : ''}${s.status === 'ran' ? `, ${s.items.length} item${s.items.length === 1 ? '' : 's'}, about $${s.spentUsd.toFixed(4)}` : ''}`)
+    console.log(`ai: total about $${ai.totalUsd.toFixed(4)} of a $${options.aiBudget.toFixed(2)} budget; the verdict is unaffected`)
+    const again = resultOf(buildViewModel(openCase(join(ROOT, 'out', 'evidence', caseId)), { caseId }), { caseId, dashboard: options.dashboard })
+    if (verdictFingerprint(again) !== fingerprint) console.log('ai: WARNING the case reads differently after the AI stages; the result above keeps the verdict computed before them')
+  }
   const outBase = options.out ? resolve(options.out).replace(/\.(json|md)$/, '') : join(ROOT, 'out', 'check', caseId)
   mkdirSync(dirname(outBase), { recursive: true })
   writeFileSync(outBase + '.json', JSON.stringify(result, null, 2) + '\n')
@@ -73,6 +92,52 @@ async function check(argv) {
   console.log('\n' + (options.json ? JSON.stringify(result, null, 2) : markdownOf(result)))
   console.log(`result: ${outBase}.json`)
   process.exit(result.exitCode)
+}
+
+/** `behique ai <caseId> --ai ...`: the AI stages on a case that is already saved. The case's verdict is read, never recomputed or changed. */
+async function aiOnCase(argv) {
+  const id = argv.find(a => !a.startsWith('--') && !/^\d+(\.\d+)?$/.test(a))
+  if (!id || !/^[0-9TZ]{16}_[A-Za-z0-9._\-/]+$/.test(id) || id.includes('..')) fail('usage: behique ai <caseId> [--explain] [--full] [--ai | --ai-tests --ai-flows --ai-describe --ai-triage --ai-canvas] [--ai-budget 0.25] [--json]')
+  const full = argv.includes('--full'), explain = argv.includes('--explain')
+  const p = parseCheckArgs(['x', 'a', 'b', '--bisect', ...argv.filter(a => a !== id && a !== '--full')])
+  if (!p.ok) fail(p.error)
+  const stages = selectedStages(p.options)
+  if (!stages.length && !explain) fail('pick at least one of --explain, --ai, --ai-tests, --ai-flows, --ai-describe, --ai-triage, --ai-canvas')
+  const dir = join(ROOT, 'out', 'evidence', id)
+  if (!existsSync(join(dir, 'events.ndjson'))) fail(`no such case: ${id}`)
+  const c = openCase(dir)
+  const opened = c.read().find(e => e.type === 'case.opened')?.data ?? {}
+  const app = opened.app ?? String(opened.adapter ?? '').replace(/^visual-/, '')
+  const before = resultOf(buildViewModel(c, { caseId: id }), { caseId: id, dashboard: null })
+  if (!['ship', 'hold', 'inconclusive'].includes(before.recommendation)) fail(`that case has no finished verdict (${before.word}), so nothing was sent to a model`, 3)
+  let explainNote = null
+  if (explain) { // the same guarded single call as `check --explain`, on the saved case
+    if (!before.culprit) explainNote = 'no first bad change was found, so there is nothing to explain'
+    else { const e = await explainCase(c, { log: l => console.log(l) }); if (!e.ok) explainNote = e.reason }
+    if (explainNote) console.log(`explain: skipped (${explainNote}); the verdict is unaffected`)
+  }
+  const withGuess = { ...resultOf(buildViewModel(openCase(dir), { caseId: id }), { caseId: id, dashboard: null }), ...(explainNote ? { explanationSkipped: explainNote } : {}) }
+  const ai = await runAiStages({ caseDir: dir, stages, budgetUsd: p.options.aiBudget, spentBeforeUsd: withGuess.explanation?.estUsd ?? 0, context: { app, good: opened.goodRef, cand: opened.candRef, prepare: prepareStage(app, opened.goodRef) }, log: l => console.log(l) })
+  const after = resultOf(buildViewModel(openCase(dir), { caseId: id }), { caseId: id, dashboard: null })
+  console.log(`verdict ${before.word}, exit code ${before.exitCode}: ${verdictFingerprint(after) === verdictFingerprint(before) ? 'unchanged by the AI stages' : 'WARNING: reads differently after the stages'}`)
+  if (full) { console.log('\n' + markdownOf({ ...withGuess, ai })); return }
+  console.log('\n' + (p.options.json ? JSON.stringify(ai, null, 2) : aiSection({ ...withGuess, ai }).join('\n\n')))
+}
+
+/** What an AI stage needs from the app: its adapter (tests), or the good version running read-only (click paths). Resolved only when the stage runs. */
+function prepareStage(app, good) {
+  return async stage => {
+    if (stage.id !== 'tests' && stage.id !== 'flows') return null
+    const { resolveApp } = await import('../src/release/crawl/cli.mjs')
+    const resolved = await resolveApp(app)
+    const { needsSandbox, SANDBOX_REQUIRED } = await import('../src/release/ui/settings.mjs')
+    if (resolved.kind === 'profile' && needsSandbox(resolved.adapter?.profile) && !process.env.BEHIQUE_SANDBOX) throw new Error(SANDBOX_REQUIRED) // the same rule as the dashboard: a repo's own code never runs on this machine unsandboxed
+    if (stage.id === 'tests') return { extra: { adapter: resolved.adapter } }
+    const { startBuild } = await import('../src/release/build.mjs')
+    const { startPathOf } = await import('../src/release/crawl/reuse.mjs')
+    const b = await startBuild({ adapter: resolved.adapter, ref: good, port: 8321 })
+    return { extra: { base: b.base, startPath: startPathOf(resolved), readOnly: true }, stop: () => b.stop() }
+  }
 }
 
 /** Run check-app as a child, printing and collecting its lines as they arrive; SIGTERM then SIGKILL on timeout. */

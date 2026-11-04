@@ -33,6 +33,7 @@ const EXTRACT = () => {
   }
   walk(document.body, 'body')
   out['window@scrollY'] = Math.round(window.scrollY) // behaviour, not markup: how far the page is scrolled
+  out['window@path'] = location.pathname + location.search // where the page is: a click that lands somewhere else, or nowhere, shows here
   return out
 }
 
@@ -56,11 +57,10 @@ export async function evaluateSettled(page, fn, { tries = 3, waitFor = null } = 
 /** Open the build, record facts, perform each action and record again. Returns [{ label, facts }]. */
 /** readOnly: no request but GET or HEAD gets through, so every step sees the app exactly as it was seeded (a click that would mark something read, or save, changes nothing). */
 export async function recordRun(base, actions, { viewport = { width: 1280, height: 900 }, readOnly = false } = {}) {
-  const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
+  const s = new Session(base, { viewport, navigationTimeoutMs: 30000, readOnly }) // the session refuses writes and other hosts itself
   const steps = []
   try {
     await s.open()
-    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) || s.writesAllowed ? route.continue() : route.abort()))
     await s.page.waitForLoadState('networkidle').catch(() => {})
     steps.push({ label: 'start', facts: await evaluateSettled(s.page, EXTRACT) })
     for (const [i, a] of actions.entries()) {

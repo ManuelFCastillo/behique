@@ -84,6 +84,7 @@ function assertionCode(spec, ctx = null) {
       ? [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).toBeNull()'] // absent: the old version had no such attribute
       : [el, attached, `const attr = await el.getAttribute(${q(String(spec.name))})`, 'expect(attr).not.toBeNull()', cmp('attr', spec.op, spec.value, ctx)]
     case 'dialog': return ["const dialog = dialogs.at(-1) ?? ''", cmp('dialog', spec.op, spec.value, ctx)]
+    case 'url': return ['const url = new URL(page.url())', 'const path = url.pathname + url.search', cmp('path', spec.op, spec.value, ctx)] // where the page is, without the host, so the test runs against any build
     case 'api': {
       const lines = ['let res']
       for (const st of spec.steps) lines.push(`res = await request.fetch(${q(st.path)}, { method: ${q(String(st.method || 'GET').toUpperCase())}${st.body !== undefined ? `, data: ${q(st.body)}` : ''} })`)
@@ -183,13 +184,16 @@ export function specSource(f) {
 // Actual:   ${String(f.actual).replace(/\n/g, ' ')}${f.notice?.cls ? `\n// Class:    ${f.notice.cls === 'visible' ? 'a person would notice' : f.notice.cls === 'churn' ? 'markup churn' : 'third-party content'} (${String(f.notice.why ?? '').replace(/\n/g, ' ')})` : ''}
 import { test, expect } from '@playwright/test'
 
-test(${q(f.title)}, async ({ page, request }) => {
+test(${q(f.title)}, async ({ page, request }, testInfo) => {
 ${indent([
     'const dialogs = []',
     "page.on('dialog', d => { dialogs.push(d.message()); d.accept() })",
     '// Start from a clean app. This hook is project specific: replace it with your own reset.',
-    "await request.post('/api/reset').catch(() => {})",
-    ...(f.readOnly ? ["// The facts were recorded with every request but GET and HEAD blocked (except during the login step), so the test blocks them too.", 'let loginWrites = false', "await page.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) || loginWrites ? route.continue() : route.abort()))"] : []),
+    "await request.post('/api/reset', { timeout: 3000 }).catch(() => {}) // a hook the app may not have: bounded, so a server that never answers a POST cannot eat the test's time",
+    '// Requests to other hosts are refused, as they were while recording: what another host serves is never a finding, and a test must not wait on someone else\'s server.',
+    'const origin = new URL(testInfo.project.use.baseURL).origin',
+    ...(f.readOnly ? ['// The facts were recorded with every request but GET and HEAD blocked (except during the login step), so the test blocks them too.', 'let loginWrites = false'] : []),
+    `await page.route('**/*', route => { const r = route.request(); let same = false; try { same = new URL(r.url()).origin === origin } catch {}; return same${f.readOnly ? " && (['GET', 'HEAD'].includes(r.method()) || loginWrites)" : ''} ? route.continue() : route.abort() })`,,
     `await page.goto(${q(f.start ?? '/')})`,
     ...(ctx.live ? [`// The expected value embeds the address the app was served from when it was recorded (${ctx.origin}); compare against this build's address instead.`, 'const live = new URL(page.url()).origin'] : []),
     ...steps,

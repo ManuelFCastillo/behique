@@ -11,7 +11,7 @@ import { execFile } from 'node:child_process'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
-import { runExported } from '../export.mjs'
+import { runExportedAsync } from '../export.mjs'
 import { startBuild } from './build.mjs'
 
 const run = promisify(execFile)
@@ -32,7 +32,9 @@ export function classify(r, id) {
 async function check({ adapter, ref, port, dir, id }) {
   let b
   try { b = await startBuild({ adapter, ref, port }) } catch (e) { return { verdict: 'skip', why: 'build failed: ' + firstLine(e.message) } }
-  try { return classify(runExported(dir, new URL(b.base).origin, { only: id }), id) } finally { await b.stop() }
+  // Never the blocking runner here: in local Docker mode this process is the port forward to the container, and a blocked event
+  // loop would stall every request of the test until it times out (every commit "skip", as happened on 2026-11-03).
+  try { return classify(await runExportedAsync(dir, new URL(b.base).origin, { only: id }), id) } finally { await b.stop() }
 }
 
 export async function bisect({ adapter, goodRef, badRef, dir, id = 'R1', port = 8300, runs = 3, log = console.log, test = check, onEvent = () => {} }) {

@@ -14,8 +14,11 @@ describe('the exported test', () => {
     assert.match(src, /page\.route\('\*\*\/\*'/)
     assert.ok(src.indexOf("page.route('**/*'") < src.indexOf('page.goto('), 'blocked before the first load')
   })
-  it('is unchanged for an ordinary finding', () => {
-    assert.ok(!specSource(finding()).includes('page.route'))
+  it('refuses other hosts for an ordinary finding too, without the method rule', () => {
+    const src = specSource(finding())
+    assert.match(src, /page\.route\('\*\*\/\*'/)
+    assert.ok(src.indexOf("page.route('**/*'") < src.indexOf('page.goto('), 'refused before the first load')
+    assert.ok(!src.includes('loginWrites'))
   })
 })
 

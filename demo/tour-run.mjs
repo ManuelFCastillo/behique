@@ -17,6 +17,7 @@ const ctx = await browser.newContext({ viewport: { width: W, height: H }, record
 const page = await ctx.newPage()
 const t0 = Date.now(), at = () => (Date.now() - t0) / 1000
 const marks = {}
+await page.addInitScript(() => { document.addEventListener('DOMContentLoaded', () => { const s = document.createElement('style'); s.textContent = '#rdBar{display:none !important}'; document.head.appendChild(s) }) }) // the layout picker is for design review, not for the film
 await page.goto(`${base}/dashboard`, { waitUntil: 'networkidle' })
 await page.waitForTimeout(1500)
 await page.click('#replayBtn'); await page.waitForSelector('#runOverlay.open'); marks.dialog = at()
@@ -28,7 +29,7 @@ await page.waitForTimeout(900)
 marks.start = at(); await page.click('#runStart')
 // the run: poll the server until it is over, the page keeps showing its own progress
 let cur
-for (let i = 0; i < 2400; i++) {
+for (let i = 0; i < 5400; i++) { // the longest measured run with a bisect is about 40 minutes
   await page.waitForTimeout(1000)
   cur = await fetch(`${base}/api/ui/runs/current`).then(r => r.json()).catch(() => null)
   if (i === 2) marks.running = at()

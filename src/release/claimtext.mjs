@@ -90,6 +90,7 @@ export function testSentence(t, { label = null, goodRef = 'the good version', ca
   const step = Number.isFinite(Number(t.i)) ? `after step ${t.i}${label ? ` (${stepWords(label)})` : ''}` : 'at the end'
   const e = element(t.fact), where = t.fact.replace(/(@[^/]+|#text|#scrolls)$/, '').split('/').slice(-2).join('/'), who = `${article(e.tag)} at ${where}`
   if (t.fact === 'window@scrollY') return `Checks that ${step} ${unq(t.good)}, as on ${goodRef}. On ${candRef} ${unq(t.candidate)}.`
+  if (t.fact === 'window@path') return `Checks that ${step} the page is at ${q(t.good)}, as on ${goodRef}. On ${candRef} it ${unq(t.candidate)}.`
   if (e.what === 'scrolling') return `Checks that ${step} ${who} can still scroll, as on ${goodRef}: the test turns the mouse wheel over it and asks whether it can scroll. On ${candRef} it cannot.`
   const subject = e.what === 'text' ? `the text of ${who}` : e.what === 'classes' ? `the classes of ${who}` : `the ${e.what} attribute of ${who}`
   const plural = e.what === 'classes'
@@ -113,6 +114,7 @@ export function outcomeText(t, { goodRef = 'the good version', candRef = 'the ca
   const the = who.replace(/^an? /, 'the ')
   const P = `${id ?? 'The test'} passes on ${goodRef}: `, F = `${id ?? 'The test'} fails on ${candRef}: `
   if (t.fact === 'window@scrollY') return { pass: `${P}${unq(t.good)}.`, fail: `${F}${unq(t.candidate)}.` }
+  if (t.fact === 'window@path') return { pass: `${P}the page is at ${q(t.good)}.`, fail: `${F}the page ${unq(t.candidate)}.` }
   if (e.what === 'scrolling') return { pass: `${P}${the} scrolls when the mouse wheel turns over it.`, fail: `${F}${the} does not move when the mouse wheel turns over it.` }
   if (t.appeared) return { pass: `${P}${the} has no ${e.what} attribute.`, fail: `${F}${the} is ${STATE_WORDS[e.what] ?? `marked ${e.what}`}.` }
   if (t.removed && t.stillThere) return { pass: `${P}${the} carries the ${e.what} attribute.`, fail: `${F}the ${e.what} attribute is gone from ${the}.` }
@@ -179,7 +181,9 @@ export function regressionText(t, { goodRef = 'the good version', candRef = 'the
   const when = Number.isFinite(Number(t.i)) && Number(t.i) > 0 ? `After ${label ? stepWords(label) : `step ${t.i}`}` : 'On the start page'
   const churn = t.notice?.cls === 'churn' ? ` This is markup churn (${t.notice.why}): a person would not notice it, and it is here so the record is complete.` : ''
   const lead = `${when} on ${candRef}, `
+  if (t.notice?.addition) return `${lead}a new item, ${q(t.notice.addition)}, was added to a list, and what followed it moved along.${t.notice.displaced ? ` This place held ${q(t.notice.displaced)} on ${goodRef}; that item is still in the list.` : ''}`
   if (t.fact === 'window@scrollY') return `${lead}the page scrolls differently: ${unq(t.candidate)}, where ${goodRef} has ${unq(t.good)}.`
+  if (t.fact === 'window@path') return `${lead}the page ${unq(t.candidate)}, where ${goodRef} goes to ${q(t.good)}.`
   if (e.what === 'scrolling') return `${lead}${who} cannot be scrolled: the mouse wheel over it does nothing, so anything below its edge is out of reach. On ${goodRef} it scrolls.`
   if (t.appeared) return `${lead}${who} is ${STATE_WORDS[e.what] ?? `marked ${e.what}`}. On ${goodRef} it is not.${churn}`
   if (t.removed && t.stillThere) return `${lead}the ${e.what} attribute dropped off ${who}; the element itself is still there.${churn}`

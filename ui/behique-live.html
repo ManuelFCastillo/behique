@@ -71,6 +71,9 @@ animation:gemBreathe 3.2s ease-in-out infinite}
 .node{width:14px;height:14px;border-radius:50%;border:2px solid #000;z-index:1}
 .node.g{background:var(--emerald);box-shadow:0 0 10px rgba(47,217,138,.6)}
 .node.r{background:var(--ruby);box-shadow:0 0 10px rgba(255,77,87,.5)}
+.node.s{background:repeating-linear-gradient(45deg,#2a3442 0 3px,#0d1117 3px 6px);border:2px solid #7d8a9b;box-shadow:none}  /* skipped: the test could not run here */
+.node.u{background:#161d27;border:2px solid #2a3442;box-shadow:none;opacity:.75}  /* never reached by a search that could not decide */
+@media(max-width:520px){#bisectNodes .node:not(.c){width:12px;height:12px;border-width:1.5px}}  /* 15 dots must not touch on a phone */
 .node.c{width:26px;height:26px;background:radial-gradient(circle,#ffd9a0,var(--amber-glow));border:3px solid var(--amber);box-shadow:0 0 18px rgba(255,122,26,.9)}
 .end-label{position:absolute;top:58px;font-size:12px;color:var(--muted)}
 .end-label.left{left:70px}.end-label.right{right:70px}
@@ -379,15 +382,66 @@ img,svg{max-width:100%}
 .ext-run .mini-btn{grid-area:open}
 #runOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:310}
 #runOverlay.open{display:flex}
-#runDlg{width:min(540px,92vw);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 0 40px rgba(0,0,0,.6)}
-#runDlg h3{margin:0 0 4px;font-size:18px}#runDlg .sub{color:var(--muted);font-size:13px;margin-bottom:6px}
-#runDlg label.f{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:12px 0 4px}
-#runDlg select,#runDlg input[type=text]{width:100%;background:var(--panel-2);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:8px 10px;font:14px system-ui}
-#runDlg .about{font-size:12px;color:var(--muted);line-height:1.4;margin-top:6px}
-#runDlg .two{display:flex;gap:12px}#runDlg .two>div{flex:1}
-#runDlg .chk{display:flex;gap:8px;align-items:center;margin-top:14px;font-size:13px;color:var(--text)}
-#runDlg .err{color:var(--ruby);font-size:13px;min-height:18px;margin-top:10px}
-#runDlg .btns{display:flex;justify-content:flex-end;gap:10px;margin-top:12px}
+#runDlg{width:min(820px,94vw);max-height:94vh;overflow:auto;background:radial-gradient(120% 80% at 100% 0%,rgba(196,106,43,.10),transparent 55%),linear-gradient(180deg,var(--panel-2),var(--panel) 40%);border:1px solid color-mix(in srgb,var(--emerald) 32%,var(--line));border-radius:18px;padding:0;box-shadow:0 0 0 1px rgba(0,0,0,.5),0 30px 80px rgba(0,0,0,.7),0 0 46px color-mix(in srgb,var(--emerald) 14%,transparent)}
+#runDlg [hidden]{display:none!important}
+#runDlg .rd-head{position:relative;display:flex;align-items:center;gap:20px;padding:22px 64px 20px 26px;border-bottom:1px solid color-mix(in srgb,var(--emerald) 38%,var(--line));background:linear-gradient(90deg,rgba(47,217,138,.06),transparent 60%)}
+#runDlg .rd-head img{mix-blend-mode:screen;width:64px;height:64px;object-fit:contain;flex:none;padding-right:20px;border-right:1px solid var(--line);box-sizing:content-box}
+#runDlg h3{margin:0;font-size:30px;line-height:1.1;font-weight:800;letter-spacing:.01em}
+#runDlg .sub{color:var(--muted);font-size:14px;margin-top:4px}
+#runDlg .rd-x{position:absolute;top:14px;right:14px;width:34px;height:34px;border-radius:10px;border:1px solid transparent;background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer}
+#runDlg .rd-x:hover,#runDlg .rd-x:focus-visible{color:var(--text);border-color:var(--line);background:rgba(255,255,255,.04);outline:none}
+#runDlg .rd-body{padding:4px 26px 0}
+#runDlg .rd-row{display:grid;grid-template-columns:48px 168px minmax(0,1fr);gap:16px;align-items:start;padding:16px 0;border-bottom:1px solid var(--line)}
+#runDlg .rd-row:last-of-type{border-bottom:0}
+#runDlg .rd-ico{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;color:var(--emerald);background:rgba(47,217,138,.07);border:1px solid color-mix(in srgb,var(--emerald) 40%,transparent);box-shadow:inset 0 0 14px rgba(47,217,138,.08)}
+#runDlg .rd-ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#runDlg label.f{display:block;font-size:16px;font-weight:700;letter-spacing:0;text-transform:none;color:var(--text);margin:0}
+#runDlg .rd-hint{display:block;font-size:13px;color:var(--muted);margin-top:2px;line-height:1.35}
+#runDlg select,#runDlg input[type=text]{width:100%;background:rgba(255,255,255,.03);color:var(--text);border:1px solid color-mix(in srgb,var(--text) 18%,var(--line));border-radius:10px;padding:11px 14px;font:600 17px system-ui}
+#runDlg select:focus-visible,#runDlg input[type=text]:focus-visible{outline:2px solid color-mix(in srgb,var(--emerald) 70%,transparent);outline-offset:1px}
+#runDlg .about{font-size:13px;color:var(--muted);line-height:1.45;margin-top:8px}
+#runDlg #runAbout{display:flex;gap:10px;margin-top:10px;padding:11px 14px;border-radius:10px;color:#c9d6e6;background:rgba(58,160,255,.08);border:1px solid color-mix(in srgb,var(--blue) 38%,transparent)}
+#runDlg #runAbout:empty{display:none}
+#runDlg #runAbout::before{content:"i";flex:none;width:18px;height:18px;margin-top:1px;border-radius:50%;border:1.5px solid var(--blue);color:var(--blue);font:700 12px/15px Georgia,serif;text-align:center}
+#runDlg .rd-vers{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:12px;align-items:center}
+#runDlg .vc{border-radius:14px;padding:8px 14px 10px;background:rgba(255,255,255,.02);border:1.5px solid var(--vc);box-shadow:0 0 22px color-mix(in srgb,var(--vc) 22%,transparent),inset 0 0 18px color-mix(in srgb,var(--vc) 7%,transparent)}
+#runDlg .vc.good{--vc:var(--emerald)}#runDlg .vc.cand{--vc:var(--ruby)}
+#runDlg .vc label.f{display:flex;align-items:center;gap:8px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--vc);padding-bottom:6px;border-bottom:1px solid color-mix(in srgb,var(--vc) 30%,transparent);margin-bottom:4px}
+#runDlg .vc label.f svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#runDlg .vc label.f small{font-size:12px;font-weight:600;letter-spacing:0;text-transform:none;color:var(--muted)}
+#runDlg .vc input[type=text]{background:transparent;border:0;padding:2px 0;width:100%;font-size:26px;font-weight:800;letter-spacing:-.01em;min-width:0;text-overflow:ellipsis} /* 26px fits a nine-character tag such as 2025.10.1 beside the picker arrow; 34px did not */
+#runDlg .vc input[type=text]:focus-visible{outline:0;box-shadow:0 2px 0 var(--vc)}
+#runDlg .vc input::-webkit-calendar-picker-indicator{filter:invert(.8);opacity:.8;cursor:pointer}
+#runDlg .rd-swap{width:44px;height:40px;border-radius:10px;border:1px solid color-mix(in srgb,var(--text) 22%,var(--line));background:rgba(255,255,255,.03);color:var(--text);cursor:pointer;display:grid;place-items:center}
+#runDlg .rd-swap:hover,#runDlg .rd-swap:focus-visible{border-color:var(--emerald);outline:none}
+#runDlg .rd-swap svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+#runDlg .chk{display:flex;gap:12px;align-items:center;margin:0 0 12px;font-size:16px;color:var(--text);cursor:pointer}
+#runDlg .chk input{appearance:none;flex:none;width:26px;height:26px;border-radius:7px;border:1.5px solid color-mix(in srgb,var(--text) 30%,var(--line));background:rgba(255,255,255,.03);display:grid;place-items:center;cursor:pointer;margin:0}
+#runDlg .chk input:checked{background:var(--blue);border-color:var(--blue)}
+#runDlg .chk input:checked::after{content:"";width:7px;height:12px;border:solid #fff;border-width:0 2.5px 2.5px 0;transform:rotate(45deg) translate(-1px,-1px)}
+#runDlg .chk input:disabled{opacity:.45;cursor:default}
+#runDlg .chk input:focus-visible{outline:2px solid var(--emerald);outline-offset:2px}
+#runDlg .rd-opts .about{margin-top:0}
+#runDlg .err{color:var(--ruby);font-size:13px;min-height:0;margin:0 26px}
+#runDlg .err:not(:empty){margin:4px 26px 0}
+#runDlg .rd-foot{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 26px 22px;border-top:1px solid var(--line);margin-top:6px}
+#runDlg .pill{display:inline-flex;align-items:center;gap:8px;padding:11px 16px;border-radius:12px;border:1px solid var(--line);background:rgba(255,255,255,.03);font-size:14px;color:var(--text)}
+#runDlg .pill svg{width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+#runDlg .pill b{font-weight:700}
+#runDlg .pill:empty{display:none}
+#runDlg .btns{display:flex;gap:14px;margin-left:auto}
+#runDlg .btns .mini-btn{padding:13px 26px;border-radius:12px;font-size:17px;font-weight:700}
+#runDlg #runStart{display:inline-flex;align-items:center;gap:10px;color:#04140b;border-color:transparent;background:linear-gradient(180deg,#3df59b,#1fcf78);box-shadow:0 0 26px rgba(47,217,138,.45)}
+#runDlg #runStart svg{width:16px;height:16px;fill:currentColor}
+#runDlg #runStart:disabled{opacity:.55;box-shadow:none}
+@media(max-width:700px){
+#runDlg .rd-head{padding:16px 54px 14px 16px;gap:12px}#runDlg .rd-head img{width:44px;height:44px;padding-right:12px}#runDlg h3{font-size:22px}
+#runDlg .rd-body{padding:0 16px}
+#runDlg .rd-row{grid-template-columns:40px minmax(0,1fr);gap:4px 12px}#runDlg .rd-row>.rd-ctl{grid-column:1/-1}
+#runDlg .rd-ico{width:40px;height:40px}
+#runDlg .rd-vers{grid-template-columns:1fr}#runDlg .rd-swap{justify-self:center;transform:rotate(90deg)}
+#runDlg .rd-foot{padding:14px 16px 18px}#runDlg .btns{margin-left:0;width:100%}#runDlg .btns .mini-btn{flex:1;justify-content:center}
+}
 #setupOverlay{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:310}
 #setupOverlay.open{display:flex}
 #setupDlg{width:min(540px,92vw);max-height:92vh;overflow:auto;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;box-shadow:0 0 40px rgba(0,0,0,.6)}
@@ -492,8 +546,8 @@ code.val mark{background:transparent;color:inherit;font-weight:700;border-radius
 code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val mark.new{background:rgba(255,77,87,.22);color:var(--ruby)}
 .claim-plain code.val{font-size:.82em}.measured code.val{background:transparent;border:0;padding:0}
 .claim-test{margin:8px 0 0;padding:7px 10px;border-left:2px solid var(--line);font-size:12.5px;color:var(--text)}.claim-test b{display:block;font:600 10.5px/1.4 var(--mono,monospace);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:3px}
-.claim-videos{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}@media(max-width:700px){.claim-videos{grid-template-columns:1fr}}
-.vid{margin:0}.vid video{display:block;width:100%;aspect-ratio:1280/900;border:1px solid var(--line);border-radius:8px;background:#000}.vid figcaption{font-size:12.5px;color:var(--text);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.claim-videos{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:10px;margin-top:10px;min-width:0} /* two recordings side by side when the column is wide enough, stacked when it is not; never wider than the column */@media(max-width:700px){.claim-videos{grid-template-columns:1fr}}
+.vid{margin:0;min-width:0}.vid video{display:block;width:100%;aspect-ratio:1280/900;border:1px solid var(--line);border-radius:8px;background:#000}.vid figcaption{font-size:12.5px;color:var(--text);margin-top:5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
 .claim-items li{margin:3px 0;overflow-wrap:anywhere}
 .claim-details .rec{white-space:normal;word-break:normal;overflow-wrap:anywhere;margin-top:6px}
 /* narrow screens: a top bar (logo, views, one capsule naming the app) and then the hero; the apps list opens from the capsule */
@@ -507,10 +561,14 @@ code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val m
 .nav{flex:0 1 auto;gap:0;justify-content:flex-start}
 .nav a{padding:8px 6px;width:38px}
 .apps-toggle{display:inline-flex}
-.apps,.runpick{display:none}
-.sidebar.apps-open{flex-wrap:wrap}
-.sidebar.apps-open .apps{display:flex;flex:0 0 100%;margin:8px 0 0;max-height:340px}
-.sidebar.apps-open .runpick{display:block;flex:0 0 100%;margin:6px 0 0}
+/* the apps and reports list is a panel that opens over the page under the header; the header row never re-wraps and the page does not jump */
+.sidebar{overflow:visible}
+.sidebar.apps-open{z-index:80} /* later cards would otherwise paint over the open panel */
+.sidebar .apps-drop{display:none}
+.sidebar.apps-open .apps-drop{display:flex;flex-direction:column;gap:10px;position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:90;max-height:calc(100vh - 150px);overflow-y:auto;overscroll-behavior:contain;padding:12px;background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:0 22px 54px rgba(0,0,0,.65)}
+.sidebar.apps-open .apps-drop .apps{display:flex;flex:0 0 auto;margin:0;max-height:none}
+.sidebar.apps-open .apps-drop .apps-list{max-height:34vh;overflow-y:auto}
+.sidebar.apps-open .apps-drop .runpick{display:block;flex:0 0 auto;margin:0}
 .verdict{gap:4px;padding:22px 14px 18px}
 .gem{width:112px;height:112px}
 .gem::before{inset:8px}
@@ -522,10 +580,270 @@ code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val m
 .t-ends .culprit-tag{grid-column:1/3;grid-row:2;justify-self:stretch}
 }
 </style>
+<style id="rdStyle">
+/* ===== Design review layer. html.rd switches the redesign on (Classic = off); html[data-l] picks the layout: a, b, c.
+   Pure CSS over the same markup, so every wired control keeps working. Delete this block, #rdBar and the rd scripts once a layout is chosen. ===== */
+body{padding-top:46px}
+#rdBar{position:fixed;top:0;left:0;right:0;height:46px;z-index:140;display:flex;align-items:center;gap:14px;padding:0 18px;background:rgba(7,9,12,.94);backdrop-filter:blur(10px);border-bottom:1px solid var(--line);font-size:14px;color:var(--muted)}
+#rdBar b{color:var(--text);font-size:13px;letter-spacing:.14em;text-transform:uppercase}
+#rdBar .seg{display:flex;gap:6px;flex-wrap:wrap}
+.apps-drop{display:contents} /* on a wide screen the wrapper changes nothing: its children lay out as before */
+#rdBar button{background:transparent;border:1px solid var(--line);color:var(--text);border-radius:9px;padding:6px 13px;font:600 14px system-ui,sans-serif;cursor:pointer}
+#rdBar button:hover{border-color:var(--muted)}
+#rdBar button[aria-pressed="true"]{background:rgba(255,166,61,.16);border-color:rgba(255,166,61,.6);color:var(--amber)}
+#rdBar .rd-note{margin-left:auto;font-size:13px}
+@media(max-width:900px){#rdBar .rd-note{display:none}#rdBar b{display:none}
+#rdBar{padding:0 8px;gap:0}
+#rdBar .seg{flex-wrap:nowrap;gap:4px;width:100%;overflow-x:auto;scrollbar-width:none}   /* the four layout buttons stay on one row instead of wrapping out of the bar */
+#rdBar .seg::-webkit-scrollbar{display:none}
+#rdBar button{flex:0 0 auto;padding:6px 8px;font-size:12px;white-space:nowrap}}
+.side-toggle{display:none}
+@media(min-width:901px){
+html.rd .side-toggle{display:grid;position:absolute;top:12px;right:12px;width:38px;height:38px;place-items:center;border-radius:10px;border:1px solid rgba(255,255,255,.12);background:rgba(7,9,12,.55);color:var(--muted);cursor:pointer;z-index:3}
+html.rd .side-toggle:hover{color:var(--text);border-color:var(--muted)}
+html.rd .side-toggle svg{width:20px;height:20px;transition:transform .25s ease}
+html.rd.side-c .side-toggle svg{transform:rotate(180deg)}
+}
+
+/* --- readability: one larger type scale for every layout --- */
+html.rd body{font-size:17px;line-height:1.5;overflow:visible} /* the old body{overflow-x:hidden} makes body a scroll container and breaks position:sticky; html still clips sideways */
+html.rd .label{font-size:14px;letter-spacing:.16em}
+html.rd .mini-btn{font-size:15px;padding:9px 15px;border-radius:10px}
+html.rd .tiny-link{font-size:14px}
+html.rd .logo-wrap{margin:0 -14px 2px;padding:0;border:0}
+html.rd .logo-wrap img{width:100%;height:auto;aspect-ratio:1/1;object-fit:contain;mix-blend-mode:screen;-webkit-mask-image:radial-gradient(closest-side,#000 88%,transparent 100%);mask-image:radial-gradient(closest-side,#000 88%,transparent 100%)}
+html.rd .sidebar{padding:0 14px 16px}
+html.rd .nav{margin-top:0;gap:4px}
+html.rd .nav a{font-size:18px;padding:12px 14px;gap:14px;border-radius:12px}
+html.rd .nav a svg{width:24px;height:24px}
+html.rd .apps{margin-top:16px}
+html.rd .apps-h,html.rd .apps-grp{font-size:13px}
+html.rd .apps-h button{font-size:13px}
+html.rd .apps-gh{font-size:13px;line-height:1.4}
+html.rd .apps input[type=search]{font-size:15px;padding:9px 11px}
+html.rd .app-row{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"n c" "s c";column-gap:8px;align-items:center;padding:9px 11px}
+html.rd .app-row .n{grid-area:n;font-size:16px}
+html.rd .app-row .s{grid-area:s;font-size:13px}
+html.rd .app-row .c{grid-area:c;font-size:12px;margin:0;padding:2px 9px}
+html.rd .runpick{font-size:14px}
+html.rd .runpick label{font-size:12px}
+html.rd .runpick select{font-size:14px;padding:8px}
+html.rd .side-foot{font-size:13px}
+html.rd .verdict{background:radial-gradient(90% 150% at 10% 0%,color-mix(in srgb,var(--gem-c) 18%,transparent),transparent 62%),linear-gradient(180deg,var(--panel-2),var(--panel))}
+html.rd .verdict-text .label{font-size:15px}
+html.rd .verdict-text h1{font-size:104px;line-height:1;letter-spacing:.01em}
+html.rd .gem{width:176px;height:176px}
+html.rd .v-app{font-size:28px}
+html.rd .v-vers{gap:14px;margin-top:12px}
+html.rd .ver{font-size:17px;padding:5px 13px;gap:8px}
+html.rd .ver small{font-size:11px}
+html.rd .v-vers .ver{font-size:26px;padding:10px 20px;gap:10px}
+html.rd .v-vers .ver small{font-size:13px}
+html.rd .build-sub .ver{font-size:22px;padding:8px 16px}
+html.rd .v-vs{font-size:16px}
+html.rd .v-sub{font-size:23px;font-weight:600;color:var(--text);margin-top:16px;line-height:1.3}
+html.rd .v-about{font-size:19px;line-height:1.55;color:#c3cdda;max-width:80ch;margin-top:10px}
+html.rd .run-cta{font-size:17px;padding:16px 38px}
+html.rd .ext-run{font-size:15px}
+html.rd .runbar{height:7px}
+html.rd .bisect-head h2,html.rd .builds h2,html.rd .evidence h2,html.rd .askcard h2{font-size:22px}
+html.rd .legend{font-size:15px;gap:18px}
+html.rd .dot{width:12px;height:12px}
+html.rd .node{width:20px;height:20px}
+html.rd .node.c{width:34px;height:34px}
+html.rd .t-nodes{min-height:34px}
+html.rd .culprit-tag .mono{font-size:18px}
+html.rd .culprit-tag{padding:8px 14px}
+html.rd .chip{font-size:14px;padding:3px 10px}
+html.rd .end-label{font-size:15px}
+html.rd .build-sub{font-size:15px}
+html.rd .measured{font-size:16px;padding:16px 18px;min-height:180px}
+html.rd .measured .m-h{font-size:13px}
+html.rd .measured .m-w{font-size:15px}
+html.rd .measured code{font-size:15px}
+html.rd .measured .notice,html.rd .measured .masked-note{font-size:14px}
+html.rd .shot figcaption{font-size:13px}
+html.rd .ev-head>div{flex-wrap:wrap}
+html.rd #verifyStatus{font-size:14px!important}
+html.rd .verify-ok,html.rd .verify-bad{font-size:14px}
+html.rd .fail-banner{font-size:15px}
+html.rd .claim{padding:16px 18px}
+html.rd .ct{font-size:14px}
+html.rd .hash{font-size:14px}
+html.rd .claim p{font-size:16px;line-height:1.5;margin:10px 0}
+html.rd .claim-foot{font-size:14px}
+html.rd .claim-plain{font-size:18px}
+html.rd .claim-plain b,html.rd .claim-test b{font-size:12px}
+html.rd .claim-items{font-size:16px}
+html.rd .claim-test{font-size:15px}
+html.rd .claim-details{font-size:14px}
+html.rd .copy-btn{font-size:13px;padding:3px 9px}
+html.rd .vid figcaption,html.rd .r-legend,html.rd .reg-row{font-size:14px}
+html.rd .askcard{font-size:15px}
+html.rd .askcard pre{font-size:13px}
+html.rd .askcard summary{font-size:14px}
+html.rd .bottombar{height:auto;min-height:92px;padding:14px 22px;gap:22px;flex-wrap:wrap}
+html.rd .sbtn{font-size:19px;padding:15px 34px}
+html.rd .info{font-size:16px}
+html.rd .divider{height:40px}
+html.rd .dec-badge{font-size:14px}
+html.rd .dec-rec,html.rd .dec-none{font-size:14px}
+html.rd .dec-why{font-size:15px}
+html.rd #reasonRow input{font-size:15px}
+html.rd .rep-table{font-size:15px}
+html.rd .rep-table th{font-size:13px}
+html.rd .vchip{font-size:13px}
+html.rd .view-panel h2{font-size:24px}
+html.rd .view-panel .hint,html.rd .set-row label,html.rd .set-facts,html.rd .set-msg{font-size:15px}
+html.rd .rep-tools select,html.rd .set-row input,html.rd .set-row select{font-size:15px}
+html.rd #toast{font-size:15px}
+html.rd #bisectTip{font-size:14px}
+
+/* --- geometry: desktop only; the existing narrow-screen rules still own phones --- */
+@media(min-width:901px){
+html.rd{--side-w:272px}
+html.rd.side-c{--side-w:84px}
+html.rd .page{max-width:none;margin:0;padding:14px 18px 18px;gap:18px;grid-template-columns:var(--side-w) minmax(0,1fr) clamp(380px,27vw,600px);transition:grid-template-columns .25s ease}
+html.rd .sidebar{position:sticky;top:60px;align-self:start;height:calc(100vh - 78px);min-height:0}
+html.rd .timeline{padding:28px 48px 10px}
+html.rd .t-line{top:44px;left:58px;right:58px}
+html.rd .petro{display:none}
+html.rd.side-c .sidebar{padding:0 10px 12px;align-items:center}
+html.rd.side-c .logo-wrap{margin:0 -10px;width:calc(100% + 20px)}
+html.rd.side-c .side-toggle{top:76px;right:auto;left:50%;margin-left:-19px}
+html.rd.side-c .nav{margin-top:46px;width:100%}
+html.rd.side-c .nav li{display:flex;justify-content:center}
+html.rd.side-c .nav a{font-size:0;gap:0;justify-content:center;padding:13px 0;width:56px}
+html.rd.side-c .apps,html.rd.side-c .runpick,html.rd.side-c .side-foot{display:none}
+}
+
+/* --- A · Command: hero is one wide banner, evidence stays in the right column --- */
+@media(min-width:901px){
+html.rd[data-l="a"] .verdict{display:grid;grid-template-columns:auto minmax(0,1fr) auto;column-gap:48px;align-items:center;text-align:left;padding:38px 46px}
+html.rd[data-l="a"] .gem{grid-column:1;grid-row:1/3}
+html.rd[data-l="a"] .verdict-text{grid-column:2;grid-row:1;align-items:flex-start;margin:0}
+html.rd[data-l="a"] .v-meta{grid-column:2;grid-row:2;align-items:flex-start;max-width:none;margin-top:10px;width:100%}
+html.rd[data-l="a"] .v-title{text-align:left}
+html.rd[data-l="a"] .v-meta .v-vers{justify-content:flex-start}
+html.rd[data-l="a"] .run-cta{grid-column:3;grid-row:1/3;margin:0}
+}
+
+/* --- B · Focus: one reading column, evidence under the hero in two columns, decision bar pinned to the bottom --- */
+@media(min-width:901px){
+html.rd[data-l="b"] .page{grid-template-columns:var(--side-w) minmax(0,1fr)}
+html.rd[data-l="b"] .sidebar{grid-row:1/span 6}
+html.rd[data-l="b"] .center,html.rd[data-l="b"] .rightcol,html.rd[data-l="b"] .repo-panel,html.rd[data-l="b"] .view-panel{grid-column:2}
+html.rd[data-l="b"] .center{grid-row:1}
+html.rd[data-l="b"] .rightcol{grid-row:2}
+html.rd[data-l="b"] #reasonWrap{grid-column:2;grid-row:3}
+html.rd[data-l="b"] .bottombar{grid-column:2;grid-row:4;position:sticky;bottom:16px;z-index:20;background:rgba(13,17,23,.92);backdrop-filter:blur(12px);box-shadow:0 12px 40px rgba(0,0,0,.55)}
+html.rd[data-l="b"] .page.v-evidence .rightcol{grid-row:1}
+html.rd[data-l="b"] .page.v-bisect .center{grid-column:2}
+html.rd[data-l="b"] .verdict{padding:52px 44px 44px}
+html.rd[data-l="b"] .gem{width:210px;height:210px}
+html.rd[data-l="b"] .verdict-text h1{font-size:132px}
+html.rd[data-l="b"] .v-vers .ver{font-size:32px;padding:12px 26px}
+html.rd[data-l="b"] .v-app{font-size:32px}
+html.rd[data-l="b"] .v-sub{font-size:27px}
+html.rd[data-l="b"] .v-about{font-size:21px;text-align:center}
+html.rd[data-l="b"] .v-meta{max-width:92ch}
+html.rd[data-l="b"] #claimsList{display:grid;grid-template-columns:repeat(auto-fill,minmax(480px,1fr));gap:16px;align-items:start}
+html.rd[data-l="b"] #claimsList .link{display:none}
+html.rd[data-l="b"] .evidence{flex:none}
+}
+
+/* --- C · Dock: split hero (verdict left, the two versions and what changed right), wide sticky evidence panel, floating decision dock --- */
+@media(min-width:901px){
+html.rd[data-l="c"] .page{grid-template-columns:var(--side-w) minmax(0,1fr) clamp(440px,32vw,680px)}
+html.rd[data-l="c"] .card{background:var(--panel);border-radius:18px}
+html.rd[data-l="c"] .verdict{background:radial-gradient(70% 130% at 0% 50%,color-mix(in srgb,var(--gem-c) 24%,transparent),transparent 65%),var(--panel);display:grid;grid-template-columns:minmax(260px,.75fr) minmax(0,1.5fr);column-gap:0;align-items:center;text-align:left;padding:36px 0 36px 36px}
+html.rd[data-l="c"] .gem{grid-column:1;grid-row:1;justify-self:center;width:150px;height:150px;margin-bottom:12px}
+html.rd[data-l="c"] .verdict-text{grid-column:1;grid-row:2;margin:0}
+html.rd[data-l="c"] .verdict-text h1{font-size:92px}
+html.rd[data-l="c"] .run-cta{grid-column:1;grid-row:3;justify-self:center;margin-top:20px}
+html.rd[data-l="c"] .v-meta{grid-column:2;grid-row:1/4;align-items:flex-start;align-self:stretch;justify-content:center;max-width:none;margin:0;padding:0 44px 0 48px;border-left:1px solid var(--line)}
+html.rd[data-l="c"] .v-title{text-align:left}
+html.rd[data-l="c"] .v-meta .v-vers{justify-content:flex-start}
+html.rd[data-l="c"] .v-app{font-size:30px}
+html.rd[data-l="c"] .v-vers .ver{font-size:28px}
+html.rd[data-l="c"] .v-sub{font-size:26px}
+html.rd[data-l="c"] .v-about{font-size:20px}
+html.rd[data-l="c"] .rightcol{position:sticky;top:60px;align-self:start;max-height:calc(100vh - 78px);overflow:auto}
+html.rd[data-l="c"] .evidence{flex:none}
+html.rd[data-l="c"] .page.v-evidence .rightcol{position:static;max-height:none}
+html.rd[data-l="c"] .bottombar{position:sticky;bottom:16px;z-index:20;justify-self:center;width:fit-content;max-width:100%;border-radius:22px;background:rgba(13,17,23,.9);backdrop-filter:blur(14px);box-shadow:0 14px 44px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.06)}
+}
+/* The sizes above are for a wide screen but are not scoped to one, so on a phone they beat the narrow layout: labels pile up in the nav and the verdict outgrows the card. Command, Focus and Dock share this one phone layout. */
+@media(max-width:900px){
+html.rd body{font-size:15px}
+html.rd .sidebar{padding:8px 10px}
+html.rd .logo-wrap{margin:0;padding:0;flex:none}
+html.rd .logo-wrap img{width:40px;height:40px}
+html.rd .nav{margin-top:0;gap:0}
+html.rd .nav a{font-size:0;line-height:0;gap:0;padding:8px 6px;width:38px;justify-content:center}
+html.rd .nav a svg{width:22px;height:22px}
+html.rd .verdict-text h1{font-size:60px}
+html.rd .gem{width:112px;height:112px}
+html.rd .v-app{font-size:20px}
+html.rd .v-vers{gap:8px;margin-top:8px}
+html.rd .v-vers .ver{font-size:15px;padding:6px 12px;gap:6px}
+html.rd .v-vers .ver small{font-size:10px}
+html.rd .v-sub{font-size:16px;margin-top:10px}
+html.rd .v-about{font-size:14px}
+html.rd .run-cta{font-size:15px;padding:13px 24px}
+html.rd .bisect-head h2,html.rd .builds h2,html.rd .evidence h2,html.rd .askcard h2{font-size:18px}
+html.rd .legend{font-size:13px;gap:10px}
+html.rd .dot{width:10px;height:10px}
+html.rd .node{width:16px;height:16px}
+html.rd .node.c{width:26px;height:26px}
+html.rd .t-nodes{min-height:26px}
+html.rd .culprit-tag .mono{font-size:15px}
+html.rd .chip{font-size:12px;padding:2px 8px}
+html.rd .end-label{font-size:13px}
+html.rd .build-sub .ver{font-size:15px;padding:5px 11px}
+html.rd .measured{font-size:14px;padding:12px;min-height:0}
+html.rd .measured code{font-size:13px}
+html.rd .claim{padding:12px}
+html.rd .claim p{font-size:14px}
+html.rd .claim-plain{font-size:15px}
+html.rd .claim-items{font-size:14px}
+html.rd .claim-test{font-size:13px}
+html.rd .bottombar{min-height:0;padding:12px;gap:10px}
+html.rd .sbtn{font-size:15px;padding:12px 22px}
+html.rd .info{font-size:13px}
+html.rd .divider{display:none}
+html.rd .view-panel h2{font-size:18px}
+}
+/* the verdict is one word and never breaks inside it ("HOL/D"); where it shares a row it scales with its column, sized so the longest word, REVIEW, still fits */
+.verdict-text h1{white-space:nowrap;overflow-wrap:normal;word-break:normal}
+@media(min-width:901px){
+html.rd[data-l="a"] .verdict-text,html.rd[data-l="c"] .verdict-text{container-type:inline-size;width:100%}
+html.rd[data-l="a"] .verdict-text h1{font-size:min(104px,23cqw)}
+html.rd[data-l="c"] .verdict-text h1{font-size:min(92px,23cqw)}
+/* Command puts the orb, the verdict and New run on one row; when the card is too narrow for that, New run moves under the text and the orb shrinks, so the verdict keeps its width */
+html.rd[data-l="a"] .verdict{container:hero/inline-size}
+@container hero (max-width:880px){
+html.rd[data-l="a"] .gem{width:128px;height:128px;grid-row:1/4}
+html.rd[data-l="a"] .verdict-text{grid-column:2/4}
+html.rd[data-l="a"] .v-meta{grid-column:2/4}
+html.rd[data-l="a"] .run-cta{grid-column:2/4;grid-row:3;justify-self:start;margin-top:16px}
+}
+}
+</style>
+<script>
+/* design review: apply the saved layout before first paint */
+(function(){var r=document.documentElement,q=new URLSearchParams(location.search).get("layout"),s=null,c=null;
+try{s=localStorage.getItem("bq.layout");c=localStorage.getItem("bq.side")}catch(e){}
+var L=["classic","a","b","c"],v=L.indexOf(q)>=0?q:(L.indexOf(s)>=0?s:"a");
+r.setAttribute("data-l",v);if(v!=="classic")r.classList.add("rd");
+if(c==="1"||(c===null&&window.innerWidth<1280))r.classList.add("side-c");})();
+</script>
 </head>
 <body>
+<div id="rdBar"><b>Design review</b><div class="seg" id="rdSeg"><button type="button" data-l="classic">Classic</button><button type="button" data-l="a">A · Command</button><button type="button" data-l="b">B · Focus</button><button type="button" data-l="c">C · Dock</button></div><span class="rd-note">Keys 1 to 4 switch layout · [ collapses the sidebar</span></div>
 <div class="page">
 <aside class="sidebar card reveal" style="--d:0ms">
+<button class="side-toggle" id="sideToggle" type="button" aria-label="Collapse sidebar" title="Collapse or expand the sidebar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg></button>
 <div class="logo-wrap"><img src="/ui/Red.png" alt="Behique CI logo"></div>
 <ul class="nav">
 <li><a href="#runs" data-view="runs" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/></svg>Runs</a></li>
@@ -535,6 +853,7 @@ code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val m
 <li><a href="#settings" data-view="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 3h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12c0 .4 0 .8.1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 21h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6c.1-.4.1-.8.1-1.2Z"/></svg>Settings</a></li>
 </ul>
 <button class="apps-toggle" id="appsToggle" type="button" aria-expanded="false" aria-controls="appsList" title="Apps and reports"><span class="nm" id="appsToggleName">Apps</span><span class="car" aria-hidden="true">&#9660;</span></button>
+<div class="apps-drop" id="appsDrop">
 <section class="apps" aria-label="Apps">
 <div class="apps-h"><span>Apps</span><button id="appsRefresh" type="button" title="Ask GitHub for your repos again">refresh</button></div>
 <div class="apps-gh" id="ghState">GitHub: checking...</div>
@@ -546,6 +865,7 @@ code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val m
 <svg width="120" height="180" viewBox="0 0 120 180" fill="none" stroke="#8b97a6" stroke-width="1"><circle cx="60" cy="60" r="40"/><circle cx="60" cy="60" r="28"/><circle cx="60" cy="60" r="12"/><circle cx="60" cy="140" r="18"/><circle cx="30" cy="110" r="3"/><circle cx="90" cy="110" r="3"/><path d="M60 10v20M20 60H10M110 60h-10"/></svg>
 </div>
 <div class="runpick"><label for="runPick">Report</label><select id="runPick"></select></div>
+</div>
 <div class="side-foot">Meta Global AI Developer Hackathon</div>
 </aside>
 <div class="center">
@@ -559,8 +879,9 @@ code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val m
 </div>
 </section>
 <section class="bisect card reveal" id="bisectCard" style="--d:140ms">
-<div class="bisect-head"><h2>Bisect timeline</h2><div class="legend"><span id="bisectCount">227 commits . 8 steps</span><span><i class="dot" style="background:var(--emerald)"></i>good</span><span><i class="dot" style="background:var(--ruby)"></i>bad</span><span><i class="dot" style="background:var(--amber)"></i>culprit</span></div></div>
+<div class="bisect-head"><h2>Bisect timeline</h2><div class="legend"><span id="bisectCount">227 commits . 8 steps</span><span><i class="dot" style="background:var(--emerald)"></i>good</span><span><i class="dot" style="background:var(--ruby)"></i>bad</span><span><i class="dot" style="background:var(--amber)"></i>culprit</span><span id="lgSkip" hidden><i class="dot" style="background:repeating-linear-gradient(45deg,#2a3442 0 2px,#0d1117 2px 4px);border:1px solid #7d8a9b"></i>skipped</span><span id="lgUnk" hidden><i class="dot" style="background:#161d27;border:1px solid #2a3442"></i>not reached</span></div></div>
 <div class="hint" id="bisectNone" hidden style="margin-bottom:8px"></div>
+<div class="hint" id="bisectInconclusive" hidden role="status" style="margin-bottom:8px;border:1px solid var(--amber);border-radius:10px;padding:10px 12px;color:var(--text)"></div>
 <div class="timeline">
 <div class="t-line"><div class="t-pulse" id="bisectPulse" aria-hidden="true"></div></div>
 <div class="t-nodes" id="bisectNodes"></div>
@@ -637,18 +958,26 @@ code.val mark.lost{background:rgba(255,166,61,.22);color:var(--amber)}code.val m
 <div id="bisectTip" role="tooltip"></div>
 <div id="toast" role="status"></div>
 <div id="runOverlay"><div id="runDlg" role="dialog" aria-modal="true" aria-label="New run">
-<h3>New run</h3><div class="sub">Compare two versions of an app and find out what changed.</div>
-<label class="f" for="runApp">App</label><select id="runApp"></select>
-<div id="runTypeWrap"><label class="f" for="runType">Check</label><select id="runType"></select><div class="about" id="runTypeAbout"></div></div>
-<div id="runCaseWrap"><label class="f" for="runCase">Known case</label><select id="runCase"></select><div class="about" id="runAbout"></div></div>
-<div class="two"><div><label class="f" for="runGood">Old version</label><input type="text" id="runGood" list="runTags" autocomplete="off" spellcheck="false"></div>
-<div><label class="f" for="runCand">New version</label><input type="text" id="runCand" list="runTags" autocomplete="off" spellcheck="false"></div></div>
+<div class="rd-head"><img src="/ui/Red.png" alt=""><div><h3>New Run</h3><div class="sub">Compare two versions of an app and detect behavioural changes.</div></div><button class="rd-x" id="runClose" type="button" aria-label="Close">&times;</button></div>
+<div class="rd-body">
+<div class="rd-row"><span class="rd-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M12 3 4 7.5v9L12 21l8-4.5v-9z"/><path d="M4 7.5 12 12l8-4.5M12 12v9"/></svg></span><div><label class="f" for="runApp">App</label><span class="rd-hint">The application to test</span></div><div class="rd-ctl"><select id="runApp"></select></div></div>
+<div class="rd-row" id="runTypeWrap"><span class="rd-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg></span><div><label class="f" for="runType">Check</label><span class="rd-hint">Type of comparison</span></div><div class="rd-ctl"><select id="runType"></select><div class="about" id="runTypeAbout"></div></div></div>
+<div class="rd-row" id="runCaseWrap"><span class="rd-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 13h7M9 17h7"/></svg></span><div><label class="f" for="runCase">Known Case</label><span class="rd-hint">The scenario to validate</span></div><div class="rd-ctl"><select id="runCase"></select><div class="about" id="runAbout"></div></div></div>
+<div class="rd-row"><span class="rd-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.2"/></svg></span><div><span class="f" style="display:block;font-size:16px;font-weight:700">Versions</span><span class="rd-hint">Select the versions to compare</span></div>
+<div class="rd-ctl rd-vers">
+<div class="vc good"><label class="f" for="runGood"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.5 2.7 2.7L16 9.5"/></svg>Good <small>(baseline)</small></label><input type="text" id="runGood" list="runTags" autocomplete="off" spellcheck="false"></div>
+<button class="rd-swap" id="runSwap" type="button" aria-label="Swap the old and new version" title="Swap versions"><svg viewBox="0 0 24 24"><path d="M4 8h15m-4-4 4 4-4 4M20 16H5m4-4-4 4 4 4"/></svg></button>
+<div class="vc cand"><label class="f" for="runCand"><svg viewBox="0 0 24 24"><path d="M9 3h6M10 3v6l-5.5 9.5A2 2 0 0 0 6.2 21h11.6a2 2 0 0 0 1.7-2.5L14 9V3"/><path d="M7.5 15h9"/></svg>Candidate <small>(new)</small></label><input type="text" id="runCand" list="runTags" autocomplete="off" spellcheck="false"></div>
+</div></div>
 <datalist id="runTags"></datalist>
+<div class="rd-row rd-opts"><span class="rd-ico" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span><div><span class="f" style="display:block;font-size:16px;font-weight:700">Options</span><span class="rd-hint">Fine-tune the run</span></div><div class="rd-ctl">
 <label class="chk"><input type="checkbox" id="runBisect" checked> Search for the exact change if the behaviour differs</label>
 <label class="chk" id="runRecrawlWrap"><input type="checkbox" id="runRecrawl"> Crawl the old version again, even if a crawl of this commit is saved</label>
-<div class="about" id="runTime"></div>
+<div class="about" id="runTime"></div></div></div>
+</div>
 <div class="err" id="runErr" role="alert"></div>
-<div class="btns"><button class="mini-btn" id="runCancelDlg" type="button">Cancel</button><button class="mini-btn" id="runStart" type="button">Start run</button></div>
+<div class="rd-foot"><span class="pill"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Estimated time: <b id="runEst"></b></span></span><span class="pill" id="runWhere"></span>
+<div class="btns"><button class="mini-btn" id="runCancelDlg" type="button">Cancel</button><button class="mini-btn" id="runStart" type="button"><svg viewBox="0 0 24 24"><path d="M6 4v16l14-8z"/></svg>Start Run</button></div></div>
 </div></div>
 <div id="setupOverlay"><div id="setupDlg" role="dialog" aria-modal="true" aria-label="Set up an app">
 <h3>Set up an app</h3><div class="sub">Behique inspects a repository you already cloned, a model proposes how to run it, and Behique checks the proposal by building and taking pictures. You approve each step. Nothing is cloned.</div>
@@ -731,7 +1060,7 @@ function fileNameFor(url, label){ try{ const u=new URL(url, location.href); cons
 function dlLink(url, label){ const a=document.createElement("a"); a.className="dl"; a.href=url; a.download=fileNameFor(url,label); a.title="Download "+label; a.setAttribute("aria-label","Download "+label); a.textContent="\u2913 "+(label.length>22?"save":label); a.addEventListener("click",ev=>ev.stopPropagation()); return a; }
 function picWrap(img, label){ const w=document.createElement("div"); w.className="pic"; w.appendChild(img); w.appendChild(dlLink(img.src,label)); return w; }
 // the text form of one record: what a person pastes into a ticket or a message; the hash is the one the chain carries
-function claimText(c){ const lines=[c.label+(c.id?" ("+c.id+")":"")+": "+(c.hash||""), "previous hash: "+(c.prevHash||"GENESIS"), "timestamp: "+c.timestamp+" . actor: "+c.actor, "", c.text]; if(c.test&&c.test.plain) lines.push("", "Regression "+c.test.id+": "+c.test.plain); if(c.test&&c.test.text) lines.push("What the test "+c.test.id+" does: "+c.test.text); if(c.test&&c.test.pass) lines.push(c.test.pass, c.test.fail); if(c.test&&c.test.borrowed) lines.push("Recordings borrowed from "+c.test.borrowed.from+" ("+c.test.borrowed.when+"): "+c.test.borrowed.pass+" "+c.test.borrowed.fail); if(c.links&&c.links.length) lines.push("", "evidence: "+c.links.map((nm,k)=>{ const u=(c.linkUrls||[])[k]; const h=u&&(u.match(/hash=([0-9a-f]{64})/)||[])[1]; return h?nm+" ("+h+")":nm; }).join(", ")); return lines.join("\n"); }
+function claimText(c){ const lines=[c.label+(c.id?" ("+c.id+")":"")+": "+(c.hash||""), "previous hash: "+(c.prevHash||"GENESIS"), "timestamp: "+c.timestamp+" . actor: "+c.actor, "", c.text]; if(c.test&&c.test.plain) lines.push("", (c.test.word||"Regression")+" "+c.test.id+": "+c.test.plain); if(c.test&&c.test.text) lines.push("What the test "+c.test.id+" does: "+c.test.text); if(c.test&&c.test.pass) lines.push(c.test.pass, c.test.fail); if(c.test&&c.test.borrowed) lines.push("Recordings borrowed from "+c.test.borrowed.from+" ("+c.test.borrowed.when+"): "+c.test.borrowed.pass+" "+c.test.borrowed.fail); if(c.links&&c.links.length) lines.push("", "evidence: "+c.links.map((nm,k)=>{ const u=(c.linkUrls||[])[k]; const h=u&&(u.match(/hash=([0-9a-f]{64})/)||[])[1]; return h?nm+" ("+h+")":nm; }).join(", ")); return lines.join("\n"); }
 function chainText(){ const head=["Behique evidence chain"+(LIVE.vm&&LIVE.vm.caseId?" for "+LIVE.vm.caseId:"")+": "+state.claims.length+" record"+(state.claims.length===1?"":"s")+(state.chainOk===true?", verified":state.chainOk===false?", BROKEN":"")]; return head.concat(state.claims.map(claimText)).join("\n\n"); }
 // A recording starts on a blank frame (the page has not drawn yet), so a player opens on its LAST frame: the state the test judged.
 // Pressing play from there starts over. A Playwright WebM may report no duration until it is seeked past its end, so the seek goes far.
@@ -852,6 +1181,8 @@ function endLabel(el, text){
   el.classList.remove("mono"); el.appendChild(verChip(m[1], m[2]==="good"?"good":"bad", m[2]==="bad"));
 }
 function bisectTipText(n){
+  if(n.verdict==="skip"){ return "Step "+n.step+", "+n.hash+", skipped: the test could not run on this commit, so it is not decided"; }
+  if(n.verdict==="unknown"){ return n.hash+", never reached: the search did not get far enough to say"; }
   if(n.tested){ return "Step "+n.step+", "+n.hash+", "+n.verdict+", built and run"; }
   return n.hash+", "+n.verdict+" (inferred from bisect order, not built)";
 }
@@ -862,6 +1193,8 @@ function renderBisect(){
     let cls="node ";
     if(n.verdict==="good") cls+="g";
     else if(n.verdict==="bad") cls+="r";
+    else if(n.verdict==="skip") cls+="s";      // the test could not run on this commit: not decided either way
+    else if(n.verdict==="unknown") cls+="u";   // never reached by a search that could not decide
     else cls+="c";
     cls += n.tested ? " tested" : " inferred";
     el.className=cls;
@@ -884,7 +1217,9 @@ function renderBisect(){
 function showTip(el){
   const tip=$("bisectTip");
   const tested = el.dataset.tested==="true";
-  if(tested){ tip.textContent="Step "+el.dataset.step+", "+el.dataset.hash+", "+el.dataset.verdict+", built and run"; }
+  if(el.dataset.verdict==="skip"){ tip.textContent="Step "+el.dataset.step+", "+el.dataset.hash+", skipped: the test could not run on this commit, so it is not decided"; }
+  else if(el.dataset.verdict==="unknown"){ tip.textContent=el.dataset.hash+", never reached: the search did not get far enough to say"; }
+  else if(tested){ tip.textContent="Step "+el.dataset.step+", "+el.dataset.hash+", "+el.dataset.verdict+", built and run"; }
   else { tip.textContent=el.dataset.hash+", "+el.dataset.verdict+" (inferred from bisect order, not built)"; }
   tip.style.display="block";
   const r=el.getBoundingClientRect();
@@ -898,6 +1233,10 @@ function onNodeClick(n,el){
   if(n.verdict==="culprit"){
     const target=DATA.culpritClaimId ? document.querySelector('[data-claim-id="'+DATA.culpritClaimId+'"]') : null;
     if(target){ target.scrollIntoView({behavior:"smooth",block:"center"}); target.classList.remove("pulse-red"); void target.offsetWidth; target.classList.add("pulse-red"); setTimeout(()=>target.classList.remove("pulse-red"),3200); }
+  } else if(n.verdict==="skip"){
+    showToast("Step "+n.step+" was skipped: the test could not run there");
+  } else if(n.verdict==="unknown"){
+    showToast(n.hash+" was never reached by the search");
   } else if(n.tested){
     showToast("Step "+n.step+" is "+n.verdict);
   } else {
@@ -937,7 +1276,7 @@ function renderClaims(){
       const s=document.createElement("span"); s.className="chip "+(c.cls==="gold"?"gold":"green"); s.textContent=ch; foot.appendChild(s); foot.appendChild(document.createTextNode(" "));
     });
     card.appendChild(top); card.appendChild(p);
-    if(c.test&&c.test.plain){ const t=document.createElement("div"); t.className="claim-plain"; const b=document.createElement("b"); b.textContent="Regression "+c.test.id+" in plain words"; t.appendChild(b); t.appendChild(withCode(c.test.plain,LIVE.vm)); card.appendChild(t); } // R = regression test; this is what it means for a person
+    if(c.test&&c.test.plain){ const t=document.createElement("div"); t.className="claim-plain"; const b=document.createElement("b"); b.textContent=(c.test.word||"Regression")+" "+c.test.id+" in plain words"; t.appendChild(b); t.appendChild(withCode(c.test.plain,LIVE.vm)); card.appendChild(t); } // R = regression test; this is what it means for a person
     if(c.test&&c.test.text){ const t=document.createElement("div"); t.className="claim-test"; const b=document.createElement("b"); b.textContent="What the test "+c.test.id+" does"; t.appendChild(b); t.appendChild(withCode(c.test.text,LIVE.vm)); card.appendChild(t); }
     if(items) card.appendChild(items);
     const videoGrid=(videos,pass,fail)=>{ const vw=document.createElement("div"); vw.className="claim-videos"; vw.addEventListener("click",ev=>ev.stopPropagation()); vw.addEventListener("keydown",ev=>ev.stopPropagation());
@@ -1316,6 +1655,13 @@ function renderBisectChrome(){
   const vm=LIVE.vm, b=vm.bisect, tag=$("culpritTag");
   const none=$("bisectNone"); none.hidden=Boolean(b)||vm.verdict==="running"; none.textContent=vm.verdict==="pass" ? "Nothing changed between these versions, so there was nothing to search for." : "No search was run for this check. Start a new run with the search box ticked to find the exact change.";
   $("bisectCount").textContent = b ? b.changes+" commits . "+b.steps+" steps" : (vm.verdict==="running" ? "the search starts after the test" : "no search was run");
+  // a finished search that could not decide says so, instead of leaving the dots to look like a result
+  const inc=$("bisectInconclusive"), done=Boolean(b)&&!b.partial&&!b.conclusive&&vm.verdict!=="running";
+  if(inc){
+    inc.hidden=!done;
+    if(done){ inc.textContent = b.skipped ? "Search inconclusive: the test could not run on "+b.skipped+" of "+b.steps+" steps, so no first bad change was found. Skipped steps are hatched; commits the search never reached are dim. Nothing here says which commit broke it." : "Search inconclusive: it did not settle on one first bad change. Dim commits were never reached."; }
+  }
+  const nodes=b?b.nodes:[]; $("lgSkip").hidden=!nodes.some(n=>n.verdict==="skip"); $("lgUnk").hidden=!nodes.some(n=>n.verdict==="unknown");
   if(!b || !b.ends.culprit){ tag.style.display="none"; return; }
   tag.style.display=""; tag.querySelector(".mono").textContent=b.ends.culprit; tag.querySelector(".chip").textContent=b.verifiedText||"";   // the tag sits in the flow between the two ends; the culprit node itself is the orange one
 }
@@ -1413,6 +1759,17 @@ async function openRunDialog(){
   const app=$("runApp"); app.textContent=""; RUN.apps.forEach(a=>{ const o=document.createElement("option"); o.value=a.name; o.textContent=a.label; app.appendChild(o); });
   if(RUN.apps.some(a=>a.name===APPS_UI.selected)) app.value=APPS_UI.selected;
   fillRunApp(); $("runOverlay").classList.add("open"); $("runGood").focus();
+  showRunWhere();
+}
+// where the run will execute: the same BEHIQUE_SANDBOX value the Settings page lists as "Active now", read fresh each time the dialog opens
+function sandboxLabel(raw){
+  if(!raw||raw==="off") return "this machine (no sandbox)";
+  const m=/^docker:ssh:\/\/(.+)$/.exec(raw); return m?m[1]+" (Docker over ssh)":"this machine (Docker, local)";
+}
+async function showRunWhere(){
+  const w=$("runWhere"); w.textContent="";
+  try{ const s=await fetch("/api/ui/settings").then(r=>r.json()); w.textContent="Runs on: "+sandboxLabel(s.sandboxActive); }
+  catch(e){ w.textContent="Runs on: unknown (could not read settings)"; }
 }
 function fillRunApp(){
   const a=RUN.apps.find(x=>x.name===$("runApp").value)||RUN.apps[0]; if(!a) return;
@@ -1428,9 +1785,10 @@ function runType(){ return $("runType").value||"case"; }
 function runIsVisual(){ return runType()==="visual"; }
 function updateRunTime(){
   const same=$("runGood").value.trim()===$("runCand").value.trim(); $("runBisect").disabled=same;
-  if(runType()==="crawl"){ $("runTime").textContent = same ? "The same version twice is a clean-run check: about 2 minutes (most of it is the crawl)." : "About 2 to 3 minutes to crawl, then 3 to 6 minutes to compare and test, and a few more if the search runs."; return; }
-  if(runIsVisual()){ $("runTime").textContent = same ? "The same version twice is a clean-run check: about 30 seconds." : $("runBisect").checked ? "About 3 minutes if the pictures differ (the search builds and photographs every commit it tests), about 30 seconds if nothing differs." : "About 30 seconds. Behique compares pictures of both versions, region by region."; return; }
-  $("runTime").textContent = same ? "The same version twice is a clean-run check: about 15 seconds." : $("runBisect").checked ? "About a minute and a half if the behaviour differs (the search is most of it), about 15 seconds if nothing differs." : "About 40 seconds if the behaviour differs, about 15 seconds if nothing differs.";
+  const set=(est,long)=>{ $("runEst").textContent=est; $("runTime").textContent=long; };
+  if(runType()==="crawl") return same ? set("~2 min","The same version twice is a clean-run check: about 2 minutes (most of it is the crawl).") : set("~6-12 min","About 2 to 3 minutes to crawl, then 3 to 6 minutes to compare and test, and a few more if the search runs.");
+  if(runIsVisual()) return same ? set("~30 sec","The same version twice is a clean-run check: about 30 seconds.") : $("runBisect").checked ? set("~30 sec-3 min","About 3 minutes if the pictures differ (the search builds and photographs every commit it tests), about 30 seconds if nothing differs.") : set("~30 sec","About 30 seconds. Behique compares pictures of both versions, region by region.");
+  return same ? set("~15 sec","The same version twice is a clean-run check: about 15 seconds.") : $("runBisect").checked ? set("~15 sec-1.5 min","About a minute and a half if the behaviour differs (the search is most of it), about 15 seconds if nothing differs.") : set("~15-40 sec","About 40 seconds if the behaviour differs, about 15 seconds if nothing differs.");
 }
 async function startRun(){
   const btn=$("runStart"); if(btn.disabled) return; $("runErr").textContent=""; btn.disabled=true;
@@ -1603,7 +1961,8 @@ function initRunUi(){
   $("replayBtn").addEventListener("click",()=>{ RUN.running?cancelRun():openRunDialog(); });
   $("runApp").addEventListener("change",fillRunApp); $("runType").addEventListener("change",()=>{ $("runTypeAbout").textContent=RUN_TYPES[runType()][1]; $("runCaseWrap").hidden=runType()!=="case"; $("runRecrawlWrap").hidden=runType()!=="crawl"; updateRunTime(); }); $("runCase").addEventListener("change",showRunAbout);
   ["runGood","runCand"].forEach(i=>$(i).addEventListener("input",updateRunTime)); $("runBisect").addEventListener("change",updateRunTime);
-  $("runCancelDlg").addEventListener("click",()=>$("runOverlay").classList.remove("open"));
+  $("runCancelDlg").addEventListener("click",()=>$("runOverlay").classList.remove("open")); $("runClose").addEventListener("click",()=>$("runOverlay").classList.remove("open"));
+  $("runSwap").addEventListener("click",()=>{ const g=$("runGood"); const c=$("runCand"); const t=g.value; g.value=c.value; c.value=t; updateRunTime(); });
   $("runStart").addEventListener("click",startRun);
   $("runOverlay").addEventListener("keydown",e=>{ if(e.key==="Escape") $("runOverlay").classList.remove("open"); if(e.key==="Enter" && e.target.tagName!=="SELECT") startRun(); });
 }
@@ -1778,6 +2137,9 @@ function initAppsUi(){
   $("appSearch").addEventListener("input",e=>{ APPS_UI.query=e.target.value; renderApps(); });
   $("appsRefresh").addEventListener("click",()=>{ APPS_UI.github=null; renderApps(); loadApps(true); });
   $("appsToggle").addEventListener("click",()=>{ const sb=document.querySelector(".sidebar"); const open=sb.classList.toggle("apps-open"); $("appsToggle").setAttribute("aria-expanded",open?"true":"false"); });
+  // on a narrow screen the list is a panel over the page: a tap outside it, or Escape, closes it
+  document.addEventListener("click",(e)=>{ const sb=document.querySelector(".sidebar"); if(sb && sb.classList.contains("apps-open") && !sb.contains(e.target)) closeAppsDrawer(); });
+  document.addEventListener("keydown",(e)=>{ if(e.key==="Escape"){ const sb=document.querySelector(".sidebar"); if(sb && sb.classList.contains("apps-open")){ closeAppsDrawer(); $("appsToggle").focus(); } } });
   $("runPick").addEventListener("change",()=>{ stopPolling(); const u=new URLSearchParams(location.search); u.set("case",$("runPick").value); history.replaceState(null,"","?"+u.toString()+location.hash); loadLive($("runPick").value); });
 }
 // ---- views: the sidebar switches what the main area shows ----
@@ -1885,5 +2247,26 @@ async function testSettingsUi(){
   }catch(e){ showToast("Could not load the record: "+e.message,"red"); }
 })();
 </script>
+<script>
+/* design review wiring: layout picker, sidebar collapse */
+(function(){
+  var root=document.documentElement, L=["classic","a","b","c"];
+  function save(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
+  function setLayout(v){ root.setAttribute("data-l",v); root.classList.toggle("rd",v!=="classic"); save("bq.layout",v);
+    document.querySelectorAll("#rdSeg button").forEach(function(b){ b.setAttribute("aria-pressed",b.dataset.l===v?"true":"false"); }); }
+  function setSide(c){ root.classList.toggle("side-c",c); save("bq.side",c?"1":"0");
+    var t=document.getElementById("sideToggle"); if(t) t.setAttribute("aria-label",c?"Expand sidebar":"Collapse sidebar"); }
+  document.querySelectorAll("#rdSeg button").forEach(function(b){ b.addEventListener("click",function(){ setLayout(b.dataset.l); }); });
+  document.getElementById("sideToggle").addEventListener("click",function(){ setSide(!root.classList.contains("side-c")); });
+  document.querySelectorAll(".nav a").forEach(function(a){ a.title=a.textContent.trim(); });   // names show on hover while the sidebar is a rail
+  document.addEventListener("keydown",function(e){
+    var el=e.target, tag=el&&el.tagName; if(e.metaKey||e.ctrlKey||e.altKey||tag==="INPUT"||tag==="TEXTAREA"||tag==="SELECT"||(el&&el.isContentEditable)) return;
+    if(e.key>="1"&&e.key<="4") setLayout(L[+e.key-1]); else if(e.key==="[") setSide(!root.classList.contains("side-c"));
+  });
+  setLayout(root.getAttribute("data-l")||"a"); setSide(root.classList.contains("side-c"));
+})();
+</script>
+<script src="/ui/ai-panel.js"></script>
+<script src="/ui/right-tabs.js"></script>
 </body>
 </html>

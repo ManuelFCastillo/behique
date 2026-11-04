@@ -4,6 +4,7 @@
 import { execFile, spawn } from 'node:child_process'
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:http'
+import { push, runMessage } from '../src/release/ui/notify.mjs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -14,6 +15,7 @@ import { hypothesize, preview as previewHypothesis } from '../src/release/hypoth
 import { APPS, SCENARIOS } from '../src/release/scenarios.mjs'
 import { gitIn, validateRun } from '../src/release/runparams.mjs'
 import { buildViewModel } from '../src/release/viewmodel.mjs'
+import { aiRunArgv, aiView, STAGE_INFO } from '../src/release/ui/ai-view.mjs'
 import { listApps, profileForRepo } from '../src/release/appregistry.mjs'
 import { createGithub } from '../src/release/github.mjs'
 import { recordDecision } from '../src/release/decision.mjs'
@@ -37,7 +39,7 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const PORT = +(process.argv.slice(2).find(a => /^\d+$/.test(a)) ?? 8790)
 const GOOD = '1.29.1', BAD = '1.30.0'
 const JOBS = { diff: ['src/release/diff-builds.mjs', GOOD, BAD], confirm: ['src/release/confirm.mjs', GOOD, BAD, '--bisect'] }
-const EVIDENCE = join(ROOT, 'out/evidence')
+const EVIDENCE = process.env.BEHIQUE_EVIDENCE_DIR ?? join(ROOT, 'out/evidence') // the layout tests point this at a throwaway folder of made-up reports
 const UI_DIR = process.env.BEHIQUE_UI_DIR ?? join(ROOT, 'ui') // the dashboard (ui/behique-live.html); served read-only
 const SETTINGS_PATH = join(ROOT, 'out/settings.json')
 let SETTINGS = loadSettings(SETTINGS_PATH)
@@ -96,6 +98,8 @@ const onboardDeps = () => ({
 // ---- runs started from the dashboard: they live in the background, independent of any open page ----
 let uiRun = null // the current or most recent run: { runId, params, startedAt, caseId, lines, status, code, proc }
 const startedCases = new Set() // case ids of every run this server started, so a case written by a terminal run can be told apart
+let aiRun = null // the current or most recent AI-stage run on a saved case: { id, startedAt, stages, budget, lines, status, code, proc }
+const aiRunView = r => r && { caseId: r.id, running: r.status === 'running', status: r.status, code: r.code, stages: r.stages, budget: r.budget, startedAt: r.startedAt, lines: r.lines.slice(-60) }
 const runView = r => r && ({ runId: r.runId, kind: r.kind, running: r.status === 'running', status: r.status, code: r.code, caseId: r.caseId, params: r.params, startedAt: r.startedAt, lastLine: r.lines.at(-1) ?? null, ...(r.kind === 'visual' ? { progress: visualProgress(r.lines) } : r.kind === 'crawl' ? { progress: crawlProgress(r.lines) } : {}) })
 const adapterOf = async app => (await import(`../src/release/adapters/${APPS[app].adapter}.mjs`)).default
 function startUiRun(params, kind = 'release') {
@@ -107,8 +111,14 @@ function startUiRun(params, kind = 'release') {
   const take = d => { buf += String(d); const parts = buf.split('\n'); buf = parts.pop(); for (const l of parts) { if (!l.trim()) continue; r.lines.push(l); if (r.lines.length > 400) r.lines.shift(); const m = l.match(/^(?:evidence|case): (\S+)$/) ?? (kind === 'visual' && l.match(/^case (\S+)$/)); if (m && /^[\w.-]+$/.test(m[1])) { r.caseId = m[1]; startedCases.add(m[1]) } } }
   proc.stdout.on('data', take); proc.stderr.on('data', take)
   proc.on('error', e => { r.lines.push('could not start: ' + e.message) })
-  proc.on('close', (code, signal) => { r.code = code; r.status = signal === 'SIGTERM' || code === 130 ? 'cancelled' : code === 0 || code === 1 ? 'finished' : 'failed'; if (job === proc) job = null })
+  proc.on('close', (code, signal) => { r.code = code; r.status = signal === 'SIGTERM' || code === 130 ? 'cancelled' : code === 0 || code === 1 ? 'finished' : 'failed'; if (job === proc) job = null; tellPhone(r) })
   return r
+}
+/** The run is over: tell the phone. A report that cannot be read still sends "run failed"; the push itself can never hurt anything. */
+async function tellPhone(r) {
+  let vm = null
+  try { if (r.caseId) vm = buildViewModel(openCase(join(EVIDENCE, r.caseId)), { caseId: r.caseId }) } catch {}
+  await push(runMessage({ status: r.status, app: r.params?.app, goodRef: r.params?.goodRef, candRef: r.params?.candRef, startedAt: r.startedAt }, vm))
 }
 const liveState = () => Object.fromEntries([GOOD, BAD].map(r => [r, live.has(r) ? { url: live.get(r).base + '/', sha: live.get(r).sha.slice(0, 12) } : null]))
 
@@ -176,8 +186,8 @@ createServer(async (req, res) => {
     }
     if (u.pathname === '/api/busy') return send(res, 200, { reason: job ? 'A check is already running, wait for it to finish.' : live.size ? 'The hand-test versions are running. Stop them first, because the check reuses their folders.' : null })
 
-    const ui = u.pathname.match(/^\/ui\/([\w.-]+\.(html|png))$/) // only plain html and png files by exact name; no paths, no dotfiles
-    if (ui && !ui[1].startsWith('.') && existsSync(join(UI_DIR, ui[1]))) return send(res, 200, readFileSync(join(UI_DIR, ui[1]), ui[2] === 'html' ? 'utf8' : undefined), ui[2] === 'html' ? 'text/html; charset=utf-8' : 'image/png')
+    const ui = u.pathname.match(/^\/ui\/([\w.-]+\.(html|png|js))$/) // only plain html, png and js files by exact name; no paths, no dotfiles
+    if (ui && !ui[1].startsWith('.') && existsSync(join(UI_DIR, ui[1]))) return send(res, 200, readFileSync(join(UI_DIR, ui[1]), ui[2] === 'png' ? undefined : 'utf8'), ui[2] === 'html' ? 'text/html; charset=utf-8' : ui[2] === 'js' ? 'text/javascript; charset=utf-8' : 'image/png')
 
     if (u.pathname === '/report') return send(res, 200, readFileSync(join(ROOT, 'demo/report.html'), 'utf8'), 'text/html; charset=utf-8')
     if (u.pathname === '/senses') return send(res, 200, readFileSync(join(ROOT, 'demo/senses.html'), 'utf8'), 'text/html; charset=utf-8')
@@ -307,7 +317,7 @@ createServer(async (req, res) => {
       return send(res, 200, await listApps({ github, refresh: wantRefresh, profiles: profiles(), cloned: clonedAt }))
     }
     if (u.pathname === '/api/ui/cases') { // the runs list for the dashboard: newest first
-      return send(res, 200, listCases(EVIDENCE).map(id => { const vm = buildViewModel(openCase(join(EVIDENCE, id)), { caseId: id }); return { id, app: vm.appId, title: vm.title, scenario: vm.scenario?.label ?? null, verdict: vm.verdict, sub: vm.sub, decision: vm.decision?.choice ?? null, progress: vm.progress?.text ?? null } }))
+      return send(res, 200, listCases(EVIDENCE).map(id => { const rv = uiRun ? runView(uiRun) : null; const vm = buildViewModel(openCase(join(EVIDENCE, id)), { caseId: id, live: Boolean(rv?.running && rv.caseId === id) }); return { id, app: vm.appId, title: vm.title, scenario: vm.scenario?.label ?? null, verdict: vm.verdict, sub: vm.sub, decision: vm.decision?.choice ?? null, progress: vm.progress?.text ?? null } }))
     }
     if (u.pathname === '/api/ui/apps') { // what a run can target: apps, their known cases, and the versions found in the repository
       const visualApps = await Promise.all(profiles().map(async p => ({ name: p.name, label: p.label ?? p.name, kind: 'visual', defaults: p.defaults ?? null, regions: Object.keys(p.regions ?? {}), scenarios: [], tags: (await gitIn(p.repo)(['tag', '--sort=-creatordate'])).out.split('\n').filter(Boolean).slice(0, 40) })))
@@ -410,7 +420,36 @@ createServer(async (req, res) => {
     if (u.pathname === '/api/ui/case') { // one report in exactly the shape the dashboard renders
       const c = caseOf(u.searchParams.get('id'))
       if (!c) return send(res, 404, { error: 'no such case' })
-      return send(res, 200, buildViewModel(c, { caseId: u.searchParams.get('id') }))
+      const rv = uiRun ? runView(uiRun) : null // a long comparison writes nothing for a while; the process, not the log's age, says whether it is alive
+      return send(res, 200, buildViewModel(c, { caseId: u.searchParams.get('id'), live: Boolean(rv?.running && rv.caseId === u.searchParams.get('id')) }))
+    }
+    if (u.pathname === '/api/ui/ai' && req.method === 'GET') { // what the AI stages have filed in one saved case, plus the run in progress; reads only
+      const id = u.searchParams.get('id')
+      if (!caseOf(id)) return send(res, 404, { error: 'no such case' })
+      return send(res, 200, { ...aiView(join(EVIDENCE, id)), available: STAGE_INFO, run: aiRun && aiRun.id === id ? aiRunView(aiRun) : null })
+    }
+    if (u.pathname === '/api/ui/ai/run' && req.method === 'GET') return send(res, 200, aiRun ? aiRunView(aiRun) : { running: false, status: 'none', lines: [] })
+    if (u.pathname === '/api/ui/ai/run' && req.method === 'POST') { // ask for AI stages on a saved case: the run is the same `behique ai` command, capped by the budget the person chose
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      if (aiRun?.status === 'running') return send(res, 409, { error: 'The AI stages are already running. Wait for them to finish.' })
+      if (job || uiRun?.status === 'running' || onboarding || live.size) return send(res, 409, { error: 'A check or a set-up is running. The AI stages build the app too, so wait for it to finish.' })
+      const body = JSON.parse(await readBody(req) || '{}')
+      if (!caseOf(body.id)) return send(res, 404, { error: 'no such case' })
+      const a = aiRunArgv(body)
+      if (a.error) return send(res, 400, { error: a.error })
+      const proc = spawn('node', a.argv, { cwd: ROOT })
+      const r = aiRun = { id: body.id, startedAt: new Date().toISOString(), stages: a.stages, budget: a.budget, lines: [], status: 'running', code: null, proc }
+      let buf = ''
+      const take = d => { buf += String(d); const parts = buf.split('\n'); buf = parts.pop(); for (const l of parts) { if (!l.trim()) continue; r.lines.push(l); if (r.lines.length > 200) r.lines.shift() } }
+      proc.stdout.on('data', take); proc.stderr.on('data', take)
+      proc.on('error', e => { r.lines.push('could not start: ' + e.message) })
+      proc.on('close', (code, signal) => { r.code = code; r.status = signal === 'SIGTERM' ? 'cancelled' : code === 0 ? 'finished' : 'failed' })
+      return send(res, 200, aiRunView(r))
+    }
+    if (u.pathname === '/api/ui/ai/cancel' && req.method === 'POST') {
+      const bad = badPost(req); if (bad) return send(res, bad[0], { error: bad[1] })
+      if (aiRun?.status === 'running') aiRun.proc.kill('SIGTERM')
+      return send(res, 200, aiRun ? aiRunView(aiRun) : { running: false, status: 'none', lines: [] })
     }
 
     if (u.pathname === '/api/scenarios') return send(res, 200, Object.entries(SCENARIOS).map(([name, s]) => ({ name, label: s.label, about: s.about })))

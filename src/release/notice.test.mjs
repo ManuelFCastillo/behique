@@ -24,6 +24,7 @@ const n = (key, was, now) => noticeOf({ key, was, now }, { origin: ORIGIN })
 test('text, scroll, links, states and human-readable attributes are what a person would notice', () => {
   assert.equal(n('body/div[1]/p[3]#text', 'for the last decade', 'for over a decade').cls, 'visible')
   assert.equal(n('window@scrollY', 4033, 0).cls, 'visible')
+  assert.deepEqual(n('window@path', '/docs/category/getting-started', '/docs/installation'), { cls: 'visible', why: 'where the page ends up' })
   assert.equal(n('body/div[1]/a[1]@href', '/docs/guide', '/docs/getting-started').cls, 'visible')
   assert.equal(n('body/form[1]@action', '/login', '/signin').cls, 'visible')
   assert.equal(n('body/div[1]/button[1]@disabled', '', null).cls, 'visible')
@@ -76,6 +77,8 @@ test('rankFindings keeps visible first and the given order inside a class; notic
   const f = (id, cls) => ({ id, notice: cls ? { cls, why: '' } : undefined })
   const ranked = rankFindings([f('a', 'churn'), f('b', 'visible'), f('c'), f('d', 'third_party'), f('e', 'visible'), f('f', 'churn')])
   assert.deepEqual(ranked.map(x => x.id), ['b', 'e', 'a', 'f', 'd', 'c'])
+  const landed = { id: 'p', notice: { cls: 'visible', why: '' }, fact: { key: 'window@path', i: 1 } }
+  assert.deepEqual(rankFindings([f('a', 'visible'), f('b', 'churn'), landed, f('e', 'visible')]).map(x => x.id), ['p', 'a', 'e', 'b'], 'where the page ended up comes before the rest of what a person would notice')
   const j = (id, verdict, cls) => ({ id, verdict, notice: { cls, why: '' } })
   assert.deepEqual(noticeSummary([j('R1', 'confirmed', 'churn'), j('R2', 'confirmed', 'churn'), j('R3', 'unstable', 'visible')]), { confirmed: 2, visible: 0, churn: 2, churnOnly: true })
   assert.deepEqual(noticeSummary([j('R1', 'confirmed', 'churn'), j('R2', 'confirmed', 'visible')]), { confirmed: 2, visible: 1, churn: 1, churnOnly: false })

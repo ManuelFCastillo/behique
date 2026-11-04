@@ -12,7 +12,7 @@ import {
 } from './services.mjs'
 
 test('catalog has every field and health is an array of strings', () => {
-  assert.deepEqual(Object.keys(CATALOG).sort(), ['mariadb', 'mongo', 'mysql', 'postgres', 'redis'])
+  assert.deepEqual(Object.keys(CATALOG).sort(), ['jellyfin', 'mariadb', 'mongo', 'mysql', 'postgres', 'redis'])
   for (const kind of Object.keys(CATALOG)) {
     const c = CATALOG[kind]
     assert.equal(typeof c.image, 'string')

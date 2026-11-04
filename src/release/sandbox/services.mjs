@@ -74,6 +74,21 @@ export const CATALOG = {
       return `mongodb://${host}:27017/app`
     },
     memoryMb: 768
+  },
+  // A finished Jellyfin server with a seeded library, baked by tools/jellyfin-seed/build-image.sh on the machine that runs the sandbox (never pulled): docs/jellyfin.md
+  jellyfin: {
+    image: 'behique/jellyfin-seeded:1',
+    port: 8096,
+    env: {},
+    tmpfs: [],
+    caps: [],
+    health: ['curl', '-fsS', 'http://localhost:8096/Users/Public'], // during startup a placeholder server answers /health and /System/Info/Public while the API is still 503
+    cmd: ['/jellyfin/jellyfin'], // the seeded image's entrypoint is env, and its env names the seeded folders
+    defaultVar: 'JELLYFIN_URL',
+    url(host) {
+      return `http://${host}:8096`
+    },
+    memoryMb: 1024
   }
 }
 

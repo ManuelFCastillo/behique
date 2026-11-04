@@ -15,10 +15,12 @@ export const normPath = p => String(p).split('?')[0].replace(/\/\d+(?=\/|$)/g, '
 export const ACTION_TYPES =['click', 'fill', 'press', 'select', 'check', 'uncheck', 'hover', 'reload', 'wait', 'goto', 'api']
 
 export class Session {
-  constructor(baseUrl, { viewport = { width: 820, height: 900 }, navigationTimeoutMs = null } = {}) {
+  constructor(baseUrl, { viewport = { width: 820, height: 900 }, navigationTimeoutMs = null, readOnly = false } = {}) {
     this.viewport = viewport
     this.navigationTimeoutMs = navigationTimeoutMs // null keeps the 3 s default; a dev server compiling on the first request needs far longer
     this.base = baseUrl.replace(/\/$/, '')
+    this.origin = new URL(this.base).origin
+    this.readOnly = readOnly // no request but GET or HEAD gets through (except while a login step runs, see `writesAllowed`), so the app stays exactly as it was seeded
     this.log = []
     this.dialogs = []
     this.history = []
@@ -59,6 +61,17 @@ export class Session {
         this.log.push(`${r.request().method()} ${u.pathname} -> ${r.status()} [${r.headers()['content-type'] ?? ''}] ${body}`)
       } catch {}
     })
+    // One rule for every request, before the first load. Other hosts are refused: what they serve is never a finding (avatars, badges,
+    // analytics), and a page that waits on someone else's server would stall every recording and test on a slow or closed network;
+    // the crawl, the recording, the screenshots and the exported test all see the app the same way.
+    await this.ctx.route('**/*', route => {
+      const req = route.request()
+      let same = false
+      try { same = new URL(req.url()).origin === this.origin } catch {}
+      if (!same) return route.abort()
+      if (this.readOnly && !['GET', 'HEAD'].includes(req.method()) && !this.writesAllowed) return route.abort()
+      return route.continue()
+    })
     await this.page.goto(this.base + '/')
     return this
   }
@@ -76,7 +89,7 @@ export class Session {
     let result = 'ok'
     switch (a.type) {
       case 'click': await loc().click(); break
-      case 'fill': await loc().fill(String(a.text ?? '')); break
+      case 'fill': await loc().fill(String(a.text ?? ''), a.fromLogin ? { timeout: 20000 } : undefined); break // a login form can take seconds to appear on a big client bundle
       case 'press': a.selector ? await loc().press(String(a.key)) : await p.keyboard.press(String(a.key)); break
       case 'select': await loc().selectOption(String(a.value)); break
       case 'scroll': await loc().evaluate(e => e.scrollIntoView({ block: 'center' })); break // pipeline steps only; not in ACTION_TYPES, so the explorer never offers it

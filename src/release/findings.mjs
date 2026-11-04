@@ -21,7 +21,7 @@ function historyFor(actions, i) {
 export function factToFinding(d, actions, start, baseline, id = 'R1') {
   if (d.key === 'step@error') return null // a step that could not be performed is reported, but there is no element to test
   const removed = d.kind === 'removed', added = d.kind === 'added'
-  if ((removed || added) && d.key === 'window@scrollY') return null // the scroll position is always recorded; it cannot vanish or appear
+  if ((removed || added) && (d.key === 'window@scrollY' || d.key === 'window@path')) return null // the scroll position and the address are always recorded; they cannot vanish or appear
   if (d.key === 'window@scrollY') {
     const before = baseline.stable[`${d.i - 1}|${d.key}`]
     if (d.i < 1 || typeof before !== 'number' || typeof d.was !== 'number') return null
@@ -31,6 +31,19 @@ export function factToFinding(d, actions, start, baseline, id = 'R1') {
       title: `the page scrolls by ${moved} pixels after: ${a.type} ${a.selector ?? ''}`.slice(0, 140),
       expected: `the page scrolls by ${moved} pixels (the old version)`, actual: `the page ends ${Math.abs(d.now - d.was)} pixels ${d.now < d.was ? 'higher up' : 'lower down'} than the old version leaves it`,
       history: historyFor(actions, d.i), assert: { kind: 'scroll_delta', value: moved },
+    }
+  }
+  // The page's address after a step: a click that lands somewhere else on the candidate, or that stays put where the old version
+  // went on to another page. The test does the same steps and expects the old version's address (path and query, never the host).
+  if (d.key === 'window@path') {
+    if (typeof d.was !== 'string' || typeof d.now !== 'string') return null
+    const a = d.i >= 1 ? actions[d.i - 1] : null
+    const stayed = d.i >= 1 && d.now === baseline.stable[`${d.i - 1}|${d.key}`]
+    return {
+      id, start,
+      title: `the page is at ${d.was} after${a ? `: ${a.type} ${a.selector ?? ''}` : ' loading'}`.slice(0, 140),
+      expected: JSON.stringify(d.was), actual: `${stayed ? 'stays at' : 'goes to'} ${JSON.stringify(d.now)}`,
+      history: historyFor(actions, d.i), assert: { kind: 'url', op: 'equals', value: d.was },
     }
   }
   // An area that could scroll on the good version and cannot on the candidate (the fact is only ever 'y', so it vanishes rather than
@@ -99,6 +112,7 @@ export function appearedStates(diffs, baseline) {
 
 const PREFERRED = ['#text', '@href', '@value', '@src', '@alt', '@title', '@placeholder', '@aria-label', '@action']
 const NAMING = new Set(['#text', '@title', '@aria-label', '@alt', '@placeholder']) // the facts that carry words a person read on the element
+const ALWAYS = new Set(['step@error', 'window@scrollY', 'window@path']) // recorded at every step by construction: never an element that vanished
 const elementOf = key => key.replace(/(@[^/]+|#text|#scrolls)$/, '')
 const suffixOf = key => (key.match(/(@[^/]+|#text|#scrolls)$/) ?? ['', ''])[1]
 
@@ -112,7 +126,7 @@ const suffixOf = key => (key.match(/(@[^/]+|#text|#scrolls)$/) ?? ['', ''])[1]
  * swallows the facts beneath it. Without the baseline every removed fact counts as its element vanishing, as before.
  */
 export function vanishedRoots(diffs, baseline = null) {
-  const removed = (Array.isArray(diffs) ? diffs : []).filter(d => d && d.kind === 'removed' && typeof d.key === 'string' && d.key !== 'step@error' && d.key !== 'window@scrollY')
+  const removed = (Array.isArray(diffs) ? diffs : []).filter(d => d && d.kind === 'removed' && typeof d.key === 'string' && !ALWAYS.has(d.key))
   const bySteps = new Map()
   for (const d of removed) { if (!bySteps.has(d.i)) bySteps.set(d.i, []); bySteps.get(d.i).push(d) }
   const alive = new Set() // `step|element` of every element with a recorded fact the candidate still has
@@ -121,7 +135,7 @@ export function vanishedRoots(diffs, baseline = null) {
     for (const k of Object.keys(baseline.stable)) {
       if (gone.has(k)) continue
       const bar = k.indexOf('|'); if (bar < 0) continue
-      const key = k.slice(bar + 1); if (key === 'window@scrollY' || key === 'step@error') continue
+      const key = k.slice(bar + 1); if (ALWAYS.has(key)) continue
       alive.add(`${k.slice(0, bar)}|${elementOf(key)}`)
     }
   }
@@ -153,6 +167,49 @@ export function vanishedRoots(diffs, baseline = null) {
     const underRoot = el => [...roots.keys()].some(r => el === r || el.startsWith(r + '/'))
     for (const d of dropped) if (!underRoot(elementOf(d.key))) out.push({ ...d, vanished: 1, stillThere: true })
     for (const d of scrollLoss) if (!underRoot(elementOf(d.key))) out.push({ ...d, vanished: 1 })
+  }
+  return out
+}
+
+const SEGMENT = /\[(\d+)\]/
+/**
+ * An item added to a list moves everything after it, so a check that reads elements by position sees every row "change": button[3] reads
+ * docusaurus where it read excalidraw, button[4] reads excalidraw where it read hoppscotch. Finds that shape: over one step and one
+ * attribute of the list's rows, the candidate's values with the new ones taken out are exactly the good version's values, in order.
+ * Returns Map(fact key -> { role: 'added' | 'moved', item, row, was }): `row` names the list and the place, so all the facts of one new row share it.
+ * A renamed item fails this (its old value is gone), so does a reordering (nothing is new), so neither is ever called an addition.
+ */
+export function listAdditions(changed) {
+  const groups = new Map()
+  for (const d of Array.isArray(changed) ? changed : []) {
+    if (!d || typeof d.key !== 'string' || d.key.endsWith('@class') || !['changed', 'added', 'removed', 'moved'].includes(d.kind)) continue
+    const parts = d.key.split('/')
+    parts.forEach((part, at) => {
+      const m = part.match(SEGMENT)
+      if (!m) return
+      const element = part.replace(/[@#].*$/, ''), own = part.slice(element.length) // button[3]@data-app: the row is button[3], the attribute is what is read from it
+      if (!SEGMENT.test(element)) return
+      const list = `${d.i}|${[...parts.slice(0, at), element.replace(SEGMENT, '[*]')].join('/')}`
+      const id = `${list}|${own}|${parts.slice(at + 1).join('/')}`
+      if (!groups.has(id)) groups.set(id, { list, rows: new Map() })
+      groups.get(id).rows.set(Number(m[1]), d)
+    })
+  }
+  const out = new Map()
+  const text = v => (v === null || v === undefined || v === '' ? null : String(v))
+  for (const { list, rows } of groups.values()) {
+    if (rows.size < 2) continue
+    const order = [...rows.keys()].sort((a, b) => a - b).map(n => [n, rows.get(n)])
+    const was = order.map(([, d]) => text(d.was)).filter(v => v !== null), now = order.map(([, d]) => text(d.now)).filter(v => v !== null)
+    if (was.length === 0) continue
+    const left = [...was], fresh = new Set()
+    const kept = now.filter(v => { const at = left.indexOf(v); if (at < 0) { fresh.add(v); return false } left.splice(at, 1); return true })
+    if (fresh.size === 0 || kept.length === 0 || kept.join('\0') !== was.join('\0')) continue // nothing new, or the old items did not all keep their order
+    for (const [n, d] of order) {
+      const v = text(d.now)
+      if (v !== null && fresh.has(v)) out.set(d.key, { role: 'added', item: v, row: `${list}|${n}`, was: text(d.was) })
+      else if (!out.has(d.key)) out.set(d.key, { role: 'moved', item: [...fresh][0], row: `${list}|${n}`, was: text(d.was) })
+    }
   }
   return out
 }
@@ -195,8 +252,22 @@ export function selectFindings(changed, actions, start, baseline, { max = 5, ori
     if (earliest.get(d.key) === d && !kept.includes(d)) kept.push(d)
   }
   const testable = []
+  const additions = listAdditions(changed)
+  // the row's own words say best what was added, so its text is looked at first
+  const firstText = [...kept].sort((a, b) => Number(b.key.endsWith('#text')) - Number(a.key.endsWith('#text')))
+  const rowFact = new Map()
+  for (const d of firstText) { const a = additions.get(d.key); if (a?.role === 'added' && !rowFact.has(a.row)) rowFact.set(a.row, d.key) }
   for (const d of kept) {
-    const notice = noticeOf(d, { origin, refs })
+    const added = additions.get(d.key)
+    if (added?.role === 'moved') {
+      skipped.push({ key: d.key, i: d.i, why: `moved along the list when "${added.item}" was added` })
+      continue
+    }
+    if (added?.role === 'added' && rowFact.get(added.row) !== d.key) {
+      skipped.push({ key: d.key, i: d.i, why: `the same new list item as "${added.item}"` })
+      continue
+    }
+    const notice = added ? { cls: 'visible', why: `an item was added to a list ("${added.item}")`, addition: added.item, displaced: added.was } : noticeOf(d, { origin, refs })
     if (notice.cls === 'third_party') {
       skipped.push({ key: d.key, i: d.i, why: `third-party content (${notice.why})` })
       continue

@@ -2,7 +2,7 @@
 // Run: node --test src/release/findings.test.mjs
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { factToFinding, selectFindings, judgeFindings, firstConfirmed, summarize, vanishedRoots, appearedStates } from './findings.mjs'
+import { listAdditions, factToFinding, selectFindings, judgeFindings, firstConfirmed, summarize, vanishedRoots, appearedStates } from './findings.mjs'
 
 const actions = [
   { type: 'click', selector: 'a.one' },
@@ -77,6 +77,21 @@ describe('factToFinding', () => {
     assert.equal(factToFinding(d, actions, start, emptyBaseline), null)
     const s = { stable: { '0|window@scrollY': 'far' }, volatile: {} }
     assert.equal(factToFinding(d, actions, start, s), null)
+  })
+
+  it('turns a changed page address after a click into a url assertion, saying whether the page stayed put', () => {
+    const baseline = { stable: { '0|window@path': '/docs/installation' }, volatile: {} }
+    const d = { i: 1, step: 's', key: 'window@path', kind: 'changed', was: '/docs/category/getting-started', now: '/docs/installation' }
+    const f = factToFinding(d, actions, start, baseline)
+    assert.deepEqual(f.assert, { kind: 'url', op: 'equals', value: '/docs/category/getting-started' })
+    assert.equal(f.title, 'the page is at /docs/category/getting-started after: click a.one')
+    assert.equal(f.expected, '"/docs/category/getting-started"')
+    assert.equal(f.actual, 'stays at "/docs/installation"')
+    assert.deepEqual(f.history, actions.slice(0, 1))
+    assert.equal(factToFinding({ ...d, now: '/docs/elsewhere' }, actions, start, baseline).actual, 'goes to "/docs/elsewhere"')
+    assert.equal(factToFinding({ ...d, i: 0 }, actions, start, baseline).title, 'the page is at /docs/category/getting-started after loading')
+    assert.equal(factToFinding({ ...d, kind: 'removed', now: null }, actions, start, baseline), null, 'the address is always recorded: it cannot vanish')
+    assert.equal(factToFinding({ ...d, was: 3 }, actions, start, baseline), null)
   })
 
   it('id defaults to R1 and can be set', () => {
@@ -378,7 +393,7 @@ describe('a vanished element becomes a test', () => {
       gone(1, 'body/div[1]/a[2]/span[1]@class', 'ico'), gone(1, 'body/div[1]/a[2]/span[1]#text', '*'),
       gone(1, 'body/div[1]/p[3]@class', 'x'), // a second element, attribute only
       gone(2, 'body/div[1]/a[2]#text', 'Share'), // the same element at the next step
-      gone(1, 'window@scrollY', 0), gone(1, 'step@error', 'x'),
+      gone(1, 'window@scrollY', 0), gone(1, 'window@path', '/x'), gone(1, 'step@error', 'x'),
       { i: 1, step: 's1', key: 'body/div[1]/h1[1]#text', kind: 'changed', was: 'a', now: 'b' },
     ]
     const roots = vanishedRoots(diffs)
@@ -468,4 +483,32 @@ describe('an area that stops scrolling, and a class list', () => {
     assert.deepEqual(findings.map(f => f.assert.kind), ['scrolls', 'own_text'])
     assert.equal(findings[0].notice.why, 'whether an area can scroll')
   })
+})
+
+const row = (n, was, now, kind = 'changed', suffix = '/span[1]#text') => ({ i: 2, step: '2:goto /x', key: `body/div[1]/button[${n}]${suffix}`, kind, was, now })
+const roles = list => Object.fromEntries([...listAdditions(list)].map(([k, v]) => [k.match(/button\[(\d+)\]/)[1] + (k.endsWith('#text') ? '' : '@'), `${v.role}:${v.item}`]))
+
+it('listAdditions: an item put into a list is added, what followed it only moved', () => {
+  assert.deepEqual(roles([row(3, 'excalidraw', 'docusaurus'), row(4, 'hoppscotch', 'excalidraw'), row(5, null, 'hoppscotch', 'added')]), { 3: 'added:docusaurus', 4: 'moved:docusaurus', 5: 'moved:docusaurus' })
+})
+
+it('listAdditions: two items added at once are both named', () => {
+  assert.deepEqual(roles([row(1, 'a', 'x'), row(2, 'b', 'a'), row(3, 'c', 'b'), row(4, null, 'y', 'added'), row(5, null, 'c', 'added')]), { 1: 'added:x', 2: 'moved:x', 3: 'moved:x', 4: 'added:y', 5: 'moved:x' })
+})
+
+it('listAdditions: a rename, a reorder and a removal are never called an addition', () => {
+  assert.equal(listAdditions([row(1, 'Save', 'Store'), row(2, 'Open', 'Load')]).size, 0)
+  assert.equal(listAdditions([row(1, 'a', 'b'), row(2, 'b', 'a')]).size, 0)
+  assert.equal(listAdditions([row(1, 'a', 'b'), row(2, 'b', 'c'), row(3, 'c', null, 'removed')]).size, 0)
+  assert.equal(listAdditions([row(1, 'Save', 'Store')]).size, 0, 'one changed row is not a list')
+})
+
+it('selectFindings: a new list item is one finding, worded as an addition, after anything else a person would notice', () => {
+  const list = [row(3, 'excalidraw', 'docusaurus'), row(3, 'excalidraw', 'docusaurus', 'changed', '@data-app'), row(4, 'hoppscotch', 'excalidraw'), row(4, 'hoppscotch', 'excalidraw', 'changed', '@data-app'), row(5, null, 'hoppscotch', 'added'), row(5, null, 'hoppscotch', 'added', '@data-app'), { i: 2, step: '2:goto /x', key: 'body/div[1]/h1[1]#text', kind: 'changed', was: 'Hello', now: 'Goodbye' }]
+  const baseline = { [`2|body/div[1]/button[3]/span[1]#text`]: 'excalidraw' }
+  const { findings, skipped } = selectFindings(list, [{ type: 'goto', path: '/x' }, { type: 'goto', path: '/x' }, { type: 'goto', path: '/x' }], '/x', baseline, {})
+  assert.deepEqual(findings.map(f => f.fact.key), ['body/div[1]/h1[1]#text', 'body/div[1]/button[3]/span[1]#text'])
+  assert.equal(findings[1].notice.addition, 'docusaurus'); assert.equal(findings[1].notice.cls, 'visible'); assert.equal(findings[1].notice.displaced, 'excalidraw')
+  assert.ok(skipped.some(s => s.why.startsWith('moved along the list')))
+  assert.ok(skipped.some(s => s.why.startsWith('the same new list item')))
 })

@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { ALLOWED_COMMANDS, describeCommands, loadProfile, normalizeProfile, profileToAdapter, saveProfile, validateProfile } from './profile.mjs'
+import { ALLOWED_COMMANDS, describeCommands, loadProfile, normalizeProfile, profileToAdapter, relocated, saveProfile, validateProfile } from './profile.mjs'
 
 function validStatic() {
   return {
@@ -283,4 +283,10 @@ describe('serve.prepare', () => {
     p.serve.prepare = 'pnpm'
     assert.deepEqual(validateProfile(p), ['serve.prepare must be an array'])
   })
+})
+
+it('a profile saved on another machine finds its clones under this machine\'s home', () => {
+  const p = relocated({ name: 'a', repo: '/Users/x/dev/behique-apps/app', workRoot: '/Users/x/dev/behique-apps/work' }, '/home/y')
+  assert.equal(p.repo, '/home/y/dev/behique-apps/app'); assert.equal(p.workRoot, '/home/y/dev/behique-apps/work')
+  assert.equal(relocated({ repo: '/Users/x/dev/behique' }, '/home/y').repo, '/Users/x/dev/behique')
 })

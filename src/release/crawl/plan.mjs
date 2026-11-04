@@ -39,6 +39,11 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
   let failedCount = 0
   const seen = new Map()
   const order = []
+  // A path that lands on a state already reached another way (a sidebar link and a "previous page" link to the same page) is not a
+  // new state and queues nothing, but it is still a thing a person does, and whether that control still gets there is exactly what a
+  // release can break: it is kept as a flow of its own, after the states, in the order it was found.
+  const again = []
+  let found = 0
 
   function next() {
     if (queue.length === 0) return null
@@ -50,6 +55,7 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
     if (!state || typeof state.key !== 'string') return { isNew: false, queued: 0 }
     if (seen.has(state.key)) {
       seenAgain += 1
+      if (Array.isArray(path) && path.length > 0) again.push({ key: state.key, url: state.url, title: state.title, path, order: seen.get(state.key).order, found: found++, repeat: true })
       return { isNew: false, queued: 0 }
     }
     const safePath = Array.isArray(path) ? path : []
@@ -59,6 +65,7 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
       title: state.title,
       path: safePath,
       order: order.length,
+      found: found++,
     }
     seen.set(state.key, entry)
     order.push(entry)
@@ -100,10 +107,10 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
   // once (at most `direct`). A page loaded directly is a different state from the same page reached by a click: a full load
   // hydrates from scratch, and bugs live there that a client-side navigation never shows (a sidebar left inert after a hard load).
   function flows({ max = 8, direct = 8, startPath = '/' } = {}) {
-    const rest = order.filter((e) => Array.isArray(e.path) && e.path.length > 0)
+    const rest = [...order, ...again].filter((e) => Array.isArray(e.path) && e.path.length > 0)
     const sorted = [...rest].sort((a, b) => {
       if (a.path.length !== b.path.length) return a.path.length - b.path.length
-      return a.order - b.order
+      return a.found - b.found
     })
     const used = new Set()
     const out = []
@@ -116,11 +123,12 @@ export function createPlanner({ maxDepth = 2, maxPaths = 40, maxPerPage = 12 } =
       out.push({
         path: entry.path,
         state: { key: entry.key, url: entry.url, title: entry.title, path: entry.path, order: entry.order },
+        ...(entry.repeat ? { repeat: true } : {}), // lands on a page another control already reached
       })
     }
     const seen = new Set([startPath])
     let loads = 0
-    for (const entry of [...out.map(f => f.state), ...[...rest].sort((a, b) => a.order - b.order)]) {
+    for (const entry of [...out.map(f => f.state), ...[...rest].sort((a, b) => a.found - b.found)]) {
       if (loads >= direct) break
       const p = pathOf(entry.url)
       if (!p || seen.has(p)) continue

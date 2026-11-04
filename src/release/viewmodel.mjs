@@ -30,9 +30,9 @@ const KIND = {
 const day = ts => ts.slice(0, 19).replace('T', ' ')
 const sha7 = s => String(s ?? '').slice(0, 7)
 
-export function verdictOf(events, s, now = Date.now()) {
+export function verdictOf(events, s, now = Date.now(), live = false) { // live: the server knows this run's process is still going, however long it has been quiet
   const closed = events.find(e => e.type === 'case.closed')
-  if (!closed) return now - Date.parse(events.at(-1).ts) > STALE_MS ? 'fail' : 'running'
+  if (!closed) return !live && now - Date.parse(events.at(-1).ts) > STALE_MS ? 'fail' : 'running'
   if (s.claims.some(c => c.label === 'reproduced_failure')) return churnOnly(events) ? 'ship' : 'hold'
   switch (closed.data.outcome) {
     case 'no changed facts': case 'no candidate defects': return 'ship'
@@ -74,16 +74,22 @@ export function churnOnly(events) {
   return noticeSummary(events.filter(e => e.type === 'test.judged').map(e => e.data)).churnOnly
 }
 
-/** The tested steps plus evenly spaced inferred commits, at most 15 nodes, each good / culprit / bad by position. */
+/**
+ * The tested steps plus evenly spaced inferred commits, at most 15 nodes. With a culprit, each is good / culprit / bad by position.
+ * With none (the search could not decide) there is no position to colour by: a step that was run keeps its own answer, a step
+ * that could not be run is `skip`, and every commit that was never reached is `unknown`, never a made-up `good`.
+ */
 function bisectNodes(steps, n, culpritAt, onlyTested = false) {
   const tested = new Map(steps.filter(t => t.verdict !== 'skip').map(t => [t.index, t]))
-  if (onlyTested) return [...tested.values()].sort((a, b) => a.index - b.index).map(t => ({ hash: t.sha, index: t.index, verdict: t.verdict, tested: true, step: t.step }))
-  const want = new Set([1, n, ...tested.keys()])
+  const skipped = new Map(steps.filter(t => t.verdict === 'skip' && !tested.has(t.index)).map(t => [t.index, t]))
+  if (onlyTested) return [...tested.values()].sort((a, b) => a.index - b.index).map(t => ({ hash: t.sha, index: t.index, verdict: t.verdict, tested: true, step: t.step })) // a search still running draws only what was decided
+  const want = new Set([1, n, ...tested.keys(), ...skipped.keys()])
   for (let k = 1; want.size < Math.min(15, n) && k < 15; k++) want.add(Math.max(1, Math.round((k * n) / 15)))
   const picked = [...want].sort((a, b) => a - b).slice(0, 15)
   return picked.map(i => {
-    const t = tested.get(i)
-    const verdict = culpritAt == null ? 'good' : i === culpritAt ? 'culprit' : i < culpritAt ? 'good' : 'bad'
+    const t = tested.get(i), s = skipped.get(i), x = t ?? s
+    if (culpritAt == null) return { hash: x ? x.sha : `#${i}`, index: i, verdict: t ? t.verdict : s ? 'skip' : 'unknown', tested: Boolean(x), step: x ? x.step : null }
+    const verdict = i === culpritAt ? 'culprit' : i < culpritAt ? 'good' : 'bad'
     return { hash: t ? t.sha : `#${i}`, index: i, verdict, tested: Boolean(t), step: t ? t.step : null }
   })
 }
@@ -114,7 +120,7 @@ function decisionView(d) {
   return { seq: d.seq, choice: d.decision.toUpperCase(), reason: d.note ?? '', who: d.who ?? '', time: d.ts.slice(11, 16), ts: d.ts, override: Boolean(d.override), recommendation: rec, agrees: rec === 'hold' || rec === 'ship' ? rec === d.decision : null, supersedes: d.supersedes ?? null }
 }
 
-export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
+export function buildViewModel(c, { caseId, now = Date.now(), live = false } = {}) {
   const events = c.read(), raw = c.rawLines(), hashes = raw.map(sha), s = summarize(events)
   if (!events.length) throw new Error('this record is empty or does not exist')
   const o = s.opened ?? {}
@@ -126,9 +132,9 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const looks = new Map(events.filter(e => e.type === 'shots.recorded').map(e => [Number(e.data.step), Boolean(e.data.above)])) // step -> whether the screenshots differed there
   const scrollT = [...exported.values()].find(t => String(t.fact).endsWith('#scrolls')) // the test that turns the wheel over an area that stopped scrolling, if any
   const scrollTest = scrollT ? { id: scrollT.id, when: Number(scrollT.i) > 0 ? `after ${stepWords(labels[scrollT.i] ?? `step ${scrollT.i}`)}` : 'on the start page' } : null
-  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, plain: regressionText(t, { id, label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef, sameLook: looks.has(Number(t.i)) ? !looks.get(Number(t.i)) : null, scrollTest }), text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), ...outcomeText(t, { id, goodRef: o.goodRef, candRef: o.candRef }) } : null } // plain: the regression for a person; text: what the test does; pass/fail: what each recording shows
+  const testOf = text => { const id = String(text).match(/^The test (R\d+) /)?.[1]; const t = id && exported.get(id); return t ? { id, ...(t.notice?.addition ? { word: 'Change' } : {}), plain: regressionText(t, { id, label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef, sameLook: looks.has(Number(t.i)) ? !looks.get(Number(t.i)) : null, scrollTest }), text: testSentence(t, { label: labels[t.i] ?? null, goodRef: o.goodRef, candRef: o.candRef }), ...outcomeText(t, { id, goodRef: o.goodRef, candRef: o.candRef }) } : null } // plain: the regression for a person; text: what the test does; pass/fail: what each recording shows
   const videosOf = evidence => evidence.filter(h => s.artifacts[h]?.mediaType === 'video/webm').map(h => ({ name: s.artifacts[h].name, which: /\.good\.webm$/.test(s.artifacts[h].name) ? 'good' : 'candidate', url: videoUrl(h) })) // recordings of one run each way
-  const verdict = verdictOf(events, s, now)
+  const verdict = verdictOf(events, s, now, live)
   const app = o.kind === 'visual' ? String(o.adapter ?? '').replace(/^visual-/, '') : APP_NAMES[String(o.adapter ?? '').split('-')[0]] ?? o.adapter ?? 'App'
   const builds = events.find(e => e.type === 'builds.compared')?.data
 
@@ -142,11 +148,11 @@ export function buildViewModel(c, { caseId, now = Date.now() } = {}) {
   const culpritAt = closedRange ?? (+(log.map(l => l.match(/first bad change is #(\d+) of/)).find(Boolean)?.[1] ?? 0) || null)
   const changes = r?.changes ?? startedEv?.changes ?? null
   const partial = !r && startedEv ? {
-    changes, steps: steps.length, conclusive: false, verified: false, partial: true, nodes: bisectNodes(steps, changes, null, true),
+    changes, steps: steps.length, skipped: steps.filter(t => t.verdict === 'skip').length, conclusive: false, verified: false, partial: true, nodes: bisectNodes(steps, changes, null, true),
     ends: { left: `${sha7(builds?.good?.sha)} (good)`, right: `${sha7(builds?.candidate?.sha)} (bad)`, culprit: null }, commit: null, verifiedText: '',
   } : null
   const bisect = partial ?? (r && changes ? {
-    changes, steps: r.steps, conclusive: r.conclusive, verified: r.verified, nodes: bisectNodes(steps, changes, r.conclusive ? culpritAt : null),
+    changes, steps: r.steps, skipped: steps.filter(t => t.verdict === 'skip').length, conclusive: r.conclusive, verified: r.verified, nodes: bisectNodes(steps, changes, r.conclusive ? culpritAt : null),
     ends: { left: `${sha7(builds?.good?.sha)} (good)`, right: `${sha7(builds?.candidate?.sha)} (bad)`, culprit: r.commit ? `${sha7(r.commit)} ${r.subject?.match(/\(#\d+\)/)?.[0]?.slice(1, -1) ?? ''}`.trim() : null },
     commit: r.commit ? { sha: r.commit, subject: r.subject, author: r.author, date: r.date, files: r.files, url: r.url } : null,
   } : null)

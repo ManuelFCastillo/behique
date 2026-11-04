@@ -23,6 +23,7 @@ import { forwardLocal, sshTunnel } from './tunnel.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const STATIC_SERVER = join(HERE, '..', 'onboard', 'static-server.mjs')
+const PROXY_SERVER = join(HERE, '..', 'onboard', 'proxy-server.mjs') // a static bundle that talks to a sidecar on the same origin (serve.proxy)
 const LAUNCHER = join(HERE, 'launch.mjs')
 const GIT_HISTORY = join(HERE, 'git-history.mjs') // one commit for a build that reads last-update dates from git (serve.gitHistory)
 const DEFAULT_IMAGE = 'node:22-bookworm' // the full image: Prisma and many native modules need openssl and build tools that the slim one lacks
@@ -70,6 +71,7 @@ export function writeExtras(dir, shimNames, { gitHistory = false } = {}) {
   const base = join(dir, '.behique')
   mkdirSync(join(base, 'bin'), { recursive: true })
   copyFileSync(STATIC_SERVER, join(base, 'static-server.mjs'))
+  copyFileSync(PROXY_SERVER, join(base, 'proxy-server.mjs'))
   copyFileSync(LAUNCHER, join(base, 'launch.mjs'))
   if (gitHistory) copyFileSync(GIT_HISTORY, join(base, 'git-history.mjs'))
   for (const name of shimNames) {
@@ -115,9 +117,10 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
   writeExtras(dir, shimNames, { gitHistory })
 
   // the build cache: the same commit, image, install steps and services were installed before, so the app can start from that image
-  const key = config.cache === false ? null : cacheKeyFor({ app: p.name, sha, image: config.image, installs, profile: p })
+  const image = p.serve.image ?? config.image // a repo that needs another Node (engine-strict) names it in its profile
+  const key = config.cache === false ? null : cacheKeyFor({ app: p.name, sha, image, installs, profile: p })
   const hit = key ? await imageExists(docker, cacheImage(key)) : false
-  const sb = make({ docker, pack, image: config.image, limits: config.limits, fromCache: hit ? key : null })
+  const sb = make({ docker, pack, image, limits: config.limits, fromCache: hit ? key : null })
   let link = null, tail = ''
   const self = { stop: async () => { register?.delete(self); await link?.close().catch(() => {}); await sb.destroy() } }
   register?.add(self)
@@ -153,7 +156,10 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
     if (!prep2.ok) return fail(`${p.name} ${ref}: prepare: ${prep2.error}`, prep2.logs)
   }
 
-  const run = p.serve.kind === 'static'
+  const root = p.serve.root ? `/work/${String(p.serve.root).replace(/^\/+/, '')}` : '/work'
+  const run = p.serve.kind === 'static' && p.serve.proxy
+    ? { cmd: 'node', args: ['/work/.behique/proxy-server.mjs', root, String(port), p.serve.proxy.mount, `${p.serve.proxy.service}:${p.serve.proxy.port}`] }
+    : p.serve.kind === 'static'
     ? { cmd: 'node', args: ['/work/.behique/static-server.mjs', p.serve.root ? `/work/${p.serve.root.replace(/^\/+/, '')}` : '/work', String(port), JSON.stringify(p.serve.overrides ?? {})] }
     : { cmd: p.serve.cmd, args: (p.serve.args ?? []).map(a => sub(a, port)) }
   // the launcher makes a server that listens only on localhost reachable from outside the container, and runs the command as given
@@ -185,7 +191,8 @@ export async function startSandboxedBuild({ adapter, ref, port, config, register
   const probe = base + (adapter.readyPath && adapter.readyPath !== '/' ? adapter.readyPath : '/')
   let up = false, stopped = false
   for (const t = Date.now(); Date.now() - t < readyMs && !up && !stopped;) {
-    try { up = (await fetchFn(probe)).ok } catch { await sleep(300) }
+    // a bounded probe: a connection that hangs (a route to a fresh container network that is not up yet) must not eat the whole wait
+    try { up = (await fetchFn(probe, { signal: AbortSignal.timeout(3000) })).ok } catch { await sleep(300) }
     if (!up) { const r = await sb.running(); stopped = r.ok && r.running === false }
   }
   if (!up) {

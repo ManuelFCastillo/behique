@@ -240,3 +240,18 @@ test('full run on fake site finishes and stats add up', () => {
   assert.equal(s.tried, 1 + 2 + 2)
   assert.equal(s.seenAgain, s.tried - s.states - s.failed)
 })
+
+test('a control that lands on a page another control already reached is still a flow, after the new states of its depth', () => {
+  const p = createPlanner({ maxDepth: 2 })
+  p.next()
+  p.report([], stateFor('home', [cand('#prev', 'Previous Getting Started', 'k-prev'), cand('#side', 'Getting Started', 'k-side'), cand('#blog', 'Blog', 'k-blog')]))
+  const prev = p.next(); p.report(prev, stateFor('category', []))
+  const side = p.next(); const r = p.report(side, stateFor('category', [])) // the same page, by the sidebar link
+  assert.deepEqual(r, { isNew: false, queued: 0 })
+  const blog = p.next(); p.report(blog, stateFor('blog', []))
+  assert.equal(p.stats().seenAgain, 1)
+  assert.equal(p.states().length, 3, 'the repeat is not a state of its own')
+  const flows = p.flows({ max: 8, direct: 0 })
+  assert.deepEqual(flows.map(f => [f.path[0].selector, f.state.key, f.repeat ?? false]), [['#prev', 'category', false], ['#side', 'category', true], ['#blog', 'blog', false]])
+  assert.equal(p.flows({ max: 2, direct: 0 }).length, 2, 'the cap counts repeats too')
+})

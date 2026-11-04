@@ -27,6 +27,34 @@ inputs:
     description: With bisect, also ask Meta's Muse Spark once why the first bad commit causes the failure (about a cent). Sends the observed difference and that one commit's message and diff to Meta; the answer is labelled a guess and never changes the verdict. Needs meta-api-key (true or false).
     required: false
     default: "false"
+  ai:
+    description: Run the four optional AI stages after the verdict (tests a model wrote, click paths it proposed, a description of the pictures, a ranking of unproven differences). Needs meta-api-key. Sends the observed differences and, for the picture stage, cropped screenshots of the app to Meta, so leave it off for a private repository unless that is acceptable. Everything a model writes is labelled an AI guess in the comment, shows its cost, and never changes the verdict or the exit code (true or false).
+    required: false
+    default: "false"
+  ai-tests:
+    description: Only the AI-written tests stage (true or false). Needs meta-api-key.
+    required: false
+    default: "false"
+  ai-flows:
+    description: Only the AI-proposed click paths stage (true or false). Needs meta-api-key.
+    required: false
+    default: "false"
+  ai-describe:
+    description: Only the AI description of the pictures stage (true or false). Sends cropped screenshots to Meta. Needs meta-api-key.
+    required: false
+    default: "false"
+  ai-triage:
+    description: Only the AI ranking of unproven differences stage (true or false). Needs meta-api-key.
+    required: false
+    default: "false"
+  ai-canvas:
+    description: For a canvas app (a profile with regions or anchors) in a PUBLIC repository, send one screenshot to Meta so the model lists the controls; code then clicks them on both versions. Not part of "ai". Needs meta-api-key (true or false).
+    required: false
+    default: "false"
+  ai-budget:
+    description: Cap, in US dollars, on everything AI in this run, the explanation included.
+    required: false
+    default: "0.25"
   meta-api-key:
     description: Meta Model API key for the explanation (pass it from a secret). Unused unless explain is true.
     required: false
@@ -87,6 +115,13 @@ runs:
         CAND: ${{ inputs.cand }}
         BISECT: ${{ inputs.bisect }}
         EXPLAIN: ${{ inputs.explain }}
+        AI: ${{ inputs.ai }}
+        AI_TESTS: ${{ inputs.ai-tests }}
+        AI_FLOWS: ${{ inputs.ai-flows }}
+        AI_DESCRIBE: ${{ inputs.ai-describe }}
+        AI_TRIAGE: ${{ inputs.ai-triage }}
+        AI_CANVAS: ${{ inputs.ai-canvas }}
+        AI_BUDGET: ${{ inputs.ai-budget }}
         META_API_KEY: ${{ inputs.meta-api-key }}
         MAX: ${{ inputs.max-findings }}
         FAIL_ON_HOLD: ${{ inputs.fail-on-hold }}
@@ -95,6 +130,13 @@ runs:
         args=(check "$APP" "$GOOD" "$CAND" --profile "$PROFILE" --repo "$REPO" --max-findings "$MAX" --no-dashboard --out "$RUNNER_TEMP/behique-result.json")
         if [ "$BISECT" = "true" ]; then args+=(--bisect); fi
         if [ "$BISECT" = "true" ] && [ "$EXPLAIN" = "true" ]; then args+=(--explain); fi
+        if [ "$AI" = "true" ]; then args+=(--ai); fi
+        if [ "$AI_TESTS" = "true" ]; then args+=(--ai-tests); fi
+        if [ "$AI_FLOWS" = "true" ]; then args+=(--ai-flows); fi
+        if [ "$AI_DESCRIBE" = "true" ]; then args+=(--ai-describe); fi
+        if [ "$AI_TRIAGE" = "true" ]; then args+=(--ai-triage); fi
+        if [ "$AI_CANVAS" = "true" ]; then args+=(--ai-canvas); fi
+        args+=(--ai-budget "$AI_BUDGET")
         node bin/behique.mjs "${args[@]}"
         code=$?
         echo "result=$RUNNER_TEMP/behique-result.json" >> "$GITHUB_OUTPUT"

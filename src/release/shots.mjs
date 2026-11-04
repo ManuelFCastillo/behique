@@ -25,7 +25,7 @@ export async function captureShotsWithCanvases(base, actions, steps, { viewport 
   const wanted = new Set(steps)
   const max = steps.length ? Math.max(...steps) : -1
   const out = {}, canvases = {}
-  const s = new Session(base, { viewport, navigationTimeoutMs: 30000 })
+  const s = new Session(base, { viewport, navigationTimeoutMs: 30000, readOnly }) // the same request rule as the recording, kept by the session
   const measure = () => s.page.evaluate(measureCanvases).catch(() => [])
   let opts = settleOptions
   // a page that is mostly a drawn canvas gets its animation loop paused for every picture and a longer screenshot timeout
@@ -33,7 +33,6 @@ export async function captureShotsWithCanvases(base, actions, steps, { viewport 
   const take = async i => { const r = await settle(s.page, opts); out[i] = r.png; canvases[i] = pickCanvases(await measure(), viewport) }
   try {
     await s.open()
-    if (readOnly) await s.ctx.route('**/*', route => (['GET', 'HEAD'].includes(route.request().method()) || s.writesAllowed ? route.continue() : route.abort())) // the same rule as the recording
     await adapt()
     if (wanted.has(0)) await take(0); else await settle(s.page, opts)
     for (let i = 0; i < max; i++) {

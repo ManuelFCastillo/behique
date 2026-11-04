@@ -1,0 +1,92 @@
+[
+ {
+  "id": "R1",
+  "ref": "2025.10.1",
+  "sha": "51840cb5e5e0526d5e186cfcdb9b701ff056f230",
+  "n": 1,
+  "outcome": "passed"
+ },
+ {
+  "id": "R1",
+  "ref": "2025.10.1",
+  "sha": "51840cb5e5e0526d5e186cfcdb9b701ff056f230",
+  "n": 2,
+  "outcome": "passed"
+ },
+ {
+  "id": "R1",
+  "ref": "2025.10.1",
+  "sha": "51840cb5e5e0526d5e186cfcdb9b701ff056f230",
+  "n": 3,
+  "outcome": "passed"
+ },
+ {
+  "id": "R2",
+  "ref": "2025.10.1",
+  "sha": "51840cb5e5e0526d5e186cfcdb9b701ff056f230",
+  "n": 1,
+  "outcome": "passed"
+ },
+ {
+  "id": "R2",
+  "ref": "2025.10.1",
+  "sha": "51840cb5e5e0526d5e186cfcdb9b701ff056f230",
+  "n": 2,
+  "outcome": "passed"
+ },
+ {
+  "id": "R2",
+  "ref": "2025.10.1",
+  "sha": "51840cb5e5e0526d5e186cfcdb9b701ff056f230",
+  "n": 3,
+  "outcome": "passed"
+ },
+ {
+  "id": "R1",
+  "ref": "2025.11.2",
+  "sha": "3527f217c971dbe5935053f9978efc9195ffdfbe",
+  "n": 1,
+  "outcome": "failed",
+  "message": "Error: expect(received).not.toBeNull()\n\nReceived: null"
+ },
+ {
+  "id": "R1",
+  "ref": "2025.11.2",
+  "sha": "3527f217c971dbe5935053f9978efc9195ffdfbe",
+  "n": 2,
+  "outcome": "failed",
+  "message": "Error: expect(received).not.toBeNull()\n\nReceived: null"
+ },
+ {
+  "id": "R1",
+  "ref": "2025.11.2",
+  "sha": "3527f217c971dbe5935053f9978efc9195ffdfbe",
+  "n": 3,
+  "outcome": "failed",
+  "message": "Error: expect(received).not.toBeNull()\n\nReceived: null"
+ },
+ {
+  "id": "R2",
+  "ref": "2025.11.2",
+  "sha": "3527f217c971dbe5935053f9978efc9195ffdfbe",
+  "n": 1,
+  "outcome": "failed",
+  "message": "Error: expect(received).not.toBeNull()\n\nReceived: null"
+ },
+ {
+  "id": "R2",
+  "ref": "2025.11.2",
+  "sha": "3527f217c971dbe5935053f9978efc9195ffdfbe",
+  "n": 2,
+  "outcome": "failed",
+  "message": "Error: expect(received).not.toBeNull()\n\nReceived: null"
+ },
+ {
+  "id": "R2",
+  "ref": "2025.11.2",
+  "sha": "3527f217c971dbe5935053f9978efc9195ffdfbe",
+  "n": 3,
+  "outcome": "failed",
+  "message": "Error: expect(received).not.toBeNull()\n\nReceived: null"
+ }
+]

@@ -23,7 +23,7 @@ function jsonPath(obj, path) {
 }
 
 export function validSpec(spec) {
-  return spec && typeof spec === 'object' && ['text', 'own_text', 'value', 'visible', 'count', 'checked', 'style', 'dialog', 'attr', 'api', 'class_list', 'scrolls'].includes(spec.kind)
+  return spec && typeof spec === 'object' && ['text', 'own_text', 'value', 'visible', 'count', 'checked', 'style', 'dialog', 'attr', 'api', 'class_list', 'scrolls', 'url'].includes(spec.kind)
 }
 
 export async function evaluate(session, spec) {
@@ -75,6 +75,11 @@ export async function evaluate(session, spec) {
       if (!(await loc().count())) return { pass: false, detail: 'selector not found' }
       const v = await loc().evaluate(e => e.clientHeight > 0 && e.scrollHeight > e.clientHeight + 1 && ['auto', 'scroll'].includes(getComputedStyle(e).overflowY))
       return { pass: v === true, detail: `scrolls=${v}` }
+    }
+    case 'url': { // where the page is: its path and query, never the host, so the same check runs against any build of the app
+      const u = new URL(p.url())
+      const v = u.pathname + u.search
+      return { pass: cmp(spec.op, v, spec.value), detail: `url=${JSON.stringify(v.slice(0, 80))}` }
     }
     case 'attr': {
       if (!(await loc().count())) return { pass: false, detail: 'selector not found' }

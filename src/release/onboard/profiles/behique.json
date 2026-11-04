@@ -1,0 +1,38 @@
+{
+  "name": "behique",
+  "repo": "/Users/mcastillo/dev/behique",
+  "workRoot": "/Users/mcastillo/dev/behique-apps/work",
+  "defaults": {
+    "good": "d2c6f20",
+    "cand": "bc8f6aa"
+  },
+  "serve": {
+    "kind": "command",
+    "cmd": "node",
+    "args": [
+      "demo/server.mjs",
+      "{port}"
+    ],
+    "install": [
+      {
+        "cmd": "npm",
+        "args": [
+          "ci"
+        ]
+      }
+    ]
+  },
+  "ready": {
+    "path": "/dashboard",
+    "timeoutMs": 60000
+  },
+  "viewport": {
+    "width": 1280,
+    "height": 800,
+    "deviceScaleFactor": 1
+  },
+  "setup": [],
+  "regions": {},
+  "anchors": {},
+  "notes": "Behique's own dashboard, checked by Behique (dogfood). The checkout is a git worktree of this repo at the given ref, so the app under test is that commit's demo/server.mjs and ui/behique-live.html; uncommitted working-tree changes are not part of any ref. npm ci runs with scripts off (the three dependencies need none for the dashboard; no browser is downloaded). demo/server.mjs listens on localhost only, and the sandbox launcher relays it. The dashboard is only interesting with cases in out/evidence, and out/ is git-ignored, so a fresh checkout has none. The profile format has no way to put a file into a non-database checkout (seed entries load sidecar databases, prepare commands may not run inline code), so two small PUBLIC-app cases (Hoppscotch 2025.10.1 vs 2025.11.2 and FreshRSS 1.29.1 vs 1.30.0, about 0.9 MB) are kept in src/release/onboard/seeds/behique/evidence/ and copied into each checkout's out/evidence before a run (see docs/dogfood-behique.md). The same two cases are on both refs, so both versions render the same report. Runs only in the Docker sandbox."
+}
