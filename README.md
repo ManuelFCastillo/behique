@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/img/logo.png" alt="Behique CI" width="220">
+  <img src="docs/img/logo.png" alt="Behique" width="260">
 </p>
 
 # Behique
