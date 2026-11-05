@@ -46,18 +46,18 @@ test('an app Behique set up itself is listed as ready, and its visual reports ar
 
 test('a repo that a saved profile was set up from is linked to that app', async () => {
   const { profileForRepo, profileFolder } = await import('./appregistry.mjs')
-  const profiles = [{ name: 'nextjs-blog', repo: '/apps/tailwind-nextjs-starter-blog' }, { name: 'codecosmos', repo: '/apps/codecosmos/' }, { name: 'todomvc' }]
-  assert.equal(profileFolder(profiles[1]), 'codecosmos')
+  const profiles = [{ name: 'nextjs-blog', repo: '/apps/tailwind-nextjs-starter-blog' }, { name: 'skymap', repo: '/apps/skymap/' }, { name: 'todomvc' }]
+  assert.equal(profileFolder(profiles[1]), 'skymap')
   assert.equal(profileFolder({ repo: '/x/.hidden' }), null)
   assert.equal(profileForRepo('tailwind-nextjs-starter-blog', profiles).name, 'nextjs-blog', 'by the repo folder, whatever the app is called')
-  assert.equal(profileForRepo('codecosmos', profiles).name, 'codecosmos')
+  assert.equal(profileForRepo('skymap', profiles).name, 'skymap')
   assert.equal(profileForRepo('todomvc', profiles).name, 'todomvc', 'by name when the profile has no repo path')
   assert.equal(profileForRepo('nextjs-blog', profiles), null, 'an app name is not a repo name')
   assert.equal(profileForRepo('', profiles), null)
-  const { apps } = await listApps({ github: gh([r('codecosmos'), r('beta')]), profiles, cloned: name => '/apps/' + name })
-  const cc = apps.find(a => a.id === 'github:me/codecosmos'), beta = apps.find(a => a.label === 'beta')
-  assert.equal(cc.profileId, 'codecosmos'); assert.equal(cc.status, 'set-up'); assert.equal(cc.runnable, false, 'the run happens on the profile app')
-  assert.match(cc.statusText, /^Set up as the app "codecosmos"/); assert.equal(cc.subtitle, 'private · Go · set up')
+  const { apps } = await listApps({ github: gh([r('skymap'), r('beta')]), profiles, cloned: name => '/apps/' + name })
+  const cc = apps.find(a => a.id === 'github:me/skymap'), beta = apps.find(a => a.label === 'beta')
+  assert.equal(cc.profileId, 'skymap'); assert.equal(cc.status, 'set-up'); assert.equal(cc.runnable, false, 'the run happens on the profile app')
+  assert.match(cc.statusText, /^Set up as the app "skymap"/); assert.equal(cc.subtitle, 'private · Go · set up')
   assert.equal(beta.profileId, null); assert.equal(beta.status, 'needs-setup'); assert.equal(beta.subtitle, 'private · Go · cloned')
 })
 

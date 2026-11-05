@@ -19,12 +19,12 @@ test('a step in progress is visible, and its result becomes the repo\'s last res
   let t = 1000
   const s = createSetupState({ ...disk, now: () => t })
   assert.deepEqual(await s.view(), { running: null, last: {} })
-  assert.equal((await s.begin({ repo: 'codecosmos', name: 'codecosmos', step: 'verify', good: 'd88b984', cand: 'main' })).ok, true)
+  assert.equal((await s.begin({ repo: 'skymap', name: 'skymap', step: 'verify', good: 'd88b984', cand: 'main' })).ok, true)
   let v = await s.view()
   assert.equal(v.running.step, 'verify')
-  assert.equal(v.running.repo, 'codecosmos')
-  assert.equal(setupSummary(v, 'codecosmos').state, 'running')
-  assert.match(setupSummary(v, 'codecosmos').text, /verifying d88b984 against main/)
+  assert.equal(v.running.repo, 'skymap')
+  assert.equal(setupSummary(v, 'skymap').state, 'running')
+  assert.match(setupSummary(v, 'skymap').text, /verifying d88b984 against main/)
   assert.equal(setupSummary(v, 'other'), null)
   const second = await s.begin({ repo: 'other', name: 'other', step: 'propose' })
   assert.equal(second.ok, false)
@@ -34,18 +34,18 @@ test('a step in progress is visible, and its result becomes the repo\'s last res
   assert.equal(r.ok, true)
   v = await s.view()
   assert.equal(v.running, null)
-  const l = v.last.codecosmos
+  const l = v.last.skymap
   assert.equal(l.ok, false)
   assert.equal(l.finishedAt, 5000)
   assert.equal(l.checks.length, 2)
   assert.equal('logs' in l.checks[1], false)
   assert.equal(l.checks[1].detail, 'timeout . Call log: . - taking page screenshot') // one plain line, no colour codes
-  const sum = setupSummary(v, 'codecosmos')
+  const sum = setupSummary(v, 'skymap')
   assert.equal(sum.state, 'failed')
   assert.match(sum.text, /1 of 2 checks passed, nothing saved/)
   // persisted without the step in progress
   const saved = JSON.parse(disk.files['out/onboard/state.json'])
-  assert.equal(saved.last.codecosmos.name, 'codecosmos')
+  assert.equal(saved.last.skymap.name, 'skymap')
   assert.equal('running' in saved, false)
 })
 
@@ -84,8 +84,8 @@ test('begin refuses an unknown step or a bad name; end without a step is refused
 })
 
 test('repoOfProposal takes the folder from the proposal\'s repo path', () => {
-  assert.equal(repoOfProposal({ repo: '/Users/x/dev/behique-apps/codecosmos' }), 'codecosmos')
-  assert.equal(repoOfProposal({ repo: '/Users/x/dev/behique-apps/codecosmos/' }), 'codecosmos')
+  assert.equal(repoOfProposal({ repo: '/Users/x/dev/behique-apps/skymap' }), 'skymap')
+  assert.equal(repoOfProposal({ repo: '/Users/x/dev/behique-apps/skymap/' }), 'skymap')
   assert.equal(repoOfProposal({ repo: '/x/.hidden' }), null)
   assert.equal(repoOfProposal({}), null)
   assert.equal(repoOfProposal(null), null)

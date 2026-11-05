@@ -70,7 +70,7 @@ The AI stages tab shows what the optional model calls filed on the same run, lab
 - Facts are attributes, class lists, text, scroll position, whether an area can scroll, and pictures. A class change counts as something a person would notice only when a class that shows, hides or scrolls comes or goes (`overflow-hidden`, `hidden`, `d-none` and the like); any other class change is reported as churn, and a general style change shows in the pictures. Console errors, failed requests and accessibility names are not recorded yet.
 - "Confirmed" means the test reproduces, not that the change matters. The class (a person would notice, or markup churn) is a rule, not a judgment; a person decides.
 - Third-party content (images and media from other hosts) is excluded from findings, since it changes on its own.
-- A check takes from under a minute (a static site, warm cache) to about ten minutes (a Next.js app, with bisect) on the measured apps; see [docs/speed-plan.md](docs/speed-plan.md). The GitHub Action has not been run on GitHub's own runners yet.
+- A check takes from under a minute (a static site, warm cache) to about ten minutes (a Next.js app, with bisect) on the measured apps; see [docs/speed-plan.md](docs/speed-plan.md). The GitHub Action has run on a GitHub-hosted runner against a small static test site (one pull request, HOLD comment posted); it has not been run on a large app there.
 
 ## Tests
 
@@ -78,10 +78,14 @@ The AI stages tab shows what the optional model calls filed on the same run, lab
 node --test $(find src -name "*.test.mjs" -not -path "*/senses/*")
 ```
 
-856 tests, no network, no model calls (the crawl's own test launches a browser against a local fake site and takes a few minutes). The canvas senses have their own tests under `src/senses/`, which launch a browser.
+1024 tests, no network, no model calls (the crawl's own test launches a browser against a local fake site and takes a few minutes). The canvas senses have their own tests under `src/senses/`, which launch a browser.
 
 ## More
 
 - [docs/STATUS.md](docs/STATUS.md): what is built, what was measured, known limits.
 - [docs/CHECKLIST.md](docs/CHECKLIST.md): done, left, and what is next.
 - [docs/sandbox.md](docs/sandbox.md), [docs/speed-plan.md](docs/speed-plan.md), [docs/ci.md](docs/ci.md), [docs/canvas-senses-plan.md](docs/canvas-senses-plan.md).
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE).

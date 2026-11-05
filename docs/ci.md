@@ -72,7 +72,7 @@ The profile: copy the one the dashboard saved for the app (`src/release/onboard/
 
 ## Limits
 
-- Not run on GitHub's runners yet: the action was written and its command tested here (unit tests, a real `check` on a saved app, and `comment --dry-run`). The first real run on a runner will show what the runner's Docker engine and 7 GB of memory allow; a Next.js build in the sandbox may need the memory limit lowered (`BEHIQUE_SANDBOX_MEMORY_MB`).
+- Run on a GitHub-hosted runner once, against a small static test site (a pull request with one deliberate regression): the check ran, posted its HOLD comment, and the job failed by design (`fail-on-hold`). It has not been run on a large app there, so what the runner's Docker engine and 7 GB of memory allow is still unmeasured; a Next.js build in the sandbox may need the memory limit lowered (`BEHIQUE_SANDBOX_MEMORY_MB`).
 - A check takes 2 to 10 minutes on a warm cache and longer on a cold one; the cache lives on the runner and is gone with it unless the job restores it (not built: a Docker image cache step).
 - The comment is posted with the workflow's token, so it appears as `github-actions`. Posting needs `pull-requests: write`.
 - No ground truth: "confirmed" means the test reproduces, not that the change matters; the class says whether a person would notice. A person still decides, in the dashboard or by reading the comment.

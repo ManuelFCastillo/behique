@@ -54,9 +54,9 @@ test('the prompt wraps the code change as untrusted data and the worst-case cost
 test('the repo of a case: a profile for a visual check or any check recorded with an app name, a built-in adapter otherwise', async () => {
   const seen = []
   const profile = async n => { seen.push(n); return '/repo/' + n }
-  assert.equal(await repoOf({ kind: 'visual', adapter: 'visual-codecosmos' }, { profile }), '/repo/codecosmos')
+  assert.equal(await repoOf({ kind: 'visual', adapter: 'visual-skymap' }, { profile }), '/repo/skymap')
   assert.equal(await repoOf({ adapter: 'vitepress-docs', app: 'vitepress-docs' }, { profile }), '/repo/vitepress-docs', 'a profile-based check has no adapter file of its own')
-  assert.deepEqual(seen, ['codecosmos', 'vitepress-docs'])
+  assert.deepEqual(seen, ['skymap', 'vitepress-docs'])
   assert.equal(typeof await repoOf({ adapter: 'freshrss' }, { profile }), 'string', 'a case without an app name still finds its built-in adapter')
   assert.equal(seen.length, 2)
 })

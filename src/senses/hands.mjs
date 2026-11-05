@@ -26,7 +26,7 @@ export const shot = (page, { timeout = 20000 } = {}) => page.screenshot({ fullPa
 /**
  * Stop the page's animation loop: requestAnimationFrame stops scheduling, so the frame being drawn is the last one.
  * A page that redraws a full-screen canvas every frame on a software GPU (no WebGPU adapter in headless Chromium:
- * codecosmos ran at about 2 frames a second) never hands the compositor a finished frame in time, and every screenshot
+ * a WebGPU star map ran at about 2 frames a second) never hands the compositor a finished frame in time, and every screenshot
  * times out. Best effort: a loop that kept its own reference to requestAnimationFrame keeps running.
  */
 export async function pauseFrames(page) {
