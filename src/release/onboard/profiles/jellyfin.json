@@ -34,14 +34,9 @@
     ]
   },
   "ready": {
-    "path": "/web/#/mypreferencesmenu",
-    "timeoutMs": 60000
-  },
-  "crawl": {
-    "maxDepth": 2,
-    "maxPaths": 40,
-    "maxFlows": 20,
-    "budgetMs": 300000
+    "path": "/web/",
+    "timeoutMs": 60000,
+    "stepSettleMs": 2500
   },
   "viewport": {
     "width": 1280,

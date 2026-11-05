@@ -139,7 +139,7 @@ describe('redactActions', () => {
 })
 
 describe('withLogin', () => {
-  it('prepends and repeats after each goto / and nowhere else', () => {
+  it('prepends, repeats after each goto /, and logs in before a goto to any other page', () => {
     const login = example()
     const env = { BEHIQUE_LOGIN_PASSWORD: 'pw-test-123' }
     const steps = [
@@ -150,7 +150,7 @@ describe('withLogin', () => {
       { type: 'click', selector: 'b' }
     ]
     const out = withLogin(steps, login, env)
-    assert.equal(out.length, steps.length + 5 * 3)
+    assert.equal(out.length, steps.length + 5 * 4)
     assert.equal(out[0].type, 'goto')
     assert.equal(out[0].path, '/login')
     assert.deepEqual(out.slice(0, 5), loginActions(login, env))
@@ -158,12 +158,12 @@ describe('withLogin', () => {
       .map((a, i) => ({ a, i }))
       .filter(({ a }) => a.type === 'goto' && a.path === '/' && a.fromLogin !== true)
       .map(({ i }) => i)
-    assert.deepEqual(gotoRootIndexes, [5, 13]) // 5 login actions, goto /, 5 more, click a, goto /other, goto /
+    assert.deepEqual(gotoRootIndexes, [5, 18]) // 5 login actions, goto /, 5 more, click a, 5 more, goto /other, goto /
     for (const i of gotoRootIndexes) {
       assert.deepEqual(out.slice(i + 1, i + 6), loginActions(login, env))
     }
     const otherIdx = out.findIndex(a => a.type === 'goto' && a.path === '/other')
-    assert.equal(out[otherIdx + 1].fromLogin, undefined, 'a goto to another path does not trigger a login')
+    assert.equal(out[otherIdx - 1].fromLogin, true, 'a goto to another path logs in first'); assert.equal(out[otherIdx].keepSession, true, 'and keeps that session')
   })
 
   it('leaves the input untouched and copies when there is no login', () => {
@@ -206,5 +206,21 @@ describe('describeLogin', () => {
 
   it('describes a written public password', () => {
     assert.equal(describeLogin(valueLogin()), 'login: /login as "admin" (password written in the profile, a public default account)')
+  })
+})
+
+describe('withLogin on a flow that starts on its own page', () => {
+  const login = { path: '/web/#/login', user: { selector: '#u', value: 'demo' }, password: { selector: '#p', value: 'x' }, submit: { selector: '#s' }, public: true }
+  it('logs in before the goto and keeps the session through it', () => {
+    const out = withLogin([{ type: 'click', selector: '#a' }, { type: 'goto', path: '/web/' }, { type: 'click', selector: '#b' }], login)
+    assert.deepEqual(out.map(a => [a.type, Boolean(a.fromLogin), Boolean(a.keepSession)]).slice(5), [['click', false, false], ['goto', true, false], ['fill', true, false], ['fill', true, false], ['click', true, false], ['wait', true, false], ['goto', false, true], ['click', false, false]])
+  })
+  it('stripLogin gives back the original steps', () => {
+    const steps = [{ type: 'goto', path: '/web/' }, { type: 'click', selector: '#b' }]
+    assert.deepEqual(stripLogin(withLogin(steps, login)), steps)
+  })
+  it('a goto / still logs in after it, as before', () => {
+    const out = withLogin([{ type: 'goto', path: '/' }], login)
+    assert.equal(out.at(5).path, '/'); assert.equal(out.at(6).fromLogin, true); assert.equal(out.at(5).keepSession, undefined)
   })
 })

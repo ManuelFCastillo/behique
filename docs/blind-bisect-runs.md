@@ -203,6 +203,32 @@ Second try (case `20261104T171127Z`, on hardac2): 122 page states, 65 flows, 176
 
 Answer key, written 2026-11-04 before the run and checked with git on a fresh fetch: sugarlabs/musicblocks [#7777](https://github.com/sugarlabs/musicblocks/issues/7777) "Regression in toolbar". Good d2a150ec (2026-07-04), bad 7ee23aad (2026-07-11, the commit before the fix), 62 commits. These are commits, not tags: the bug came and went between v3.7.1 and v3.8.0, so no tag pair shows it. Culprit 7d3d6487 "fix: replace innerHTML with textContent across core widgets for security" (PR #7757), named by a contributor in the issue, not confirmed there by a maintainer; temporary fix PR [#7782](https://github.com/sugarlabs/musicblocks/pull/7782) (3aa560ab) in js/toolbar-ui.js, after the bad commit. Symptom: the toolbar's record button renders SVG markup as literal text on first load, for anyone opening the page. A commenter called it intermittent, so a test may not reproduce every run. Chosen knowing Manny has contributed to this project (#8099). The profile is the existing one, unchanged. The range was picked from the key, so the run is blind about where the bug is, not about the fact that a bug exists in this range; every run here shares that.
 
+### Correction to Run 5 (2026-11-04): those zeros were a Behique bug
+
+Runs 5a, 5b and the first 5c all compared the login page. A flow starts with a `goto`, which clears cookies and storage, and `withLogin` only logged in again after a `goto /`; Jellyfin's flows go to `/web/` and `/web/#/...`, so everything after the first flow was logged out. I reported 5a as "a miss: the crawl never reached the page". That reason was incomplete: even a crawl that reached the page recorded nothing about it. The fix logs in before any flow-starting goto and keeps that session through the load (`keepSession`), for every app with a login, and the tests carry the login with them. Results before this are not grades of anything.
+
+### Run 6a (2026-11-04, case `20261104T233317Z_d2a150ec-vs-7ee23aad`): a miss on the key
+
+The first attempt crawled one page state in one second: the app shows a loading screen for 5 to 9 seconds with nothing to click, and the crawl ended during it. The profile now says `ready.settleMs: 12000`, a general setting honoured by the crawl, the recording and the exported tests, chosen without reference to the bug. Then: 6 page states, 17 steps, control 0, candidate 143 differences. R1 (scroll position) was unstable; R2 to R4 confirmed 3 of 3, all ranked markup churn. Bisect in 6 steps, both ends verified, to d62f3d4 "fix(help): fix About tour image clipping on mobile devices (#7728)". Recommendation SHIP (churn only), 20 minutes.
+
+- **Found it: no.** The record button is shown only outside beginner mode (`!this.activity.beginnerMode`, read in js/toolbar-ui.js), and the app starts in beginner mode, so neither version showed it during the run. Read from the source, not confirmed by running it in advanced mode.
+- **Named the commit: no.** d62f3d4 is a real change and the right commit for what it found, but not the key's 7d3d6487.
+- **Worth looking at:** the case records canvas drawings changing beyond the noise floor at 6 steps, yet the verdict is SHIP because every proven test is churn. A canvas app whose canvas changed should not read as "nothing a person would notice". Not changed yet.
+
+### Run 5d (2026-11-04, blind, case `20261105T000412Z`): void, my error
+
+Started from the Mac seconds after I cancelled another run there, with the hinted run also on hardac2. The crawl lost its connection after 5 page states (`ERR_CONNECTION_REFUSED` on the forwarded port) and the comparison ended "build failed". Cause not confirmed: the likeliest is the cancelled run's teardown closing the same local port. The stale-container cleanup is not it (it only touches things over two hours old). It grades nothing. The blind run waits for hardac2 to be free.
+
+### Corrections and Run 5e (2026-11-04)
+
+Two more causes of the Jellyfin zeros, on top of the login one. On a hash-route app a `goto` after clearing storage never reloaded the page, so the app kept running on cleared storage and the login form could not be filled; every fresh start now goes through about:blank. And my login fix itself was gone from the working tree for the hinted run that started at 6:29 PM ET: files in the repository were rewritten at 5:34:55 PM CT, taking uncommitted edits with them (not by this session; which session or action did it is not known). So every Jellyfin result before Run 5e, including the hinted run `20261104T233158Z`, is void.
+
+Run 5e, the first valid blind run (case `20261105T003432Z_v12.0-rc3-vs-v12.0-rc4`): logged in on all flows, 17 page states, 19 flows, 38 steps. **Incomplete, no recommendation:** the control run of v12.0-rc3 against itself showed 1,444 differences after 5 extra recordings and 13,585 facts learned as noise, so the check stopped with "masking is not trustworthy" rather than compare. Found it: no. Named the commit: no. That is the correct behaviour on noisy evidence. Next try (5f, hinted, not blind): `ready.stepSettleMs: 2500`, started at the settings menu.
+
+### Run 5f (2026-11-04, HINTED, not blind, case `20261105T005051Z_v12.0-rc3-vs-v12.0-rc4`): not a grade of the bug
+
+With `ready.stepSettleMs: 2500` the noise went away: 33,328 facts, 20 masked, control 0 differences. Candidate 0 differences across 54 steps, recommendation SHIP. But the slower steps used up the crawl's 2-minute budget at 8 page states and 14 steps, and the report never mentions Audio Normalization, so the Playback page was not compared. **Status of the Jellyfin case at the deadline: the bug is real and visible in recorded facts when a hand-written flow opens the page (rc3 no `hide`, rc4 `fldAudioNormalization hide selectContainer`); Behique has not yet proved or bisected it on its own.** Next: a longer crawl budget, then this run again. The profile is back to unhinted with the step wait kept.
+
 ## Next
 
 Docusaurus #11213 is cloned (`~/dev/behique-apps/docusaurus`, 154 commits in range) for an overnight run.

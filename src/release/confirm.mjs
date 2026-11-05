@@ -67,7 +67,7 @@ const onBuild = async (ref, slot, work) => { // one fresh build on the slot's po
 }
 // A crawled step list holds several flows, each starting over with a `goto`: a replay runs only the flow its step is in, in a fresh browser on a fresh build.
 // `goto /` is where a replay starts anyway and is left out; a direct load of another page is the flow's first action and is kept.
-const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto') return actions[g].path === '/' ? g + 1 : g; return 0 }
+const flowStart = i => { for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto') { if (actions[g].keepSession) { let from = g; while (actions[from - 1]?.fromLogin) from--; return from } return actions[g].path === '/' ? g + 1 : g } return 0 }
 const groupByFlow = steps => { const groups = new Map(); for (const step of steps) groups.set(flowStart(step), [...(groups.get(flowStart(step)) ?? []), step]); return groups }
 /** The page at each step on the good version twice (the second is the noise floor) and on the candidate once, through the pool: { goodA, goodB, cand } of step -> result. */
 const takeAt = async (steps, capture) => {

@@ -14,7 +14,10 @@ import { classChange, noticeOf, rankFindings } from './notice.mjs'
  * A `goto /` is the test's own starting point and is left out; a direct load of another page is kept, since it is the step.
  */
 function historyFor(actions, i) {
-  for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto') return actions[g].path === '/' ? actions.slice(g + 1, i) : actions.slice(g, i)
+  for (let g = i - 1; g >= 0; g--) if (actions[g]?.type === 'goto') {
+    if (actions[g].keepSession) { let from = g; while (actions[from - 1]?.fromLogin) from--; return actions.slice(from, i) } // the login belongs to the flow that needs it
+    return actions[g].path === '/' ? actions.slice(g + 1, i) : actions.slice(g, i)
+  }
   return actions.slice(0, i)
 }
 

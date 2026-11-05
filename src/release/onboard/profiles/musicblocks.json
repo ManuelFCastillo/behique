@@ -11,7 +11,8 @@
   },
   "ready": {
     "path": "/",
-    "timeoutMs": 30000
+    "timeoutMs": 30000,
+    "settleMs": 12000
   },
   "viewport": {
     "width": 1280,

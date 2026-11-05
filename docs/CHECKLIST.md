@@ -2,7 +2,7 @@
 
 Written 2026-10-31. One page that says what is done, what is left, and what stands between this and a product people say "wow" to. `docs/STATUS.md` is the day-by-day log with the details and numbers; this file is the summary and is the one to update when something lands.
 
-Deadline: Meta Global AI Developer Hackathon, treat as **Wednesday 2026-11-04, 8 PM ET** (4 days). The official page could not be read by tools; 9 PM ET was our earlier note, a third-party listing says 8 PM ET. Track, judging criteria and video limit are unverified. Manny holds the confirmation email.
+Deadline: Meta Global AI Developer Hackathon, **Wednesday 2026-11-04, 9 PM ET** (Manny, 2026-11-04; earlier treated as 8 PM ET) (4 days). The official page could not be read by tools; 9 PM ET was our earlier note, a third-party listing says 8 PM ET. Track, judging criteria and video limit are unverified. Manny holds the confirmation email.
 
 The one line: hand Behique a repository and two versions. Without a model and without hand-written steps it sets the app up, finds the click paths, records what the running app does on both versions, proves each change with a test that passes on the old version and fails on the new, finds the commit that caused it, and keeps a tamper-evident record that a person signs Ship or Hold.
 

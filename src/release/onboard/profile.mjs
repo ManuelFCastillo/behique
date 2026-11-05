@@ -384,6 +384,8 @@ export function scriptsOffEnv(dir) {
 }
 
 export function profileToAdapter(profile, { home = homedir(), serverPath = DEFAULT_SERVER, env = process.env } = {}) {
+  if (Number.isInteger(profile?.ready?.stepSettleMs) && profile.ready.stepSettleMs > 0) process.env.BEHIQUE_STEP_SETTLE_MS = String(Math.min(profile.ready.stepSettleMs, 30000))
+  if (Number.isInteger(profile?.ready?.settleMs) && profile.ready.settleMs > 0) process.env.BEHIQUE_SETTLE_MS = String(Math.min(profile.ready.settleMs, 60000)) // read by the session and by exported tests, in this process and the ones it starts
   const p = normalizeProfile(profile)
   const repo = expandHome(p.repo, home)
   const workRoot = expandHome(p.workRoot, home)

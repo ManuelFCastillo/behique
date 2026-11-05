@@ -66,7 +66,7 @@ export async function recordRun(base, actions, { viewport = { width: 1280, heigh
     for (const [i, a] of actions.entries()) {
       // A `goto /` between flows (the crawl writes one) starts the app over, exactly like a test that opens a new browser: cookies and
       // storage are cleared, so a flow does not see what an earlier flow changed (a view setting, a filter, a session).
-      if (a.type === 'goto') { await s.ctx.clearCookies(); await s.page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch {} }).catch(() => {}) } // every goto the crawl writes is a fresh start, a direct load of a page included
+      if (a.type === 'goto' && !a.keepSession) { await s.ctx.clearCookies(); await s.page.evaluate(() => { try { localStorage.clear(); sessionStorage.clear() } catch {} }).catch(() => {}); await s.page.goto('about:blank').catch(() => {}) } // every goto the crawl writes is a fresh start, a direct load of a page included, through about:blank: an app on hash routes (/web/#/login) would otherwise never reload, and go on running on the storage just cleared
       let failed = null
       try { await s.act(a) } catch (e) { failed = String(e.message ?? e).split('\n')[0].slice(0, 100) } // a click that cannot be made (the element is gone in this version) is itself a difference worth recording
       await s.page.waitForLoadState('networkidle').catch(() => {})

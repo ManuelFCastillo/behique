@@ -3,6 +3,7 @@ import { spawn, spawnSync } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+const settleWait = () => { const ms = Number(process.env.BEHIQUE_SETTLE_MS); return ms > 0 ? `; await page.waitForTimeout(${ms})` : '' } // a profile's ready.settleMs: the test waits out a loading screen as the recorder did
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const q = v => JSON.stringify(v)
@@ -21,7 +22,7 @@ function stepCode(a) {
     case 'scroll': return `await ${L}.evaluate(e => e.scrollIntoView({ block: 'center' }))`
     case 'reload': return 'await page.reload()'
     case 'wait': return `await page.waitForTimeout(${Math.min(Number(a.ms) || 500, 2000)})`
-    case 'goto': return `await page.goto(${q(a.path)})`
+    case 'goto': return `await page.goto(${q(a.path)})${settleWait()}`
     case 'api': return `await request.fetch(${q(a.path)}, { method: ${q(String(a.method || 'GET').toUpperCase())}${a.body !== undefined ? `, data: ${q(a.body)}` : ''} })`
     default: throw new Error('cannot export action ' + a.type)
   }
@@ -156,7 +157,7 @@ export function markWords(f) {
 
 export function specSource(f) {
   const indent = lines => lines.map(l => '  ' + l).join('\n')
-  const pause = a => (a.type === 'wait' ? [] : ['await page.waitForTimeout(200)'])
+  const pause = a => (a.type === 'wait' ? [] : [`await page.waitForTimeout(${Number(process.env.BEHIQUE_STEP_SETTLE_MS) || 200})`])
   // scroll_delta compares the page's scroll position before and after the LAST action, so it needs no absolute pixel values
   const delta = f.assert.kind === 'scroll_delta'
   // A profile's login step (actions marked fromLogin) may write; a read-only test lets its requests through and blocks the rest again after it.
@@ -166,7 +167,7 @@ export function specSource(f) {
     stepCode(a), ...pause(a),
     ...(f.readOnly && a.fromLogin && !hist[i + 1]?.fromLogin ? ['loginWrites = false'] : []),
   ])
-  const settle = f.assert.kind === 'api' ? [] : ["await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})", 'await page.waitForTimeout(250)'] // settle as the recorder did, so the page is drawn before the check (and before a recording ends)
+  const settle = f.assert.kind === 'api' ? [] : ["await page.waitForLoadState('networkidle', { timeout: 5000 }).catch(() => {})", `await page.waitForTimeout(${250 + (Number(process.env.BEHIQUE_SETTLE_MS) || 0)})`] // settle as the recorder did, so the page is drawn before the check (and before a recording ends)
   const ctx = { origin: typeof f.origin === 'string' && ORIGIN_RE.test(f.origin) ? f.origin : null, live: false } // f.origin: where the facts were recorded
   const words = delta ? null : markWords(f) // when recording, the tested element is outlined and a tag says what is checked, then what was found
   const body = delta

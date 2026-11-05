@@ -138,6 +138,11 @@ export function withLogin(steps, login, env = {}) {
   const base = loginActions(login, env)
   const out = [...cloneActions(base)]
   for (const step of list) {
+    if (isPlainObject(step) && step.type === 'goto' && !isGotoRoot(step) && !step.fromLogin) {
+      // Every goto between flows is a fresh start and wipes the session, so a flow that starts on a page of its own logs in first, then loads that page keeping the session.
+      out.push(...cloneActions(base), { ...step, keepSession: true })
+      continue
+    }
     out.push({ ...step })
     if (isGotoRoot(step)) out.push(...cloneActions(base))
   }
@@ -146,7 +151,7 @@ export function withLogin(steps, login, env = {}) {
 
 export function stripLogin(steps) {
   if (!Array.isArray(steps)) return []
-  return steps.filter(a => !(isPlainObject(a) && a.fromLogin === true))
+  return steps.filter(a => !(isPlainObject(a) && a.fromLogin === true)).map(a => { if (!isPlainObject(a) || !a.keepSession) return a; const { keepSession, ...rest } = a; return rest })
 }
 
 export function describeLogin(login) {

@@ -73,8 +73,12 @@ export class Session {
       return route.continue()
     })
     await this.page.goto(this.base + '/')
+    await this.settle()
     return this
   }
+
+  /** An app with a loading screen that outlasts the network (the profile's ready.settleMs) has nothing to read or click until it is gone. */
+  async settle() { const ms = Number(process.env.BEHIQUE_SETTLE_MS); if (ms > 0) await this.page.waitForTimeout(ms) }
 
   /** Execute one action. Returns a short result string; throws if it fails. Not recorded here. */
   async act(a) {
@@ -100,7 +104,7 @@ export class Session {
       case 'wait': await p.waitForTimeout(Math.min(Number(a.ms) || 500, 2000)); break
       case 'goto':
         if (typeof a.path !== 'string' || !a.path.startsWith('/') || a.path.startsWith('//')) throw new Error('goto path must start with a single /')
-        await p.goto(this.base + a.path); break
+        await p.goto(this.base + a.path); await this.settle(); break
       case 'api': {
         if (typeof a.path !== 'string' || !a.path.startsWith('/') || a.path.startsWith('//')) throw new Error('api path must start with a single /')
         const r = await this.ctx.request.fetch(this.base + a.path, { method: String(a.method || 'GET').toUpperCase(), data: a.body })
@@ -109,7 +113,7 @@ export class Session {
       }
       default: throw new Error('unknown action type ' + a.type)
     }
-    if (a.type !== 'wait') await p.waitForTimeout(200)
+    if (a.type !== 'wait') await p.waitForTimeout(Number(process.env.BEHIQUE_STEP_SETTLE_MS) || 200) // ready.stepSettleMs: a client that fills a page in after the network is quiet
     return result
   }
 
