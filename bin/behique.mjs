@@ -21,6 +21,7 @@ import { aiSection, caseIdFrom, markdownOf, parseCheckArgs, resultOf } from '../
 import { commentBody, postComment } from '../src/release/cli/comment.mjs'
 import { explainCase } from '../src/release/cli/explain.mjs'
 import { runAiStages, selectedStages, verdictFingerprint } from '../src/release/cli/ai-stages.mjs'
+import { isCommandProfile, runNativeCheck } from '../src/release/native/cli.mjs'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const [cmd, ...rest] = process.argv.slice(2)
@@ -45,6 +46,11 @@ async function check(argv) {
   if (!p.ok) fail(p.error)
   const { app, good, cand, options } = p
   const env = {}
+  if (options.profile) { // a command profile (a native program, not a web app) runs the native check instead
+    let raw
+    try { raw = JSON.parse(readFileSync(resolve(options.profile), 'utf8')) } catch (e) { fail(`could not read the profile: ${String(e.message).slice(0, 200)}`) }
+    if (isCommandProfile(raw)) return nativeCheck(raw, app, good, cand, options)
+  }
   if (options.profile) { // a profile file from the repository under test, pointed at that checkout, saved where only this run looks
     let profile
     try { profile = normalizeProfile(JSON.parse(readFileSync(resolve(options.profile), 'utf8'))) } catch (e) { fail(`could not read the profile: ${String(e.message).slice(0, 200)}`) }
@@ -92,6 +98,23 @@ async function check(argv) {
   console.log('\n' + (options.json ? JSON.stringify(result, null, 2) : markdownOf(result)))
   console.log(`result: ${outBase}.json`)
   process.exit(result.exitCode)
+}
+
+/** `behique check` with a command profile: a native program built from two refs of --repo. No model is called. */
+async function nativeCheck(profile, app, good, cand, options) {
+  const unsupported = [['bisect', '--bisect'], ['explain', '--explain'], ['ai', '--ai'], ['aiTests', '--ai-tests'], ['aiFlows', '--ai-flows'], ['aiDescribe', '--ai-describe'], ['aiTriage', '--ai-triage'], ['aiCanvas', '--ai-canvas'], ['recrawl', '--recrawl']]
+    .filter(([k]) => options[k]).map(([, f]) => f)
+  if (unsupported.length) fail(`${unsupported.join(', ')} ${unsupported.length > 1 ? 'are' : 'is'} not available for command profiles yet.`)
+  const repo = resolve(options.repo)
+  if (!existsSync(join(repo, '.git'))) fail(`--repo must be a git checkout: ${repo} has no .git`)
+  let run
+  try {
+    run = await runNativeCheck({ ...profile, name: app, repo }, good, cand, { outRoot: join(ROOT, 'out'), maxFindings: options.maxFindings, log: l => console.log(l) })
+  } catch (e) { fail(String(e.message).slice(0, 2000), 3) }
+  if (options.out) writeFileSync(resolve(options.out), JSON.stringify(run.result, null, 2))
+  console.log('\n' + (options.json ? JSON.stringify(run.result, null, 2) : run.markdown))
+  console.log(`evidence: ${run.caseDir}`)
+  process.exit(run.exitCode)
 }
 
 /** `behique ai <caseId> --ai ...`: the AI stages on a case that is already saved. The case's verdict is read, never recomputed or changed. */
