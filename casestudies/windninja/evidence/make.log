@@ -1,0 +1,122 @@
+make: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[1]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+[  1%] Building CXX object src/ninja/CMakeFiles/ninja.dir/air.cpp.o
+[  2%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ascii_grid.cpp.o
+[  3%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/Array2D.cpp.o
+[  4%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/surface_input_nodata_filler.cpp.o
+[  5%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/EasyBMP.cpp.o
+[  6%] Building CXX object src/ninja/CMakeFiles/ninja.dir/Array2D.cpp.o
+[  7%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/EasyBMP_Geometry.cpp.o
+[  8%] Building CXX object src/ninja/CMakeFiles/ninja.dir/Aspect.cpp.o
+[  9%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/EasyBMP_Font.cpp.o
+[ 10%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/ninjaMathUtility.cpp.o
+[ 11%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/ascii_grid.cpp.o
+[ 12%] Building CXX object src/ninja/CMakeFiles/ninja.dir/cellDiurnal.cpp.o
+[ 13%] Building CXX object src/ninja/CMakeFiles/ninja.dir/cli.cpp.o
+[ 14%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/Elevation.cpp.o
+[ 15%] Building CXX object src/ninja/CMakeFiles/ninja.dir/domainAverageInitialization.cpp.o
+[ 16%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/ninja_conv.cpp.o
+[ 17%] Building CXX object src/surface_input_nodata_filler/CMakeFiles/surface_input_nodata_filler.dir/__/ninja/ninja_init.cpp.o
+[ 18%] Building CXX object src/ninja/CMakeFiles/ninja.dir/dust.cpp.o
+[ 19%] Building CXX object src/ninja/CMakeFiles/ninja.dir/EasyBMP.cpp.o
+[ 20%] Building CXX object src/ninja/CMakeFiles/ninja.dir/EasyBMP_Font.cpp.o
+[ 21%] Building CXX object src/ninja/CMakeFiles/ninja.dir/EasyBMP_Geometry.cpp.o
+[ 22%] Linking CXX executable surface_input_nodata_filler
+[ 24%] Building CXX object src/ninja/CMakeFiles/ninja.dir/element.cpp.o
+[ 24%] Building CXX object src/ninja/CMakeFiles/ninja.dir/Elevation.cpp.o
+[ 25%] Building CXX object src/ninja/CMakeFiles/ninja.dir/farsiteAtm.cpp.o
+[ 26%] Building CXX object src/ninja/CMakeFiles/ninja.dir/fetch_factory.cpp.o
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+[ 26%] Built target surface_input_nodata_filler
+[ 27%] Building CXX object src/ninja/CMakeFiles/ninja.dir/flowSeparation.cpp.o
+[ 28%] Building CXX object src/ninja/CMakeFiles/ninja.dir/fluid.cpp.o
+[ 29%] Building CXX object src/ninja/CMakeFiles/ninja.dir/frictionVelocity.cpp.o
+[ 30%] Building CXX object src/ninja/CMakeFiles/ninja.dir/gdal_fetch.cpp.o
+[ 31%] Building CXX object src/ninja/CMakeFiles/ninja.dir/gdal_output.cpp.o
+[ 32%] Building CXX object src/ninja/CMakeFiles/ninja.dir/gdal_util.cpp.o
+[ 33%] Building CXX object src/ninja/CMakeFiles/ninja.dir/genericSurfInitialization.cpp.o
+[ 34%] Building CXX object src/ninja/CMakeFiles/ninja.dir/griddedInitialization.cpp.o
+[ 35%] Building CXX object src/ninja/CMakeFiles/ninja.dir/initialize.cpp.o
+[ 36%] Building CXX object src/ninja/CMakeFiles/ninja.dir/initializationFactory.cpp.o
+[ 37%] Building CXX object src/ninja/CMakeFiles/ninja.dir/KmlVector.cpp.o
+[ 38%] Building CXX object src/ninja/CMakeFiles/ninja.dir/LineStyle.cpp.o
+[ 39%] Building CXX object src/ninja/CMakeFiles/ninja.dir/mesh.cpp.o
+[ 40%] Building CXX object src/ninja/CMakeFiles/ninja.dir/landfireclient.cpp.o
+[ 41%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ncepGfsSurfInitialization.cpp.o
+[ 42%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ncepNamAlaskaSurfInitialization.cpp.o
+[ 43%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ncepNamSurfInitialization.cpp.o
+[ 44%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ncepNamGrib2SurfInitialization.cpp.o
+[ 45%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ncepHrrrSurfInitialization.cpp.o
+[ 46%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ncepNdfdInitialization.cpp.o
+[ 47%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ncepRapSurfInitialization.cpp.o
+[ 48%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wrfSurfInitialization.cpp.o
+[ 50%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wrf3dInitialization.cpp.o
+[ 51%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninja_conv.cpp.o
+[ 52%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninjaArmy.cpp.o
+[ 53%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninjaCom.cpp.o
+[ 54%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninja.cpp.o
+[ 55%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninjaException.cpp.o
+[ 56%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninja_init.cpp.o
+[ 57%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninjaMathUtility.cpp.o
+[ 58%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninjaUnits.cpp.o
+[ 59%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninja_threaded_exception.cpp.o
+[ 60%] Building CXX object src/ninja/CMakeFiles/ninja.dir/omp_guard.cpp.o
+[ 61%] Building CXX object src/ninja/CMakeFiles/ninja.dir/OutputWriter.cpp.o
+[ 62%] Building CXX object src/ninja/CMakeFiles/ninja.dir/pointInitialization.cpp.o
+[ 63%] Building CXX object src/ninja/CMakeFiles/ninja.dir/preconditioner.cpp.o
+[ 64%] Building CXX object src/ninja/CMakeFiles/ninja.dir/readInputFile.cpp.o
+[ 65%] Building CXX object src/ninja/CMakeFiles/ninja.dir/relief_fetch.cpp.o
+[ 66%] Building CXX object src/ninja/CMakeFiles/ninja.dir/Shade.cpp.o
+[ 67%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ShapeVector.cpp.o
+[ 68%] Building CXX object src/ninja/CMakeFiles/ninja.dir/Slope.cpp.o
+[ 69%] Building CXX object src/ninja/CMakeFiles/ninja.dir/solar.cpp.o
+[ 70%] Building CXX object src/ninja/CMakeFiles/ninja.dir/solpos.cpp.o
+[ 71%] Building CXX object src/ninja/CMakeFiles/ninja.dir/srtmclient.cpp.o
+[ 72%] Building CXX object src/ninja/CMakeFiles/ninja.dir/stability.cpp.o
+[ 73%] Building CXX object src/ninja/CMakeFiles/ninja.dir/startRuns.cpp.o
+[ 74%] Building CXX object src/ninja/CMakeFiles/ninja.dir/stl_create.cpp.o
+[ 75%] Building CXX object src/ninja/CMakeFiles/ninja.dir/Style.cpp.o
+[ 76%] Building CXX object src/ninja/CMakeFiles/ninja.dir/surface_fetch.cpp.o
+[ 77%] Building CXX object src/ninja/CMakeFiles/ninja.dir/surfaceVectorField.cpp.o
+[ 78%] Building CXX object src/ninja/CMakeFiles/ninja.dir/SurfProperties.cpp.o
+[ 79%] Building CXX object src/ninja/CMakeFiles/ninja.dir/volVTK.cpp.o
+[ 80%] Building CXX object src/ninja/CMakeFiles/ninja.dir/WindNinjaInputs.cpp.o
+[ 81%] Building CXX object src/ninja/CMakeFiles/ninja.dir/windProfile.cpp.o
+[ 82%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wn_3dArray.cpp.o
+[ 83%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wn_3dScalarField.cpp.o
+[ 84%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wn_3dVectorField.cpp.o
+[ 85%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wn_Arrow.cpp.o
+[ 86%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wxModelInitialization.cpp.o
+[ 87%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wxModelInitializationFactory.cpp.o
+[ 88%] Building CXX object src/ninja/CMakeFiles/ninja.dir/wxStation.cpp.o
+[ 89%] Building CXX object src/ninja/CMakeFiles/ninja.dir/windninja.cpp.o
+[ 90%] Building CXX object src/ninja/CMakeFiles/ninja.dir/gcp_wx_init.cpp.o
+[ 91%] Building CXX object src/ninja/CMakeFiles/ninja.dir/ninjaTools.cpp.o
+[ 92%] Building CXX object src/ninja/CMakeFiles/ninja.dir/nomads_wx_init.cpp.o
+[ 93%] Building C object src/ninja/CMakeFiles/ninja.dir/nomads.c.o
+[ 94%] Building C object src/ninja/CMakeFiles/ninja.dir/nomads_utc.c.o
+[ 95%] Linking CXX shared library libninja.so
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+[ 95%] Built target ninja
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make[2]: Entering directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+[ 96%] Building CXX object src/fetch_dem/CMakeFiles/fetch_dem.dir/fetch_dem.cpp.o
+[ 97%] Building CXX object src/cli/CMakeFiles/WindNinja_cli.dir/cmake_cli.cpp.o
+[ 98%] Linking CXX executable WindNinja_cli
+[100%] Linking CXX executable fetch_dem
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+[100%] Built target WindNinja_cli
+make[2]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+[100%] Built target fetch_dem
+make[1]: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'
+make: Leaving directory '/tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build'

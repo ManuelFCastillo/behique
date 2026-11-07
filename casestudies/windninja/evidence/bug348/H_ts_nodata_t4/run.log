@@ -1,0 +1,6 @@
+ERROR 1: CONNECT tunnel failed, response 403
+Run 0: Reading elevation file...
+Run 1: Reading elevation file...
+Run 1: ERROR: Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().
+Run 0: ERROR: Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().
+Exception caught: std::exception

@@ -1,0 +1,23 @@
+ERROR 1: CONNECT tunnel failed, response 403
+Run 0: Reading elevation file...
+Run 0: Simulation time is 2026-Nov-07 00:05:25 UTC
+Run 0: Run number 0 started with 1 threads.
+Run 0: Generating mesh...
+Run 0: Initializing flow...
+Run 0: Building equations...
+Run 0: Solving...
+Run 0: Solver: 10% complete
+Run 0: Solver: 34% complete
+Run 0: Solver: 56% complete
+Run 0: Solver: 76% complete
+Run 0: Solver: 91% complete
+Run 0: Solver: 99% complete
+Run 0: Solver: 100% complete
+Run 0: Writing output files...
+Run 0: Meshing time was 0.008659 seconds.
+Run 0: Initialization time was 0.011498 seconds.
+Run 0: Equation building time was 0.107363 seconds.
+Run 0: Solver time was 0.227696 seconds.
+Run 0: Output writing time was 0.005255 seconds.
+Run 0: Total simulation time was 0.389173 seconds.
+Run 0: Run number 0 done!

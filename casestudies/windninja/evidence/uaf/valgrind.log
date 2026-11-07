@@ -1,0 +1,189 @@
+==496== Memcheck, a memory error detector
+==496== Copyright (C) 2002-2022, and GNU GPL'd, by Julian Seward et al.
+==496== Using Valgrind-3.22.0 and LibVEX; rerun with -h for copyright info
+==496== Command: WindNinja_cli run.cfg
+==496== 
+ERROR 1: CONNECT tunnel failed, response 403
+Downloading forecast data...
+ERROR 1: Could not resolve host: thredds.ucar.edu
+==496== Invalid read of size 8
+==496==    at 0x60ED814: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeebe9c0 is 16 bytes inside a block of size 64 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EA92: CPLCalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C448DE: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+==496== Invalid read of size 1
+==496==    at 0x484F226: strlen (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x626DB93: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x60ED822: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeec84c0 is 0 bytes inside a block of size 41 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C31B85: CPLHTTPDestroyResult (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EC10: CPLStrdup (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C455BF: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+==496== Invalid read of size 1
+==496==    at 0x484F234: strlen (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x626DB93: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x60ED822: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeec84c1 is 1 bytes inside a block of size 41 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C31B85: CPLHTTPDestroyResult (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EC10: CPLStrdup (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C455BF: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+==496== Invalid read of size 8
+==496==    at 0x4852DFD: memmove (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x626DBF1: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x60ED822: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeec84c0 is 0 bytes inside a block of size 41 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C31B85: CPLHTTPDestroyResult (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EC10: CPLStrdup (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C455BF: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+==496== Invalid read of size 8
+==496==    at 0x4852E0F: memmove (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x626DBF1: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x60ED822: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeec84c8 is 8 bytes inside a block of size 41 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C31B85: CPLHTTPDestroyResult (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EC10: CPLStrdup (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C455BF: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+==496== Invalid read of size 8
+==496==    at 0x4852E17: memmove (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x626DBF1: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x60ED822: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeec84d0 is 16 bytes inside a block of size 41 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C31B85: CPLHTTPDestroyResult (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EC10: CPLStrdup (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C455BF: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+==496== Invalid read of size 8
+==496==    at 0x4852E1F: memmove (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x626DBF1: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x60ED822: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeec84d8 is 24 bytes inside a block of size 41 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C31B85: CPLHTTPDestroyResult (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EC10: CPLStrdup (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C455BF: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+==496== Invalid read of size 8
+==496==    at 0x4852E5E: memmove (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x626DBF1: std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string<std::allocator<char> >(char const*, std::allocator<char> const&) [clone .isra.0] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x60ED822: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) [clone .cold] (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Address 0xeec84e0 is 32 bytes inside a block of size 41 free'd
+==496==    at 0x484988F: free (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C31B85: CPLHTTPDestroyResult (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273D17: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496==  Block was alloc'd at
+==496==    at 0x4846828: malloc (in /usr/libexec/valgrind/vgpreload_memcheck-amd64-linux.so)
+==496==    by 0x4C0EA06: CPLMalloc (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C0EC10: CPLStrdup (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x4C455BF: CPLHTTPFetchEx (in /usr/lib/x86_64-linux-gnu/libgdal.so.34.3.8.4)
+==496==    by 0x6273ABD: wxModelInitialization::fetchForecast(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x61433EF: windNinjaCLI(int, char**) (in /tmp/claude-0/-home-user-behique/6b5296d2-9966-501f-9254-1bc484258986/scratchpad/wn/build/src/ninja/libninja.so)
+==496==    by 0x109179: main (in WindNinja_cli)
+==496== 
+Exception caught: Could not resolve host: thredds.ucar.edu
+==496== 
+==496== HEAP SUMMARY:
+==496==     in use at exit: 553,304 bytes in 5,320 blocks
+==496==   total heap usage: 85,685 allocs, 80,365 frees, 13,765,628 bytes allocated
+==496== 
+==496== LEAK SUMMARY:
+==496==    definitely lost: 4,232 bytes in 3 blocks
+==496==    indirectly lost: 2,092 bytes in 10 blocks
+==496==      possibly lost: 0 bytes in 0 blocks
+==496==    still reachable: 546,980 bytes in 5,307 blocks
+==496==         suppressed: 0 bytes in 0 blocks
+==496== Rerun with --leak-check=full to see details of leaked memory
+==496== 
+==496== For lists of detected and suppressed errors, rerun with: -s
+==496== ERROR SUMMARY: 47 errors from 8 contexts (suppressed: 0 from 0)
