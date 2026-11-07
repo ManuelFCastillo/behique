@@ -1,0 +1,68 @@
+{
+  "kind": "command",
+  "name": "windninja",
+  "repo": ".",
+  "notes": "WindNinja command-line build (no GUI, no OpenFOAM) on Linux. Cases: the three baseline runs, #348 (a 2-step job on an all-no-data DEM), #250 (two station names at one location). Every input is in the WindNinja repo or written by this profile. Use: behique check windninja <good> <cand> --profile casestudies/windninja/windninja.profile.json --repo <windninja checkout>",
+  "build": {
+    "dir": "build-behique",
+    "steps": [
+      ["cmake", "{src}", "-DUSE_VCPKG_MANIFEST=OFF", "-DNINJA_GUI=OFF", "-DNINJAFOAM=OFF", "-DSUPRESS_WARNINGS=ON", "-DCMAKE_BUILD_TYPE=Release"],
+      ["cmake", "--build", ".", "--target", "WindNinja_cli", "-j", "4"]
+    ]
+  },
+  "env": { "WINDNINJA_DATA": "{src}/data" },
+  "cases": [
+    {
+      "id": "baseline-domavg",
+      "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
+      "files": { "run.cfg": "num_threads = 1\nelevation_file = {src}/data/missoula_valley.tif\ninitialization_method = domainAverageInitialization\ninput_speed = 10.0\ninput_speed_units = mph\ninput_direction = 270.0\ninput_wind_height = 20.0\nunits_input_wind_height = ft\noutput_wind_height = 20.0\nunits_output_wind_height = ft\nvegetation = trees\nmesh_choice = coarse\nwrite_ascii_output = true\noutput_path = {run}\n" },
+      "outputs": ["*.asc"],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "baseline-point",
+      "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
+      "files": { "run.cfg": "num_threads = 1\nelevation_file = {src}/data/missoula_valley.tif\ninitialization_method = pointInitialization\nmatch_points = false\nwx_station_filename = {src}/data/WXSTATIONS-2018-06-25-1237-missoula_valley/KMSO-2018-06-25_1237-0.csv\noutput_wind_height = 20.0\nunits_output_wind_height = ft\nvegetation = trees\nmesh_choice = coarse\nwrite_ascii_output = true\noutput_path = {run}\n" },
+      "outputs": ["*.asc"],
+      "probes": [
+        { "name": "kmso-direction", "file": "*_ang.asc", "x": 721326.457, "y": 5200465.700 },
+        { "name": "kmso-speed", "file": "*_vel.asc", "x": 721326.457, "y": 5200465.700 }
+      ],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "baseline-wxlocal",
+      "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
+      "files": { "run.cfg": "num_threads = 1\nelevation_file = {src}/data/big_butte_small.tif\ninitialization_method = wxModelInitialization\ntime_zone = America/Denver\nforecast_filename = {src}/data/20170603T1800.nc\noutput_wind_height = 20.0\nunits_output_wind_height = ft\nvegetation = trees\ndiurnal_winds = false\nmesh_choice = coarse\nwrite_ascii_output = true\nwrite_wx_model_ascii_output = true\noutput_path = {run}\n" },
+      "outputs": ["*.asc"],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "issue348-multirun-nodata",
+      "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
+      "files": { "run.cfg": "num_threads = 1\nelevation_file = {src}/data/dem/edge_case_dems/nodata.tif\ninitialization_method = pointInitialization\ntime_zone = America/Denver\nmatch_points = false\nwx_station_filename = {src}/data/WXSTATIONS-MDT-2018-06-20-2128-2018-06-21-2128-missoula_valley/missoula_valley_stations_4.csv\nstart_year = 2018\nstart_month = 06\nstart_day = 20\nstart_hour = 21\nstart_minute = 28\nstop_year = 2018\nstop_month = 06\nstop_day = 21\nstop_hour = 21\nstop_minute = 28\nnumber_time_steps = 2\noutput_wind_height = 20.0\nunits_output_wind_height = ft\nvegetation = trees\nmesh_choice = coarse\nwrite_ascii_output = true\noutput_path = {run}\n" },
+      "outputs": ["*.asc"],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "issue250-two-names-one-place",
+      "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
+      "files": {
+        "run.cfg": "num_threads = 1\nelevation_file = {src}/data/missoula_valley.tif\ninitialization_method = pointInitialization\nmatch_points = false\nwx_station_filename = {run}/stations.csv\noutput_wind_height = 20.0\nunits_output_wind_height = ft\nvegetation = trees\nmesh_choice = coarse\nwrite_ascii_output = true\noutput_path = {run}\n",
+        "stations.csv": "Recent_Station_File_List,\nkmso_a90.csv\nkmso2_b180.csv\n",
+        "kmso_a90.csv": "\"Station_Name\",\"Coord_Sys(PROJCS,GEOGCS)\",\"Datum(WGS84,NAD83,NAD27)\",\"Lat/YCoord\",\"Lon/XCoord\",\"Height\",\"Height_Units(meters,feet)\",\"Speed\",\"Speed_Units(mph,kph,mps,kts)\",\"Direction(degrees)\",\"Temperature\",\"Temperature_Units(F,C)\",\"Cloud_Cover(%)\",\"Radius_of_Influence\",\"Radius_of_Influence_Units(miles,feet,meters,km)\",\"date_time\"\nKMSO,GEOGCS,WGS84,46.9208,-114.093,10,meters,5,mps,90,21,C,0,-1,km,\n",
+        "kmso2_b180.csv": "\"Station_Name\",\"Coord_Sys(PROJCS,GEOGCS)\",\"Datum(WGS84,NAD83,NAD27)\",\"Lat/YCoord\",\"Lon/XCoord\",\"Height\",\"Height_Units(meters,feet)\",\"Speed\",\"Speed_Units(mph,kph,mps,kts)\",\"Direction(degrees)\",\"Temperature\",\"Temperature_Units(F,C)\",\"Cloud_Cover(%)\",\"Radius_of_Influence\",\"Radius_of_Influence_Units(miles,feet,meters,km)\",\"date_time\"\nKMSO2,GEOGCS,WGS84,46.9208,-114.093,10,meters,5,mps,180,21,C,0,-1,km,\n"
+      },
+      "outputs": ["*.asc"],
+      "probes": [
+        { "name": "kmso-direction", "file": "*_ang.asc", "x": 721326.457, "y": 5200465.700 },
+        { "name": "kmso-speed", "file": "*_vel.asc", "x": 721326.457, "y": 5200465.700 }
+      ],
+      "timeoutMs": 900000
+    }
+  ],
+  "noise": {
+    "lines": ["CONNECT tunnel", "time was [0-9.]+ seconds\\.$", "Simulation time is"],
+    "names": [["\\d{2}-\\d{2}-\\d{4}_\\d{4}", "<date>"]]
+  }
+}

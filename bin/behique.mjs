@@ -100,16 +100,16 @@ async function check(argv) {
   process.exit(result.exitCode)
 }
 
-/** `behique check` with a command profile: a native program built from two refs of --repo. No model is called. */
+/** `behique check` with a command profile: a native program built from two refs of --repo, with --bisect to find the first bad commit. No model is called. */
 async function nativeCheck(profile, app, good, cand, options) {
-  const unsupported = [['bisect', '--bisect'], ['explain', '--explain'], ['ai', '--ai'], ['aiTests', '--ai-tests'], ['aiFlows', '--ai-flows'], ['aiDescribe', '--ai-describe'], ['aiTriage', '--ai-triage'], ['aiCanvas', '--ai-canvas'], ['recrawl', '--recrawl']]
+  const unsupported = [['explain', '--explain'], ['ai', '--ai'], ['aiTests', '--ai-tests'], ['aiFlows', '--ai-flows'], ['aiDescribe', '--ai-describe'], ['aiTriage', '--ai-triage'], ['aiCanvas', '--ai-canvas'], ['recrawl', '--recrawl']]
     .filter(([k]) => options[k]).map(([, f]) => f)
   if (unsupported.length) fail(`${unsupported.join(', ')} ${unsupported.length > 1 ? 'are' : 'is'} not available for command profiles yet.`)
   const repo = resolve(options.repo)
   if (!existsSync(join(repo, '.git'))) fail(`--repo must be a git checkout: ${repo} has no .git`)
   let run
   try {
-    run = await runNativeCheck({ ...profile, name: app, repo }, good, cand, { outRoot: join(ROOT, 'out'), maxFindings: options.maxFindings, log: l => console.log(l) })
+    run = await runNativeCheck({ ...profile, name: app, repo }, good, cand, { outRoot: join(ROOT, 'out'), maxFindings: options.maxFindings, bisect: options.bisect, log: l => console.log(l) })
   } catch (e) { fail(String(e.message).slice(0, 2000), 3) }
   if (options.out) writeFileSync(resolve(options.out), JSON.stringify(run.result, null, 2))
   console.log('\n' + (options.json ? JSON.stringify(run.result, null, 2) : run.markdown))

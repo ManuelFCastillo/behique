@@ -61,6 +61,22 @@ test('two refs end to end: HOLD with exit code 1, a report, and a verifiable rec
   assert.ok(openCase(run.caseDir).verify().ok)
 })
 
+test('--bisect names the commit that hid the error and records it', needsCmake, async () => {
+  const r = repo(), outRoot = mkdtempSync(join(tmpdir(), 'native-out-'))
+  // one unrelated commit after v2, so the search has more than one change to look at
+  writeFileSync(join(r, 'README'), 'docs'); execFileSync('git', ['-C', r, 'add', '.'], { stdio: 'pipe' }); execFileSync('git', ['-C', r, 'commit', '-qm', 'docs'], { stdio: 'pipe' })
+  const p = { ...profile(r), build: { dir: 'build', steps: [['cmake', '-E', 'true']] } }
+  const run = await runNativeCheck(p, 'v1', 'HEAD', { outRoot, bisect: true })
+  assert.equal(run.result.recommendation, 'hold')
+  const v2 = execFileSync('git', ['-C', r, 'rev-parse', 'v2'], { stdio: 'pipe' }).toString().trim()
+  assert.equal(run.result.bisect.commit, v2)
+  assert.equal(run.result.bisect.verified, true)
+  assert.match(run.markdown, /\*\*First bad commit for N1:\*\* `[0-9a-f]{12}` "hide the error"/)
+  const ev = openCase(run.caseDir)
+  assert.ok(ev.verify().ok)
+  assert.ok(ev.read().some(e => e.type === 'claim' && e.data.label === 'reproduced_failure' && /first change behind N1/.test(e.data.text)))
+})
+
 test('a candidate that does not build is INCOMPLETE with exit code 3', needsCmake, async () => {
   const r = repo(), outRoot = mkdtempSync(join(tmpdir(), 'native-out-'))
   // The "build" succeeds only when model.mjs equals v1's copy, so v1 builds and v2 does not.
