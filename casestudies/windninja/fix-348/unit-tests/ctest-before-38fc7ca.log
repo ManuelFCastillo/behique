@@ -1,0 +1,966 @@
+Test project /home/user/behique/out/work/windninja/w-38fc7ca2650f/build-ctest
+      Start  1: test_contain_point
+ 1/59 Test  #1: test_contain_point ....................   Passed    0.05 sec
+      Start  2: test_contain_polygon
+ 2/59 Test  #2: test_contain_polygon ..................   Passed    0.04 sec
+      Start  3: test_contain_polygon2
+ 3/59 Test  #3: test_contain_polygon2 .................   Passed    0.03 sec
+      Start  4: test_grid_interp_order
+ 4/59 Test  #4: test_grid_interp_order ................   Passed    0.33 sec
+      Start  5: test_array2d_constructor
+ 5/59 Test  #5: test_array2d_constructor ..............   Passed    0.02 sec
+      Start  6: test_timezone_boise
+ 6/59 Test  #6: test_timezone_boise ...................   Passed    0.16 sec
+      Start  7: test_init_gdal
+ 7/59 Test  #7: test_init_gdal ........................   Passed    0.03 sec
+      Start  8: test_buffer_grid_init
+ 8/59 Test  #8: test_buffer_grid_init .................   Passed    0.02 sec
+      Start  9: test_ninja_units
+ 9/59 Test  #9: test_ninja_units ......................   Passed    0.02 sec
+      Start 10: test_gdal_util_center
+10/59 Test #10: test_gdal_util_center .................   Passed    0.04 sec
+      Start 11: test_landfireclient_extract
+11/59 Test #11: test_landfireclient_extract ...........   Passed    0.02 sec
+      Start 12: test_utm_boise
+12/59 Test #12: test_utm_boise ........................   Passed    0.02 sec
+      Start 13: test_utm_adelaide
+13/59 Test #13: test_utm_adelaide .....................   Passed    0.02 sec
+      Start 14: nomads_nam_conus_3_hour_zip
+14/59 Test #14: nomads_nam_conus_3_hour_zip ...........***Failed    6.57 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "nam_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- nam_conus
+Boost.Test WARNING: token "3" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 3
+Boost.Test WARNING: token "4" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 4
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 15: nomads_nam_conus_0_hour_zip
+15/59 Test #15: nomads_nam_conus_0_hour_zip ...........***Failed    6.45 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "nam_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- nam_conus
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 16: nomads_rap_mackay_18_limit_zip
+16/59 Test #16: nomads_rap_mackay_18_limit_zip ........***Failed    6.37 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "rap_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- rap_conus
+Boost.Test WARNING: token "18" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 18
+Boost.Test WARNING: token "19" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 19
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 17: nomads_rap_north_america_1_zip
+17/59 Test #17: nomads_rap_north_america_1_zip ........***Failed    6.47 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "rap_north_america" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- rap_north_america
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 18: nomads_nam_north_america_1_hour_zip
+18/59 Test #18: nomads_nam_north_america_1_hour_zip ...***Failed    6.65 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "nam_north_america" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- nam_north_america
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 19: nomads_rap_1_hour_zip
+19/59 Test #19: nomads_rap_1_hour_zip .................***Failed    6.53 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "rap_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- rap_conus
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 20: nomads_gfs_mackay_zip
+20/59 Test #20: nomads_gfs_mackay_zip .................***Failed    6.52 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "gfs_global" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- gfs_global
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 21: nomads_gfs_alaska_zip
+21/59 Test #21: nomads_gfs_alaska_zip .................***Failed    6.05 sec
+Boost.Test WARNING: token "alaska" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- alaska
+Boost.Test WARNING: token "gfs_global" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- gfs_global
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 22: nomads_gfs_africa_zip
+22/59 Test #22: nomads_gfs_africa_zip .................***Failed    6.54 sec
+Boost.Test WARNING: token "africa" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- africa
+Boost.Test WARNING: token "gfs_global" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- gfs_global
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 23: nomads_gfs_south_america_zip
+23/59 Test #23: nomads_gfs_south_america_zip ..........***Failed    6.71 sec
+Boost.Test WARNING: token "south_america" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- south_america
+Boost.Test WARNING: token "gfs_global" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- gfs_global
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 24: nomads_gfs_mackay_large_zip
+24/59 Test #24: nomads_gfs_mackay_large_zip ...........***Failed    6.51 sec
+Boost.Test WARNING: token "mackay_large" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay_large
+Boost.Test WARNING: token "gfs_global" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- gfs_global
+Boost.Test WARNING: token "12" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 12
+Boost.Test WARNING: token "5" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 5
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 25: nomads_nam_alaska_1_hour_zip
+25/59 Test #25: nomads_nam_alaska_1_hour_zip ..........***Failed    6.37 sec
+Boost.Test WARNING: token "alaska" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- alaska
+Boost.Test WARNING: token "nam_alaska" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- nam_alaska
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 26: nomads_hires_arw_conus_1_hour_zip
+26/59 Test #26: nomads_hires_arw_conus_1_hour_zip .....***Failed    6.57 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "hires_arw_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hires_arw_conus
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 27: nomads_hires_fv3_conus_1_hour_zip
+27/59 Test #27: nomads_hires_fv3_conus_1_hour_zip .....***Failed    6.70 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "hires_fv3_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hires_fv3_conus
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 28: nomads_hires_arw_ak_1_hour_zip
+28/59 Test #28: nomads_hires_arw_ak_1_hour_zip ........***Failed    6.49 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "hires_arw_alaska" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hires_arw_alaska
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 29: nomads_hires_fv3_ak_1_hour_zip
+29/59 Test #29: nomads_hires_fv3_ak_1_hour_zip ........***Failed    6.21 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "hires_fv3_alaska" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hires_fv3_alaska
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 30: nomads_hrrr_1_hour_zip
+30/59 Test #30: nomads_hrrr_1_hour_zip ................***Failed    6.28 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "hrrr_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hrrr_conus
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 31: nomads_hrrr_ak_1_hour_zip
+31/59 Test #31: nomads_hrrr_ak_1_hour_zip .............***Failed    6.58 sec
+Boost.Test WARNING: token "alaska" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- alaska
+Boost.Test WARNING: token "hrrr_alaska" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hrrr_alaska
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 32: nomads_hrrr_15_hour_zip
+32/59 Test #32: nomads_hrrr_15_hour_zip ...............***Failed    6.46 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "hrrr_conus" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hrrr_conus
+Boost.Test WARNING: token "15" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 15
+Boost.Test WARNING: token "16" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 16
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 33: nomads_hrrr_ext_1_hour_zip
+33/59 Test #33: nomads_hrrr_ext_1_hour_zip ............***Failed    6.50 sec
+Boost.Test WARNING: token "mackay" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- mackay
+Boost.Test WARNING: token "hrrr_conus_ext" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- hrrr_conus_ext
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 34: nomads_buffer_1
+34/59 Test #34: nomads_buffer_1 .......................***Failed    6.54 sec
+Boost.Test WARNING: token "small" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- small
+Boost.Test WARNING: token "gfs_global" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- gfs_global
+Boost.Test WARNING: token "1" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 1
+Boost.Test WARNING: token "2" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 2
+Boost.Test WARNING: token "0" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- 0
+Boost.Test WARNING: token "zip" does not correspond to the Boost.Test argument 
+                    and should be placed after all Boost.Test arguments and the -- separator.
+                    For example: test_main --random -- zip
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+ERROR 1: CONNECT tunnel failed, response 403
+ERROR 1: Failed to download file.
+Warning 1: Failed to download forecast, stepping back one forecast run time step.
+Running 1 test case...
+/home/user/behique/out/work/windninja/w-38fc7ca2650f/autotest/test_simplenomadsclient.cpp(205): [4;31;49mfatal error: in "simplenomadsclient/download_1": critical check rc == erc has failed [1 != 0][0;39;49m
+
+[1;31;49m*** 1 failure is detected in the test module "Master Test Suite"
+[0;39;49m
+
+      Start 35: utc_create_1
+35/59 Test #35: utc_create_1 ..........................   Passed    0.02 sec
+      Start 36: utc_add_hours_1
+36/59 Test #36: utc_add_hours_1 .......................   Passed    0.02 sec
+      Start 37: utc_add_hours_2
+37/59 Test #37: utc_add_hours_2 .......................   Passed    0.02 sec
+      Start 38: utc_add_hours_3
+38/59 Test #38: utc_add_hours_3 .......................   Passed    0.02 sec
+      Start 39: utc_add_hours_4
+39/59 Test #39: utc_add_hours_4 .......................   Passed    0.02 sec
+      Start 40: utc_add_hours_5
+40/59 Test #40: utc_add_hours_5 .......................   Passed    0.02 sec
+      Start 41: utc_add_hours_6
+41/59 Test #41: utc_add_hours_6 .......................   Passed    0.02 sec
+      Start 42: utc_add_hours_7
+42/59 Test #42: utc_add_hours_7 .......................   Passed    0.02 sec
+      Start 43: utc_add_hours_8
+43/59 Test #43: utc_add_hours_8 .......................   Passed    0.02 sec
+      Start 44: utc_add_hours_9
+44/59 Test #44: utc_add_hours_9 .......................   Passed    0.02 sec
+      Start 45: utc_now_1
+45/59 Test #45: utc_now_1 .............................   Passed    1.02 sec
+      Start 46: utc_compare_1
+46/59 Test #46: utc_compare_1 .........................   Passed    1.02 sec
+      Start 47: utc_compare_2
+47/59 Test #47: utc_compare_2 .........................   Passed    1.02 sec
+      Start 48: utc_compare_3
+48/59 Test #48: utc_compare_3 .........................   Passed    0.02 sec
+      Start 49: utc_timet_1
+49/59 Test #49: utc_timet_1 ...........................   Passed    0.02 sec
+      Start 50: utc_iso_1
+50/59 Test #50: utc_iso_1 .............................   Passed    0.02 sec
+      Start 51: utc_iso_invalid_1
+51/59 Test #51: utc_iso_invalid_1 .....................   Passed    0.02 sec
+      Start 52: utc_strftime_1
+52/59 Test #52: utc_strftime_1 ........................   Passed    0.02 sec
+      Start 53: utc_copy_1
+53/59 Test #53: utc_copy_1 ............................   Passed    0.02 sec
+      Start 54: utc_copy_2
+54/59 Test #54: utc_copy_2 ............................   Passed    0.02 sec
+      Start 55: form_name_1
+55/59 Test #55: form_name_1 ...........................   Passed    0.02 sec
+      Start 56: rmtree_1
+56/59 Test #56: rmtree_1 ..............................   Passed    0.02 sec
+      Start 57: rmtree_sym_1
+57/59 Test #57: rmtree_sym_1 ..........................   Passed    0.02 sec
+      Start 58: rmtree_sym_2
+58/59 Test #58: rmtree_sym_2 ..........................   Passed    0.02 sec
+      Start 59: rmtree_sym_3
+59/59 Test #59: rmtree_sym_3 ..........................   Passed    0.02 sec
+
+64% tests passed, 21 tests failed out of 59
+
+Total Test time (real) = 140.40 sec
+
+The following tests FAILED:
+	 14 - nomads_nam_conus_3_hour_zip (Failed)
+	 15 - nomads_nam_conus_0_hour_zip (Failed)
+	 16 - nomads_rap_mackay_18_limit_zip (Failed)
+	 17 - nomads_rap_north_america_1_zip (Failed)
+	 18 - nomads_nam_north_america_1_hour_zip (Failed)
+	 19 - nomads_rap_1_hour_zip (Failed)
+	 20 - nomads_gfs_mackay_zip (Failed)
+	 21 - nomads_gfs_alaska_zip (Failed)
+	 22 - nomads_gfs_africa_zip (Failed)
+	 23 - nomads_gfs_south_america_zip (Failed)
+	 24 - nomads_gfs_mackay_large_zip (Failed)
+	 25 - nomads_nam_alaska_1_hour_zip (Failed)
+	 26 - nomads_hires_arw_conus_1_hour_zip (Failed)
+	 27 - nomads_hires_fv3_conus_1_hour_zip (Failed)
+	 28 - nomads_hires_arw_ak_1_hour_zip (Failed)
+	 29 - nomads_hires_fv3_ak_1_hour_zip (Failed)
+	 30 - nomads_hrrr_1_hour_zip (Failed)
+	 31 - nomads_hrrr_ak_1_hour_zip (Failed)
+	 32 - nomads_hrrr_15_hour_zip (Failed)
+	 33 - nomads_hrrr_ext_1_hour_zip (Failed)
+	 34 - nomads_buffer_1 (Failed)
+Errors while running CTest
