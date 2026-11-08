@@ -28,6 +28,39 @@ virt-viewer --connect qemu:///system wn-win11
 virsh snapshot-create-as wn-win11 clean-install
 ```
 
+## Check that the VM works
+
+Do all of these before any WindNinja test, and record each result.
+
+On hardac2:
+
+```bash
+virsh domstate wn-win11
+```
+
+```bash
+virsh dumpxml wn-win11 | grep -E "<tpm|secure|<video|<model type='qxl'"
+```
+
+Expect `running`, a `tpm` device, a Secure Boot loader (`secure='yes'`) and two `qxl` video devices.
+
+```bash
+virsh screenshot wn-win11 check-screen0.png --screen 0 && virsh screenshot wn-win11 check-screen1.png --screen 1
+```
+
+Both pictures must show the Windows desktop, not a black screen (the second only after the SPICE guest tools are installed).
+
+In the VM, in PowerShell as administrator:
+
+```powershell
+Get-Tpm | Select-Object TpmPresent, TpmReady
+Confirm-SecureBootUEFI
+(Get-CimInstance Win32_VideoController).Count
+Test-NetConnection github.com -Port 443 | Select-Object TcpTestSucceeded
+```
+
+Expect `True True`, `True`, at least 2 display adapters (or both displays listed in Settings > System > Display), and `True` for the network. If one fails, fix it before going on: the #823 check needs both displays, and the #117 script needs the network to download WindNinja.
+
 ## 2. #117 automated: the command-line program stopped mid-run
 
 In the VM, copy `test-117.ps1` over (or download it from this branch) and run it in PowerShell:
