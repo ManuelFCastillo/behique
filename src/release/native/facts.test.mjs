@@ -60,6 +60,18 @@ test('output files: names normalized, checksummed, grids summarized and probed',
   assert.ok(grids[n])
 })
 
+test('two files whose names normalize alike are both kept, numbered in order', () => {
+  const g2 = GRID.replace('1 2 3', '7 8 9')
+  const { facts, grids } = factsOf(run({ outputs: {
+    'pt_06-21-2018_2128_ang.asc': Buffer.from(g2),
+    'pt_06-20-2018_2128_ang.asc': Buffer.from(GRID),
+  } }), {}, profile)
+  assert.deepEqual(Object.keys(grids).sort(), ['pt_<date>_ang.asc#1', 'pt_<date>_ang.asc#2'])
+  assert.equal(facts['grid:pt_<date>_ang.asc#1:stats'], 'nodata 1, min 1, max 6, mean 3.2') // 06-20 sorts first
+  assert.match(facts['grid:pt_<date>_ang.asc#2:stats'], /max 9/)
+  assert.ok(!('file:pt_<date>_ang.asc' in facts), 'no un-numbered name hides one of them')
+})
+
 test('grids compared cell by cell, with a tolerance', () => {
   const a = parseAsciiGrid(GRID), b = parseAsciiGrid(GRID.replace('1 2 3', '1 2.0001 9'))
   assert.deepEqual(gridDiff(a, a), { comparable: true, cells: 6, changed: 0, maxAbs: 0, where: null })

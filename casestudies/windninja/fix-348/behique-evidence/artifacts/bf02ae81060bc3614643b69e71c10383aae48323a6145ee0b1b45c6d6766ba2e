@@ -1,0 +1,27 @@
+$ exit 0
+--- stdout
+Run 0: Reading elevation file...
+Run 0: Simulation time is 2017-Jun-03 12:00:00 MDT
+Run 0: Run number 0 started with 1 threads.
+Run 0: Generating mesh...
+Run 0: Initializing flow...
+Run 0: Building equations...
+Run 0: Solving...
+Run 0: Solver: 11% complete
+Run 0: Solver: 38% complete
+Run 0: Solver: 59% complete
+Run 0: Solver: 82% complete
+Run 0: Solver: 94% complete
+Run 0: Solver: 99% complete
+Run 0: Solver: 100% complete
+Run 0: Writing output files...
+Run 0: Meshing time was 0.003861 seconds.
+Run 0: Initialization time was 0.076879 seconds.
+Run 0: Equation building time was 0.068134 seconds.
+Run 0: Solver time was 0.260152 seconds.
+Run 0: Output writing time was 0.003296 seconds.
+Run 0: Total simulation time was 0.442039 seconds.
+Run 0: Run number 0 done!
+
+--- stderr
+ERROR 1: CONNECT tunnel failed, response 403

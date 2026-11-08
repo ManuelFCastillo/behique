@@ -1,0 +1,80 @@
+{
+ "recommendation": "hold",
+ "findings": [
+  {
+   "id": "N1",
+   "case": "issue348-multirun-nodata",
+   "key": "final",
+   "what": "final message",
+   "cls": "notice",
+   "kind": "changed",
+   "good": "Exception caught: std::exception",
+   "cand": "Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().",
+   "grid": null,
+   "verdict": "confirmed",
+   "goodPassed": 3,
+   "candFailed": 3,
+   "runs": 3
+  },
+  {
+   "id": "N2",
+   "case": "issue348-multirun-nodata",
+   "key": "message:Exception caught: std::exception",
+   "what": "printed message",
+   "cls": "notice",
+   "kind": "removed",
+   "good": "1",
+   "cand": null,
+   "grid": null,
+   "verdict": "confirmed",
+   "goodPassed": 3,
+   "candFailed": 3,
+   "runs": 3
+  },
+  {
+   "id": "N3",
+   "case": "issue348-multirun-nodata",
+   "key": "message:Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().",
+   "what": "printed message",
+   "cls": "notice",
+   "kind": "added",
+   "good": null,
+   "cand": "1",
+   "grid": null,
+   "verdict": "confirmed",
+   "goodPassed": 3,
+   "candFailed": 3,
+   "runs": 3
+  }
+ ],
+ "unsteady": [],
+ "diffs": 3,
+ "churn": 0,
+ "masked": {
+  "count": 0,
+  "total": 65,
+  "byCase": {
+   "baseline-domavg": [],
+   "baseline-point": [],
+   "baseline-wxlocal": [],
+   "issue348-multirun-nodata": [],
+   "control-multirun-ok": [],
+   "control-singlerun-nodata": [],
+   "issue250-two-names-one-place": []
+  }
+ },
+ "notStarted": [],
+ "caseDir": "/home/user/behique/out/native/windninja/20261108T174023Z_38fc7ca-vs-slvrleaf_fix-348",
+ "app": "windninja",
+ "good": {
+  "ref": "38fc7ca",
+  "sha": "38fc7ca2650f9665cf62e00984880705fe3ddd55",
+  "reusedBuild": true
+ },
+ "cand": {
+  "ref": "slvrleaf/fix-348",
+  "sha": "0d901491c85f1560fefffc5231b0cb15c3a188e6",
+  "reusedBuild": true
+ },
+ "caseId": "20261108T174023Z_38fc7ca-vs-slvrleaf_fix-348"
+}

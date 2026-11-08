@@ -1,0 +1,8 @@
+$ exit 255
+--- stdout
+Run 0: Reading elevation file...
+Run 0: ERROR: Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().
+Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().
+
+--- stderr
+ERROR 1: CONNECT tunnel failed, response 403

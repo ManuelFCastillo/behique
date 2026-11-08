@@ -1,0 +1,65 @@
+From 0d901491c85f1560fefffc5231b0cb15c3a188e6 Mon Sep 17 00:00:00 2001
+From: SLVRLEAF <dev@slvrleaf.local>
+Date: Sun, 8 Nov 2026 17:37:37 +0000
+Subject: [PATCH] Keep the real error message in multi-run jobs (#348)
+
+In ninjaArmy::startRuns() the OpenMP loop saved each run's error with
+'asMessages[...] + e.what();', which builds a string and drops it, so only the
+prefix was kept. NinjaRethrowThreadedException() then rethrew STD_EXC as a
+bare std::exception(), so users saw 'Exception caught: std::exception'.
+Save the message with +=, keep the error's own text for STD_EXC, and rethrow
+it as std::runtime_error with that text.
+---
+ src/ninja/ninjaArmy.cpp                | 9 ++++-----
+ src/ninja/ninja_threaded_exception.cpp | 1 +
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/src/ninja/ninjaArmy.cpp b/src/ninja/ninjaArmy.cpp
+index 5ec2ed7..650ebc1 100644
+--- a/src/ninja/ninjaArmy.cpp
++++ b/src/ninja/ninjaArmy.cpp
+@@ -893,7 +893,7 @@ bool ninjaArmy::startRuns(int numProcessors)
+ #ifdef _OPENMP
+                 anErrors[omp_get_thread_num()] = NINJA_CANCEL_USER_EXC;
+                 asMessages[omp_get_thread_num()] = "Exception canceled by user caught:";
+-                asMessages[omp_get_thread_num()] + e.what();
++                asMessages[omp_get_thread_num()] += e.what();
+                 asMessages[omp_get_thread_num()] += "\n";
+                 status = false;
+ #else
+@@ -905,7 +905,7 @@ bool ninjaArmy::startRuns(int numProcessors)
+ #ifdef _OPENMP
+                 anErrors[omp_get_thread_num()] = NINJA_BAD_FORECAST_EXC;
+                 asMessages[omp_get_thread_num()] = "Exception badForecastFile caught:";
+-                asMessages[omp_get_thread_num()] + e.what();
++                asMessages[omp_get_thread_num()] += e.what();
+                 asMessages[omp_get_thread_num()] += "\n";
+                 status = false;
+ #else
+@@ -916,9 +916,8 @@ bool ninjaArmy::startRuns(int numProcessors)
+                 ninjas[i]->input.Com->ninjaCom(ninjaComClass::ninjaFailure, "Exception caught: %s", e.what());
+ #ifdef _OPENMP
+                 anErrors[omp_get_thread_num()] = STD_EXC;
+-                asMessages[omp_get_thread_num()] = "Exception caught:";
+-                asMessages[omp_get_thread_num()] + e.what();
+-                asMessages[omp_get_thread_num()] += "\n";
++                // Keep the error's own text: it is rethrown after the loop, and the caller prints "Exception caught: " before it.
++                asMessages[omp_get_thread_num()] = e.what();
+                 status = false;
+ #else
+                 throw;
+diff --git a/src/ninja/ninja_threaded_exception.cpp b/src/ninja/ninja_threaded_exception.cpp
+index 272f1c7..5523812 100644
+--- a/src/ninja/ninja_threaded_exception.cpp
++++ b/src/ninja/ninja_threaded_exception.cpp
+@@ -48,6 +48,7 @@ void NinjaRethrowThreadedException( std::vector<int> anErrors,
+              case STD_LOGIC_EXC:
+                  throw std::logic_error( asMessages[i] );
+              case STD_EXC:
++                 throw std::runtime_error( asMessages[i] );
+              case STD_UNKNOWN_EXC:
+                  throw std::exception();
+              case NINJA_CANCEL_USER_EXC:
+-- 
+2.43.0
+

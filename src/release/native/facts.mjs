@@ -82,8 +82,15 @@ export function factsOf(run, kase, profile) {
     const k = `message:${l.trim()}`
     facts[k] = String(Number(facts[k] ?? 0) + 1)
   }
-  for (const [rel, buf] of Object.entries(run.outputs ?? {})) {
-    const name = normalizeName(rel, rules)
+  // Normalizing names (a date taken out) can make two files share a name, such as the grids of two time steps. They are
+  // numbered in sorted order of their real names instead of one silently replacing the other.
+  const rels = Object.keys(run.outputs ?? {}).sort()
+  const groups = new Map()
+  for (const rel of rels) { const n = normalizeName(rel, rules); groups.set(n, [...(groups.get(n) ?? []), rel]) }
+  const nameOf = new Map()
+  for (const [n, members] of groups) members.forEach((rel, i) => nameOf.set(rel, members.length > 1 ? `${n}#${i + 1}` : n))
+  for (const rel of rels) {
+    const buf = run.outputs[rel], name = nameOf.get(rel)
     facts[`file:${name}`] = sha256(buf)
     if (!/\.asc$/i.test(rel)) continue
     const g = parseAsciiGrid(buf.toString('utf8'))

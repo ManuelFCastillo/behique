@@ -1,0 +1,102 @@
+{
+ "baseline-domavg": {
+  "stable": {
+   "exit": "0",
+   "file:missoula_valley_270_10_413m_ang.asc": "60959641f465f3f9ac515fd0b3f3a8760609fd5a18a82ed4ee1985938d9b29e3",
+   "file:missoula_valley_270_10_413m_vel.asc": "25196be2ee4a2da35dc4630624111ec5f9c53edf0d3c2a427bf3217a0420cb6f",
+   "final": "Run 0: Run number 0 done!",
+   "grid:missoula_valley_270_10_413m_ang.asc:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_270_10_413m_ang.asc:stats": "nodata 0, min 190, max 307, mean 267.213",
+   "grid:missoula_valley_270_10_413m_vel.asc:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_270_10_413m_vel.asc:stats": "nodata 0, min 1.21, max 19.13, mean 9.750425"
+  },
+  "masked": []
+ },
+ "baseline-point": {
+  "stable": {
+   "exit": "0",
+   "file:missoula_valley_point_<date>_413m_ang.asc": "e3ce396c427042a8da47c509c2bbbc9ab1254b65b380445261232911d69bc169",
+   "file:missoula_valley_point_<date>_413m_vel.asc": "c4ecefe711212bdd0598a31c19554d87bee1fe5e0d85f53fd29eee3dada9a4ca",
+   "final": "Run 0: Run number 0 done!",
+   "grid:missoula_valley_point_<date>_413m_ang.asc:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_ang.asc:stats": "nodata 0, min 179, max 339, mean 287.3884",
+   "grid:missoula_valley_point_<date>_413m_vel.asc:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_vel.asc:stats": "nodata 0, min 0.47, max 7.86, mean 3.889294",
+   "probe:kmso-direction": "289",
+   "probe:kmso-speed": "3.9"
+  },
+  "masked": []
+ },
+ "baseline-wxlocal": {
+  "stable": {
+   "exit": "0",
+   "file:UCAR-NDFD-CONUS-2.5-KM-<date>_ang.asc": "e1484fb4f84b57b6f935b78f766bfa68b83e18b9fcc9957c5d541c687df3ce0b",
+   "file:UCAR-NDFD-CONUS-2.5-KM-<date>_vel.asc": "2b7d90d3c70018d3b37bb336ba0806e6842afcbea1578bd4f517b0e17bb0c819",
+   "file:big_butte_small_<date>_126m_ang.asc": "be8376c70114046065d1e6a2a036a9787ec4f1b6ce706d36901dc4f740adaf35",
+   "file:big_butte_small_<date>_126m_vel.asc": "6e6a3cabb17aab4ce293ca0ecdd48d3313a97ea7edae8ad2be9f8ce4b1c59eae",
+   "final": "Run 0: Run number 0 done!",
+   "grid:UCAR-NDFD-CONUS-2.5-KM-<date>_ang.asc:shape": "6 x 6 at 327911.2, 4799551, cell 2404.587",
+   "grid:UCAR-NDFD-CONUS-2.5-KM-<date>_ang.asc:stats": "nodata 0, min 110, max 116, mean 113.1111",
+   "grid:UCAR-NDFD-CONUS-2.5-KM-<date>_vel.asc:shape": "6 x 6 at 327911.2, 4799551, cell 2404.587",
+   "grid:UCAR-NDFD-CONUS-2.5-KM-<date>_vel.asc:stats": "nodata 0, min 8.39, max 9.65, mean 8.883889",
+   "grid:big_butte_small_<date>_126m_ang.asc:shape": "61 x 67 at 332006.5, 4802918, cell 125.9034",
+   "grid:big_butte_small_<date>_126m_ang.asc:stats": "nodata 0, min 74, max 163, mean 113.2417",
+   "grid:big_butte_small_<date>_126m_vel.asc:shape": "61 x 67 at 332006.5, 4802918, cell 125.9034",
+   "grid:big_butte_small_<date>_126m_vel.asc:stats": "nodata 0, min 1.35, max 22.48, mean 11.70698"
+  },
+  "masked": []
+ },
+ "issue348-multirun-nodata": {
+  "stable": {
+   "exit": "255",
+   "final": "Exception caught: std::exception",
+   "message:Exception caught: std::exception": "1",
+   "message:Run 0: ERROR: Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().": "1",
+   "message:Run 1: ERROR: Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().": "1"
+  },
+  "masked": []
+ },
+ "control-multirun-ok": {
+  "stable": {
+   "exit": "0",
+   "file:missoula_valley_point_<date>_413m_ang.asc#1": "b0f42a37879a5fe65e90b79f165ad262d9ce9c2ce2df6a032924b191139dd659",
+   "file:missoula_valley_point_<date>_413m_ang.asc#2": "c2979fcbca0694efbf3f0b09d7b6cfc67b8235cfefa36eaca5e9913d445f706a",
+   "file:missoula_valley_point_<date>_413m_vel.asc#1": "fc01715cee4861c789f9212cf228fc54fb0b5c6d759a4315dfd990836a44613a",
+   "file:missoula_valley_point_<date>_413m_vel.asc#2": "ae405a21df8160eee1081e641df30047bd0736ddcdbe75770cdc54061f6fe6f4",
+   "final": "Run 1: Run number 1 done!",
+   "grid:missoula_valley_point_<date>_413m_ang.asc#1:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_ang.asc#1:stats": "nodata 0, min 191, max 287, mean 248.4227",
+   "grid:missoula_valley_point_<date>_413m_ang.asc#2:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_ang.asc#2:stats": "nodata 0, min 198, max 337, mean 281.7635",
+   "grid:missoula_valley_point_<date>_413m_vel.asc#1:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_vel.asc#1:stats": "nodata 0, min 0.21, max 4.16, mean 1.525088",
+   "grid:missoula_valley_point_<date>_413m_vel.asc#2:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_vel.asc#2:stats": "nodata 0, min 0.11, max 1.71, mean 0.5208959"
+  },
+  "masked": []
+ },
+ "control-singlerun-nodata": {
+  "stable": {
+   "exit": "255",
+   "final": "Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().",
+   "message:Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().": "1",
+   "message:Run 0: ERROR: Exception caught: The grid does not contain any values. Cannot fill with AsciiGrid<T>::fillNoDataValues().": "1"
+  },
+  "masked": []
+ },
+ "issue250-two-names-one-place": {
+  "stable": {
+   "exit": "0",
+   "file:missoula_valley_point_<date>_413m_ang.asc": "85e54f35ecb07efa533661ea546dfb7b97b30be9c8491574979695d52aed7bab",
+   "file:missoula_valley_point_<date>_413m_vel.asc": "37227d3141f98f4f6cceb1bba35e23e672f349398b38a5f80e45e9cfbffd6331",
+   "final": "Run 0: Run number 0 done!",
+   "grid:missoula_valley_point_<date>_413m_ang.asc:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_ang.asc:stats": "nodata 0, min 39, max 288, mean 132.8361",
+   "grid:missoula_valley_point_<date>_413m_vel.asc:shape": "54 x 74 at 714743.6, 5187313, cell 412.9142",
+   "grid:missoula_valley_point_<date>_413m_vel.asc:stats": "nodata 0, min 0.44, max 13.74, mean 6.688313",
+   "probe:kmso-direction": "132",
+   "probe:kmso-speed": "6.71"
+  },
+  "masked": []
+ }
+}
