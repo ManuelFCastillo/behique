@@ -8,7 +8,7 @@ WindNinja: github.com/firelab/windninja, commit `38fc7ca2650f9665cf62e0098488070
 
 | Issue | Status | Evidence |
 | --- | --- | --- |
-| #348 DEM no-data error hidden | Reproduces in jobs with more than one run: final error is "Exception caught: std::exception" | `evidence/bug348/G_*`, `H_*` |
+| #348 DEM no-data error hidden | Reproduces in jobs with more than one run: final error is "Exception caught: std::exception". **Fixed locally** (5 lines); Behique native mode proved only the intended message changed (65 facts, 0 masked), and WindNinja's unit tests match before and after | `evidence/bug348/G_*`, `H_*`, `fix-348/` |
 | #250 Duplicate stations | Reproduces in a changed form: two names at one location are averaged; a repeated row is dropped; both silently | `evidence/bug250/` |
 | New: forecast download error is freed before it is read | Use-after-free in `wxModelInitialization::fetchForecast` (`wxModelInitialization.cpp:437-438`, `462-463`); failed UCAR downloads print garbage. Confirmed by valgrind | `evidence/uaf/valgrind.log` |
 | #756 LANDFIRE timeout | Not run: needs internet | run `hardac2/` |
