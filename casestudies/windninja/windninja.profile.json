@@ -45,6 +45,22 @@
       "timeoutMs": 900000
     },
     {
+      "id": "control-multirun-ok",
+      "notes": "The same 2-step job as issue348 on a normal DEM: the multi-run loop when nothing fails.",
+      "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
+      "files": { "run.cfg": "num_threads = 1\nelevation_file = {src}/data/missoula_valley.tif\ninitialization_method = pointInitialization\ntime_zone = America/Denver\nmatch_points = false\nwx_station_filename = {src}/data/WXSTATIONS-MDT-2018-06-20-2128-2018-06-21-2128-missoula_valley/missoula_valley_stations_4.csv\nstart_year = 2018\nstart_month = 06\nstart_day = 20\nstart_hour = 21\nstart_minute = 28\nstop_year = 2018\nstop_month = 06\nstop_day = 21\nstop_hour = 21\nstop_minute = 28\nnumber_time_steps = 2\noutput_wind_height = 20.0\nunits_output_wind_height = ft\nvegetation = trees\nmesh_choice = coarse\nwrite_ascii_output = true\noutput_path = {run}\n" },
+      "outputs": ["*.asc"],
+      "timeoutMs": 900000
+    },
+    {
+      "id": "control-singlerun-nodata",
+      "notes": "A single run on the same no-data DEM: the path that already reported the real message.",
+      "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
+      "files": { "run.cfg": "num_threads = 1\nelevation_file = {src}/data/dem/edge_case_dems/nodata.tif\ninitialization_method = domainAverageInitialization\ninput_speed = 10.0\ninput_speed_units = mph\ninput_direction = 270.0\ninput_wind_height = 20.0\nunits_input_wind_height = ft\noutput_wind_height = 20.0\nunits_output_wind_height = ft\nvegetation = trees\nmesh_choice = coarse\nwrite_ascii_output = true\noutput_path = {run}\n" },
+      "outputs": ["*.asc"],
+      "timeoutMs": 900000
+    },
+    {
       "id": "issue250-two-names-one-place",
       "command": ["{build}/src/cli/WindNinja_cli", "{run}/run.cfg"],
       "files": {
